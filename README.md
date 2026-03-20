@@ -1,6 +1,6 @@
 # GradienceV2
 
-AI-powered grading platform built with Next.js. GradienceV2 is the frontend for Gradient.
+AI-powered grading platform built with Next.js. GradienceV2 is the frontend for Gradient. View the app [here](gradience-v1.vercel.app).
 
 ## Prerequisites
 
@@ -26,6 +26,16 @@ Create a `.env` file in the project root (or copy from `.env.example`) and set:
 - `APP_BASE_URL` (local: `http://localhost:3000`)
 - `AUTH0_BASE_URL` (local: `http://localhost:3000`)
 - `NEXT_PUBLIC_GA_MEASUREMENT_ID` (optional, for GA)
+(The variables below should be obtained from aws psql db)
+- `STORAGE_AWS_ACCOUNT_ID`
+- `STORAGE_AWS_REGION`
+- `STORAGE_AWS_RESOURCE_ARN`
+- `STORAGE_AWS_ROLE_ARN`
+- `STORAGE_PGDATABASE`
+- `STORAGE_PGHOST`
+- `STORAGE_PGPORT`
+- `STORAGE_PGSSLMODE`
+- `STORAGE_PGUSER`
 
 ## 3) Run locally
 
