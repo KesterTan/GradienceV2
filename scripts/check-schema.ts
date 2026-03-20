@@ -31,7 +31,7 @@ const expectedSeedCounts: Record<string, number> = {
 };
 
 const seedUsers = [
-  { email: "irene@gradience.edu", role: "instructor" },
+  { email: "irene@gradience.edu", role: "grader" },
   { email: "gary@gradience.edu", role: "grader" },
   { email: "stu@gradience.edu", role: "student" },
 ];

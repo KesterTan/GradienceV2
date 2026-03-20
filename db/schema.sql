@@ -6,13 +6,13 @@ SET search_path TO gradience, public;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'global_role') THEN
-        CREATE TYPE global_role AS ENUM ('instructor', 'grader', 'student');
+        CREATE TYPE global_role AS ENUM ('grader', 'student');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_status') THEN
-        CREATE TYPE user_status AS ENUM ('active', 'disabled', 'invited');
+        CREATE TYPE user_status AS ENUM ('active', 'inactive', 'invited');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'course_membership_role') THEN
-        CREATE TYPE course_membership_role AS ENUM ('instructor', 'grader', 'student');
+        CREATE TYPE course_membership_role AS ENUM ('grader', 'student');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'course_membership_status') THEN
         CREATE TYPE course_membership_status AS ENUM ('active', 'dropped');
@@ -24,13 +24,13 @@ BEGIN
         CREATE TYPE submission_status AS ENUM ('submitted', 'late', 'resubmitted', 'graded');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ai_processed_status') THEN
-        CREATE TYPE ai_processed_status AS ENUM ('not_started', 'processing', 'done', 'failed');
+        CREATE TYPE ai_processed_status AS ENUM ('awaiting', 'processing', 'done', 'failed');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'grading_assignment_status') THEN
         CREATE TYPE grading_assignment_status AS ENUM ('pending', 'in_progress', 'completed', 'regraded');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'comment_type') THEN
-        CREATE TYPE comment_type AS ENUM ('general', 'inline', 'summary');
+        CREATE TYPE comment_type AS ENUM ('inline', 'summary');
     END IF;
 END
 $$;
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS submissions (
     status                submission_status NOT NULL DEFAULT 'submitted',
     text_content          text,
     file_url              text,
-    ai_processed_status   ai_processed_status NOT NULL DEFAULT 'not_started',
+    ai_processed_status   ai_processed_status NOT NULL DEFAULT 'awaiting',
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now()
 );
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS feedback_comments (
     submission_id         bigint NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
     author_membership_id  bigint NOT NULL REFERENCES course_memberships(id) ON DELETE CASCADE,
     rubric_item_id        bigint REFERENCES assignment_rubric_items(id) ON DELETE SET NULL,
-    comment_type          comment_type NOT NULL DEFAULT 'general',
+    comment_type          comment_type NOT NULL DEFAULT 'summary',
     content               text NOT NULL,
     page_number           integer,
     anchor_data           jsonb,
@@ -170,75 +170,5 @@ CREATE TABLE IF NOT EXISTS feedback_comments (
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now()
 );
-
--- Seed data
-TRUNCATE TABLE feedback_comments, rubric_scores, grades, grading_assignments,
-    submission_files, submissions, assignment_rubric_items, assignments,
-    course_memberships, courses, users RESTART IDENTITY CASCADE;
-
-INSERT INTO users (first_name, last_name, email, password_hash, auth_provider_id, global_role, status)
-VALUES
-    ('Irene', 'Instructor', 'irene@gradience.edu', '$2b$10$instructor', 'auth0|irene', 'instructor', 'active'),
-    ('Gary', 'Grader', 'gary@gradience.edu', '$2b$10$grader', 'auth0|gary', 'grader', 'active'),
-    ('Stu', 'Student', 'stu@gradience.edu', '$2b$10$student', 'auth0|stu', 'student', 'active');
-
-INSERT INTO courses (title, course_code, term, description, created_by_user_id, start_date, end_date)
-VALUES
-    ('Intro to AI-Assisted Grading', 'GRAD-101', 'Spring 2026', 'Pilot course for Gradience MVP.', 1, '2026-01-15', '2026-05-01');
-
-INSERT INTO course_memberships (course_id, user_id, role)
-VALUES
-    (1, 1, 'instructor'),
-    (1, 2, 'grader'),
-    (1, 3, 'student');
-
-INSERT INTO assignments (
-    course_id, title, description, assignment_type, total_points,
-    release_at, due_at, late_until, submission_type, allow_resubmissions,
-    max_attempt_resubmission, is_published, created_by_user_id
-)
-VALUES
-    (1, 'Essay on Human-AI Collaboration', 'Discuss benefits and risks of AI grading.', 'written', 100,
-     '2026-02-01 09:00-05', '2026-02-15 23:59-05', '2026-02-18 23:59-05', 'file_upload', true,
-     2, true, 1);
-
-INSERT INTO assignment_rubric_items (assignment_id, title, description, max_points, display_order, grading_guidance)
-VALUES
-    (1, 'Thesis Clarity', 'Is the main argument clear and well-stated?', 30, 1, 'Look for a clear thesis within first paragraph.'),
-    (1, 'Evidence Quality', 'Quality and relevance of supporting evidence.', 40, 2, 'Cite at least three credible sources.'),
-    (1, 'Writing Mechanics', 'Grammar, spelling, and structure.', 30, 3, 'Deduct 2 points per major grammar issue.');
-
-INSERT INTO submissions (
-    assignment_id, student_membership_id, attempt_number, submitted_at, status, text_content, file_url, ai_processed_status
-)
-VALUES
-    (1, 3, 1, '2026-02-14 20:15-05', 'submitted', 'Full essay text stored here.', 'https://files.gradience.edu/submissions/essay1.pdf', 'processing');
-
-INSERT INTO submission_files (submission_id, file_url, mime_type, file_size)
-VALUES
-    (1, 'https://files.gradience.edu/submissions/essay1.pdf', 'application/pdf', 524288);
-
-INSERT INTO grading_assignments (submission_id, grader_membership_id, status)
-VALUES
-    (1, 2, 'in_progress');
-
-INSERT INTO grades (
-    submission_id, graded_by_membership_id, total_score, overall_feedback, is_released_to_student, released_at, graded_at
-)
-VALUES
-    (1, 2, 88, 'Strong arguments with minor citation issues.', true, '2026-02-20 10:00-05', '2026-02-19 16:30-05');
-
-INSERT INTO rubric_scores (grade_id, rubric_item_id, points_awarded, comment)
-VALUES
-    (1, 1, 28, 'Clear thesis but introduction could be tighter.'),
-    (1, 2, 35, 'Great sourcing, consider more diverse viewpoints.'),
-    (1, 3, 25, 'Minor grammatical errors.');
-
-INSERT INTO feedback_comments (
-    submission_id, author_membership_id, rubric_item_id, comment_type, content, page_number, anchor_data, is_visible_to_student
-)
-VALUES
-    (1, 2, 1, 'inline', 'Highlight thesis earlier for stronger hook.', 1, '{"start": 120, "end": 145}', true),
-    (1, 2, NULL, 'summary', 'Overall, very compelling essay. Address noted grammar items.', NULL, NULL, true);
 
 COMMIT;

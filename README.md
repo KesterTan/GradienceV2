@@ -57,3 +57,10 @@ Authentication flow:
 - Route protection is handled via `proxy.ts`.
 - Auth is handled by `@auth0/nextjs-auth0` server-side sessions.
 - Do not commit `.env` secrets to source control.
+
+## Database workflow
+
+- Apply schema changes: `npm run db:apply`
+- Seed canonical demo data: `npm run db:seed`
+- Verify table counts and seed expectations: `npm run db:check`
+- Validate relational integrity rules: `npm run db:test`
