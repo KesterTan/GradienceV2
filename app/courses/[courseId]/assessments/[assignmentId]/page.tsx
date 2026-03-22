@@ -44,8 +44,8 @@ export default async function AssessmentPage({
         user={{ name: `${user.firstName} ${user.lastName}`, email: user.email }}
       />
 
-      <section className="mx-auto w-full max-w-6xl px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
+      <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">{assessment.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">Course: {assessment.courseTitle}</p>
@@ -53,7 +53,7 @@ export default async function AssessmentPage({
               Due {format(new Date(assessment.dueAt), "MMM d, yyyy h:mm a")}
             </p>
           </div>
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href={`/courses/${assessment.courseId}`}>Back to course dashboard</Link>
           </Button>
         </div>
@@ -73,13 +73,13 @@ export default async function AssessmentPage({
                   <CardTitle>{submission.studentName}</CardTitle>
                   <CardDescription>{submission.studentEmail}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                <CardContent className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                   <div>
                     <p className="text-sm text-muted-foreground">Status: <span className="font-medium text-foreground">{submission.status}</span></p>
                     <p className="text-sm text-muted-foreground">Attempt: <span className="font-medium text-foreground">{submission.attemptNumber}</span></p>
                     <p className="text-sm text-muted-foreground">Submitted: <span className="font-medium text-foreground">{format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}</span></p>
                   </div>
-                  <Button asChild>
+                  <Button asChild className="w-full sm:w-auto">
                     <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/submissions/${submission.id}`}>
                       Open submission
                     </Link>

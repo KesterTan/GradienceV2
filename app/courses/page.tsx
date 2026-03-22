@@ -32,8 +32,8 @@ export default async function CoursesDashboardPage() {
         showCoursesLink={false}
       />
 
-      <section className="mx-auto w-full max-w-6xl px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
+      <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-primary/10 p-3">
@@ -43,7 +43,7 @@ export default async function CoursesDashboardPage() {
             </div>
             <p className="mt-1 text-sm text-muted-foreground">Manage your courses, assignments, and student submissions.</p>
           </div>
-          <Button asChild>
+          <Button asChild className="w-full sm:w-auto">
             <Link href="/courses/new" className="gap-2">
               <Plus className="size-4" />
               Create Course
@@ -67,7 +67,7 @@ export default async function CoursesDashboardPage() {
           <div className="grid gap-4">
             {courses.map((course) => (
               <Card key={course.id} className="border-border/90 bg-card">
-                <CardContent className="flex items-center justify-between gap-6 p-6">
+                <CardContent className="flex flex-col items-start justify-between gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
                   <div className="min-w-0 space-y-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <CardTitle>{course.title}</CardTitle>
@@ -84,7 +84,7 @@ export default async function CoursesDashboardPage() {
                       <span>{pluralize(course.studentCount, "student", "students")}</span>
                     </div>
                   </div>
-                  <Button asChild variant="ghost" className="h-auto px-2 text-sm font-medium text-primary hover:bg-transparent hover:text-primary/90">
+                  <Button asChild variant="ghost" className="h-auto px-2 text-sm font-medium text-primary hover:bg-transparent hover:text-primary/90 sm:self-auto">
                     <Link href={`/courses/${course.id}`} className="inline-flex items-center gap-2">
                       Open
                       <ArrowRight className="size-4" />

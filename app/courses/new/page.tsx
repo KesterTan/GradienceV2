@@ -17,7 +17,7 @@ export default async function CreateCoursePage() {
         user={{ name: `${user.firstName} ${user.lastName}`, email: user.email }}
       />
 
-      <section className="mx-auto w-full max-w-3xl px-6 py-8">
+      <section className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
         <div className="mb-5">
           <h2 className="text-xl font-semibold text-foreground">New course</h2>
           <p className="mt-1 text-sm text-muted-foreground">

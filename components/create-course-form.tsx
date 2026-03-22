@@ -38,11 +38,11 @@ export function CreateCourseForm() {
 
       {state.errors?._form?.[0] && <p className="text-sm text-destructive">{state.errors._form[0]}</p>}
 
-      <div className="flex items-center justify-end gap-2">
-        <Button asChild type="button" variant="outline">
+      <div className="flex flex-col-reverse items-stretch justify-end gap-2 sm:flex-row sm:items-center">
+        <Button asChild type="button" variant="outline" className="w-full sm:w-auto">
           <Link href="/courses">Cancel</Link>
         </Button>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
           {pending ? "Creating..." : "Create course"}
         </Button>
       </div>

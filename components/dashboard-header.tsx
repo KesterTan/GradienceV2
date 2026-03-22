@@ -32,8 +32,8 @@ export function DashboardHeader({
 
   return (
     <header className="border-b bg-white">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-6 py-4">
-        <div className="flex min-w-0 items-center gap-10">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+        <div className="flex min-w-0 w-full items-center gap-4 sm:w-auto sm:gap-10">
           <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
             <div className="rounded-md p-1">
               <GraduationCap className="size-6 text-primary" />
@@ -42,7 +42,7 @@ export function DashboardHeader({
           </Link>
 
           {hasBreadcrumbs ? (
-            <nav className="flex min-w-0 items-center gap-2 text-base" aria-label="Breadcrumb">
+            <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap text-base" aria-label="Breadcrumb">
               <Home className={cn("size-3 shrink-0", homeIsActive ? "text-primary" : "text-muted-foreground")} />
               {breadcrumbs?.map((item, index) => (
                 <div key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-2">
@@ -60,7 +60,7 @@ export function DashboardHeader({
               ))}
             </nav>
           ) : (
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1 className="truncate text-lg font-semibold tracking-tight text-foreground">{title}</h1>
               {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
             </div>
@@ -68,7 +68,7 @@ export function DashboardHeader({
         </div>
 
         {!hasBreadcrumbs && (
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
             {showCoursesLink && (
               <Button asChild variant="outline" size="sm">
                 <Link href="/courses">Courses</Link>

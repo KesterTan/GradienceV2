@@ -45,8 +45,8 @@ export default async function CourseDashboardPage({
         user={{ name: `${user.firstName} ${user.lastName}`, email: user.email }}
       />
 
-      <section className="mx-auto w-full max-w-6xl px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
+      <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">{course.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -56,7 +56,7 @@ export default async function CourseDashboardPage({
               Instructors: {course.instructors.join(", ") || "None"}
             </p>
           </div>
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href="/courses">Back to main dashboard</Link>
           </Button>
         </div>
@@ -76,11 +76,11 @@ export default async function CourseDashboardPage({
                   <CardTitle>{assignment.title}</CardTitle>
                   <CardDescription>Due {format(new Date(assignment.dueAt), "MMM d, yyyy h:mm a")}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex items-center justify-between gap-3">
+                <CardContent className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                   <p className="text-sm text-muted-foreground">
                     Submissions: <span className="font-medium text-foreground">{assignment.submissionCount}</span>
                   </p>
-                  <Button asChild>
+                  <Button asChild className="w-full sm:w-auto">
                     <Link href={`/courses/${course.id}/assessments/${assignment.id}`}>
                       Open assessment page
                     </Link>

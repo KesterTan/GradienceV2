@@ -52,8 +52,8 @@ export default async function SubmissionPage({
         user={{ name: `${user.firstName} ${user.lastName}`, email: user.email }}
       />
 
-      <section className="mx-auto w-full max-w-5xl px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
+      <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">{submission.studentName}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{submission.studentEmail}</p>
@@ -61,7 +61,7 @@ export default async function SubmissionPage({
               Submitted {format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")} · Attempt {submission.attemptNumber}
             </p>
           </div>
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href={`/courses/${submission.courseId}/assessments/${submission.assignmentId}`}>
               Back to assessment page
             </Link>
