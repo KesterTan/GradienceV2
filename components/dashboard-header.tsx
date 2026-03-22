@@ -29,6 +29,7 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const hasBreadcrumbs = !!breadcrumbs?.length
   const homeIsActive = breadcrumbs?.[0]?.current === true
+  const homeHref = breadcrumbs?.[0]?.href ?? "/"
 
   return (
     <header className="border-b bg-white">
@@ -43,7 +44,9 @@ export function DashboardHeader({
 
           {hasBreadcrumbs ? (
             <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap text-base" aria-label="Breadcrumb">
-              <Home className={cn("size-3 shrink-0", homeIsActive ? "text-primary" : "text-muted-foreground")} />
+              <Link href={homeHref} aria-label="Go to home" className="inline-flex items-center">
+                <Home className={cn("size-3 shrink-0 transition-colors", homeIsActive ? "text-primary" : "text-muted-foreground hover:text-foreground")} />
+              </Link>
               {breadcrumbs?.map((item, index) => (
                 <div key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-2">
                   {index > 0 && <span className="text-muted-foreground">/</span>}
