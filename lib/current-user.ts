@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
-import { query } from "@/db/db"
 import { auth0 } from "@/lib/auth0"
+import { and, eq, isNull, sql } from "drizzle-orm"
+import { db } from "@/db/orm"
+import { users } from "@/db/schema"
 
 export type AppUser = {
   id: number
@@ -28,28 +30,40 @@ function splitName(name?: string | null, email?: string | null) {
 
 async function findUser(authProviderId?: string | null, email?: string | null) {
   if (authProviderId) {
-    const byProvider = await query(
-      `SELECT id, first_name, last_name, email, global_role, auth_provider_id
-       FROM gradience.users
-       WHERE auth_provider_id = $1
-       LIMIT 1`,
-      [authProviderId],
-    )
-    if (byProvider.rows[0]) {
-      return byProvider.rows[0]
+    const byProvider = await db
+      .select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        globalRole: users.globalRole,
+        authProviderId: users.authProviderId,
+      })
+      .from(users)
+      .where(eq(users.authProviderId, authProviderId))
+      .limit(1)
+
+    if (byProvider[0]) {
+      return byProvider[0]
     }
   }
 
   if (email) {
-    const byEmail = await query(
-      `SELECT id, first_name, last_name, email, global_role, auth_provider_id
-       FROM gradience.users
-       WHERE lower(email) = lower($1)
-       LIMIT 1`,
-      [email],
-    )
-    if (byEmail.rows[0]) {
-      return byEmail.rows[0]
+    const byEmail = await db
+      .select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        globalRole: users.globalRole,
+        authProviderId: users.authProviderId,
+      })
+      .from(users)
+      .where(sql`lower(${users.email}) = lower(${email})`)
+      .limit(1)
+
+    if (byEmail[0]) {
+      return byEmail[0]
     }
   }
 
@@ -68,13 +82,11 @@ async function ensureUserRecord(params: {
   const existing = await findUser(authProviderId, email)
   if (existing) {
     // if user is found but does not have auth provider id, we update it
-    if (authProviderId && !existing.auth_provider_id) {
-      await query(
-        `UPDATE gradience.users
-         SET auth_provider_id = $1, status = 'active'
-         WHERE id = $2`,
-        [authProviderId, existing.id],
-      )
+    if (authProviderId && !existing.authProviderId) {
+      await db
+        .update(users)
+        .set({ authProviderId, status: "active" })
+        .where(eq(users.id, existing.id))
     }
 
     return existing
@@ -83,22 +95,27 @@ async function ensureUserRecord(params: {
   const normalizedEmail = email ?? `${authProviderId ?? "user"}@auth.local`
   const { firstName, lastName } = splitName(name, normalizedEmail)
 
-  const inserted = await query(
-    `INSERT INTO gradience.users (
-       first_name,
-       last_name,
-       email,
-       password_hash,
-       auth_provider_id,
-       global_role,
-       status
-     )
-     VALUES ($1, $2, $3, $4, $5, 'grader', 'active')
-     RETURNING id, first_name, last_name, email, global_role, auth_provider_id`,
-    [firstName, lastName, normalizedEmail, "auth0-managed", authProviderId ?? null],
-  )
+  const inserted = await db
+    .insert(users)
+    .values({
+      firstName,
+      lastName,
+      email: normalizedEmail,
+      passwordHash: "auth0-managed",
+      authProviderId: authProviderId ?? null,
+      globalRole: "grader",
+      status: "active",
+    })
+    .returning({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+      globalRole: users.globalRole,
+      authProviderId: users.authProviderId,
+    })
 
-  return inserted.rows[0]
+  return inserted[0]
 }
 
 export async function requireAppUser(): Promise<AppUser> {
@@ -111,16 +128,14 @@ export async function requireAppUser(): Promise<AppUser> {
   const email = session.user.email ?? null
   const name = session.user.name ?? null
 
-  console.log("Session info: ", { authProviderId, email, name })
-
   const user = await ensureUserRecord({ authProviderId, email, name })
 
   return {
     id: Number(user.id),
-    firstName: String(user.first_name),
-    lastName: String(user.last_name),
+    firstName: String(user.firstName),
+    lastName: String(user.lastName),
     email: String(user.email),
-    globalRole: user.global_role as "grader" | "student",
+    globalRole: user.globalRole as "grader" | "student",
   }
 }
 

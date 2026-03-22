@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { withConnection } from "@/db/db"
+import { db } from "@/db/orm"
+import { courseMemberships, courses } from "@/db/schema"
 import { requireGraderUser } from "@/lib/current-user"
 
 export type CourseFormState = {
@@ -78,49 +79,37 @@ export async function createCourseAction(
 
   const { title, startDate, endDate } = parsed.data
 
-  await withConnection(async (client) => {
-    await client.query("BEGIN")
+  await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(courses)
+      .values({
+        title,
+        courseCode: createCode(title),
+        term: termFromDate(startDate),
+        description: null,
+        createdByUserId: grader.id,
+        startDate: startDate ?? new Date().toISOString().slice(0, 10),
+        endDate: endDate ?? startDate ?? new Date().toISOString().slice(0, 10),
+      })
+      .returning({ id: courses.id })
 
-    try {
-      const { rows } = await client.query<{ id: number }>(
-        `INSERT INTO gradience.courses (
-           title,
-           course_code,
-           term,
-           description,
-           created_by_user_id,
-           start_date,
-           end_date
-         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id`,
-        [
-          title,
-          createCode(title),
-          termFromDate(startDate),
-          null,
-          grader.id,
-          startDate ?? new Date().toISOString().slice(0, 10),
-          endDate ?? startDate ?? new Date().toISOString().slice(0, 10),
-        ],
-      )
+    const courseId = inserted[0].id
 
-      const courseId = rows[0].id
-
-      await client.query(
-        `INSERT INTO gradience.course_memberships (course_id, user_id, role, status)
-         VALUES ($1, $2, 'grader', 'active')
-         ON CONFLICT (course_id, user_id) DO UPDATE
-         SET role = EXCLUDED.role,
-             status = EXCLUDED.status`,
-        [courseId, grader.id],
-      )
-
-      await client.query("COMMIT")
-    } catch (error) {
-      await client.query("ROLLBACK")
-      throw error
-    }
+    await tx
+      .insert(courseMemberships)
+      .values({
+        courseId,
+        userId: grader.id,
+        role: "grader",
+        status: "active",
+      })
+      .onConflictDoUpdate({
+        target: [courseMemberships.courseId, courseMemberships.userId],
+        set: {
+          role: "grader",
+          status: "active",
+        },
+      })
   })
 
   revalidatePath("/courses")

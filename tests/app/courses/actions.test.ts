@@ -6,17 +6,15 @@ const mocks = vi.hoisted(() => ({
     throw new Error(`REDIRECT:${path}`)
   }),
   requireGraderUser: vi.fn(),
-  withConnection: vi.fn(),
+  transaction: vi.fn(),
 }))
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }))
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }))
 vi.mock("@/lib/current-user", () => ({ requireGraderUser: mocks.requireGraderUser }))
-vi.mock("@/db/db", () => ({ withConnection: mocks.withConnection }))
+vi.mock("@/db/orm", () => ({ db: { transaction: mocks.transaction } }))
 
 import { createCourseAction } from "@/app/courses/actions"
-
-type QueryCall = [sql: string, args?: unknown[]]
 
 describe("createCourseAction", () => {
   beforeEach(() => {
@@ -31,7 +29,7 @@ describe("createCourseAction", () => {
     const state = await createCourseAction({}, formData)
 
     expect(state.errors?.title?.[0]).toBe("Course title is required")
-    expect(mocks.withConnection).not.toHaveBeenCalled()
+    expect(mocks.transaction).not.toHaveBeenCalled()
     expect(mocks.revalidatePath).not.toHaveBeenCalled()
   })
 
@@ -44,19 +42,23 @@ describe("createCourseAction", () => {
     const state = await createCourseAction({}, formData)
 
     expect(state.errors?.endDate?.[0]).toBe("End date must be on or after start date")
-    expect(mocks.withConnection).not.toHaveBeenCalled()
+    expect(mocks.transaction).not.toHaveBeenCalled()
   })
 
   it("inserts a course and creator membership, then revalidates and redirects", async () => {
-    const query = vi.fn(async (sql: string, _args?: unknown[]) => {
-      if (sql.includes("INSERT INTO gradience.courses")) {
-        return { rows: [{ id: 123 }] }
-      }
-      return { rows: [] }
+    const insert = vi.fn()
+    const courseValues = vi.fn().mockReturnValue({
+      returning: vi.fn().mockResolvedValue([{ id: 123 }]),
+    })
+    const membershipValues = vi.fn().mockReturnValue({
+      onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
     })
 
-    mocks.withConnection.mockImplementation(async (fn: (client: { query: typeof query }) => Promise<unknown>) =>
-      fn({ query }),
+    insert.mockReturnValueOnce({ values: courseValues })
+    insert.mockReturnValueOnce({ values: membershipValues })
+
+    mocks.transaction.mockImplementation(async (fn: (tx: { insert: typeof insert }) => Promise<unknown>) =>
+      fn({ insert }),
     )
 
     const formData = new FormData()
@@ -66,21 +68,20 @@ describe("createCourseAction", () => {
 
     await expect(createCourseAction({}, formData)).rejects.toThrow("REDIRECT:/courses")
 
-    const courseInsertCall = query.mock.calls.find((call: QueryCall) =>
-      String(call[0]).includes("INSERT INTO gradience.courses"),
+    expect(courseValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "CS101 - Intro to Computer Science",
+        createdByUserId: 42,
+        startDate: "2026-01-14",
+        endDate: "2026-05-14",
+      }),
     )
-    const membershipInsertCall = query.mock.calls.find((call: QueryCall) =>
-      String(call[0]).includes("INSERT INTO gradience.course_memberships"),
-    )
-
-    expect(courseInsertCall).toBeTruthy()
-    expect(membershipInsertCall).toBeTruthy()
-    if (!courseInsertCall?.[1] || !membershipInsertCall?.[1]) {
-      throw new Error("Expected SQL args to be present")
-    }
-    expect(courseInsertCall[1][0]).toBe("CS101 - Intro to Computer Science")
-    expect(courseInsertCall[1][4]).toBe(42)
-    expect(membershipInsertCall[1]).toEqual([123, 42])
+    expect(membershipValues).toHaveBeenCalledWith({
+      courseId: 123,
+      userId: 42,
+      role: "grader",
+      status: "active",
+    })
 
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/courses")
     expect(mocks.redirect).toHaveBeenCalledWith("/courses")

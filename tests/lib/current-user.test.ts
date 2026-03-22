@@ -4,19 +4,54 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`)
   }),
-  query: vi.fn(),
   getSession: vi.fn(),
+  select: vi.fn(),
+  selectLimit: vi.fn(),
+  update: vi.fn(),
+  updateSet: vi.fn(),
+  updateWhere: vi.fn(),
+  insert: vi.fn(),
+  insertValues: vi.fn(),
+  insertReturning: vi.fn(),
+  selectQueue: [] as unknown[][],
+  insertQueue: [] as unknown[][],
 }))
 
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }))
-vi.mock("@/db/db", () => ({ query: mocks.query }))
 vi.mock("@/lib/auth0", () => ({ auth0: { getSession: mocks.getSession } }))
+vi.mock("@/db/orm", () => ({
+  db: {
+    select: mocks.select,
+    update: mocks.update,
+    insert: mocks.insert,
+  },
+}))
 
 import { requireAppUser, requireGraderUser } from "@/lib/current-user"
 
 describe("current-user helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+
+    mocks.selectQueue.length = 0
+    mocks.insertQueue.length = 0
+
+    mocks.selectLimit.mockImplementation(async () => (mocks.selectQueue.shift() ?? []) as unknown[])
+    mocks.select.mockImplementation(() => ({
+      from: () => ({
+        where: () => ({
+          limit: mocks.selectLimit,
+        }),
+      }),
+    }))
+
+    mocks.updateWhere.mockResolvedValue(undefined)
+    mocks.updateSet.mockReturnValue({ where: mocks.updateWhere })
+    mocks.update.mockReturnValue({ set: mocks.updateSet })
+
+    mocks.insertReturning.mockImplementation(async () => (mocks.insertQueue.shift() ?? []) as unknown[])
+    mocks.insertValues.mockReturnValue({ returning: mocks.insertReturning })
+    mocks.insert.mockReturnValue({ values: mocks.insertValues })
   })
 
   it("redirects to login when session is missing", async () => {
@@ -31,25 +66,23 @@ describe("current-user helpers", () => {
       user: { sub: "auth0|abc", email: "irene@gradience.edu", name: "Irene Instructor" },
     })
 
-    mocks.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: 1,
-            first_name: "Irene",
-            last_name: "Instructor",
-            email: "irene@gradience.edu",
-            global_role: "grader",
-            auth_provider_id: null,
-          },
-        ],
-      })
-      .mockResolvedValueOnce({ rows: [] })
+    mocks.selectQueue.push(
+      [],
+      [
+        {
+          id: 1,
+          firstName: "Irene",
+          lastName: "Instructor",
+          email: "irene@gradience.edu",
+          globalRole: "grader",
+          authProviderId: null,
+        },
+      ],
+    )
 
     const user = await requireAppUser()
 
-    expect(mocks.query).toHaveBeenCalledWith(expect.stringContaining("UPDATE gradience.users"), ["auth0|abc", 1])
+    expect(mocks.updateSet).toHaveBeenCalledWith({ authProviderId: "auth0|abc", status: "active" })
     expect(user).toEqual({
       id: 1,
       firstName: "Irene",
@@ -64,27 +97,28 @@ describe("current-user helpers", () => {
       user: { sub: "auth0|new", email: "new@gradience.edu", name: "New User" },
     })
 
-    mocks.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: 9,
-            first_name: "New",
-            last_name: "User",
-            email: "new@gradience.edu",
-            global_role: "grader",
-            auth_provider_id: "auth0|new",
-          },
-        ],
-      })
+    mocks.selectQueue.push([], [])
+    mocks.insertQueue.push([
+      {
+        id: 9,
+        firstName: "New",
+        lastName: "User",
+        email: "new@gradience.edu",
+        globalRole: "grader",
+        authProviderId: "auth0|new",
+      },
+    ])
 
     const user = await requireAppUser()
 
-    expect(mocks.query).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO gradience.users"),
-      ["New", "User", "new@gradience.edu", "auth0-managed", "auth0|new"],
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        firstName: "New",
+        lastName: "User",
+        email: "new@gradience.edu",
+        passwordHash: "auth0-managed",
+        authProviderId: "auth0|new",
+      }),
     )
     expect(user.id).toBe(9)
   })
@@ -94,19 +128,16 @@ describe("current-user helpers", () => {
       user: { sub: "auth0|stu", email: "stu@gradience.edu", name: "Stu Student" },
     })
 
-    mocks.query
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: 2,
-            first_name: "Stu",
-            last_name: "Student",
-            email: "stu@gradience.edu",
-            global_role: "student",
-            auth_provider_id: "auth0|stu",
-          },
-        ],
-      })
+    mocks.selectQueue.push([
+      {
+        id: 2,
+        firstName: "Stu",
+        lastName: "Student",
+        email: "stu@gradience.edu",
+        globalRole: "student",
+        authProviderId: "auth0|stu",
+      },
+    ])
 
     await expect(requireGraderUser()).rejects.toThrow("REDIRECT:/login?error=unauthorized")
     expect(mocks.redirect).toHaveBeenCalledWith("/login?error=unauthorized")

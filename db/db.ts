@@ -32,7 +32,7 @@ function resolveSslMode() {
 
 const shouldUseSsl = resolveSslMode();
 
-const pool = new Pool({
+export const pool = new Pool({
   host: process.env.PGHOST,
   user: process.env.PGUSER,
   database: process.env.PGDATABASE || "postgres",

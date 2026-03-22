@@ -1,4 +1,7 @@
-import { query } from "@/db/db"
+import { and, asc, desc, eq, sql } from "drizzle-orm"
+import { alias } from "drizzle-orm/pg-core"
+import { db } from "@/db/orm"
+import { assignments, courseMemberships, courses, submissions, users } from "@/db/schema"
 
 export type CourseSummary = {
   id: number
@@ -60,48 +63,41 @@ export type SubmissionDetail = {
 }
 
 export async function listCoursesForGrader(userId: number): Promise<CourseSummary[]> {
-  const result = await query(
-    `SELECT
-       c.id,
-       c.title,
-       c.start_date::text AS start_date,
-       c.end_date::text AS end_date,
-       COALESCE(
-         ARRAY_AGG(DISTINCT TRIM(u.first_name || ' ' || u.last_name))
-           FILTER (WHERE cm.role = 'grader' AND cm.status = 'active'),
-         ARRAY[]::text[]
-       ) AS instructors,
-       COUNT(DISTINCT cm.user_id) FILTER (WHERE cm.role = 'student' AND cm.status = 'active')::int AS student_count,
-       CASE
-         WHEN my.role = 'student' THEN 'Student'
-         ELSE 'Instructor'
-       END AS viewer_role,
-       COUNT(DISTINCT a.id)::int AS assignment_count
-     FROM gradience.courses c
-     LEFT JOIN gradience.course_memberships cm
-       ON cm.course_id = c.id
-     LEFT JOIN gradience.course_memberships my
-       ON my.course_id = c.id
-      AND my.user_id = $1
-      AND my.status = 'active'
-     LEFT JOIN gradience.users u
-       ON u.id = cm.user_id
-     LEFT JOIN gradience.assignments a
-       ON a.course_id = c.id
-     GROUP BY c.id, my.role
-     ORDER BY c.created_at DESC`,
-    [userId],
-  )
+  const member = alias(courseMemberships, "member")
+  const myMembership = alias(courseMemberships, "my_membership")
+  const memberUser = alias(users, "member_user")
 
-  return result.rows.map((row) => ({
+  const rows = await db
+    .select({
+      id: courses.id,
+      title: courses.title,
+      startDate: courses.startDate,
+      endDate: courses.endDate,
+      instructors: sql<string[]>`coalesce(array_agg(distinct trim(${memberUser.firstName} || ' ' || ${memberUser.lastName})) filter (where ${member.role} = 'grader' and ${member.status} = 'active'), ARRAY[]::text[])`,
+      studentCount: sql<number>`count(distinct ${member.userId}) filter (where ${member.role} = 'student' and ${member.status} = 'active')`,
+      viewerRole: sql<"Instructor" | "Student">`case when ${myMembership.role} = 'student' then 'Student' else 'Instructor' end`,
+      assignmentCount: sql<number>`count(distinct ${assignments.id})`,
+    })
+    .from(courses)
+    .leftJoin(member, eq(member.courseId, courses.id))
+    .leftJoin(
+      myMembership,
+      and(eq(myMembership.courseId, courses.id), eq(myMembership.userId, userId), eq(myMembership.status, "active")),
+    )
+    .leftJoin(memberUser, eq(memberUser.id, member.userId))
+    .leftJoin(assignments, eq(assignments.courseId, courses.id))
+    .groupBy(courses.id, myMembership.role)
+    .orderBy(desc(courses.createdAt))
+
+  return rows.map((row) => ({
     id: Number(row.id),
     title: String(row.title),
-    startDate: String(row.start_date),
-    endDate: String(row.end_date),
+    startDate: String(row.startDate),
+    endDate: String(row.endDate),
     instructors: (row.instructors as string[]) ?? [],
-    studentCount: Number(row.student_count),
-    viewerRole: (row.viewer_role === "Student" ? "Student" : "Instructor") as "Instructor" | "Student",
-    assignmentCount: Number(row.assignment_count),
+    studentCount: Number(row.studentCount),
+    viewerRole: row.viewerRole === "Student" ? "Student" : "Instructor",
+    assignmentCount: Number(row.assignmentCount),
   }))
 }
 
@@ -110,36 +106,32 @@ export async function getCourseForGrader(
   courseId: number,
 ): Promise<CourseDetail | null> {
   void userId
-  const result = await query(
-    `SELECT
-       c.id,
-       c.title,
-       c.start_date::text AS start_date,
-       c.end_date::text AS end_date,
-       COALESCE(
-         ARRAY_AGG(DISTINCT TRIM(u.first_name || ' ' || u.last_name))
-           FILTER (WHERE cm.role = 'grader' AND cm.status = 'active'),
-         ARRAY[]::text[]
-       ) AS instructors
-     FROM gradience.courses c
-     LEFT JOIN gradience.course_memberships cm
-       ON cm.course_id = c.id
-     LEFT JOIN gradience.users u
-       ON u.id = cm.user_id
-     WHERE c.id = $1
-     GROUP BY c.id
-     LIMIT 1`,
-    [courseId],
-  )
+  const member = alias(courseMemberships, "member")
+  const memberUser = alias(users, "member_user")
 
-  const row = result.rows[0]
+  const rows = await db
+    .select({
+      id: courses.id,
+      title: courses.title,
+      startDate: courses.startDate,
+      endDate: courses.endDate,
+      instructors: sql<string[]>`coalesce(array_agg(distinct trim(${memberUser.firstName} || ' ' || ${memberUser.lastName})) filter (where ${member.role} = 'grader' and ${member.status} = 'active'), ARRAY[]::text[])`,
+    })
+    .from(courses)
+    .leftJoin(member, eq(member.courseId, courses.id))
+    .leftJoin(memberUser, eq(memberUser.id, member.userId))
+    .where(eq(courses.id, courseId))
+    .groupBy(courses.id)
+    .limit(1)
+
+  const row = rows[0]
   if (!row) return null
 
   return {
     id: Number(row.id),
     title: String(row.title),
-    startDate: String(row.start_date),
-    endDate: String(row.end_date),
+    startDate: String(row.startDate),
+    endDate: String(row.endDate),
     instructors: (row.instructors as string[]) ?? [],
   }
 }
@@ -149,27 +141,24 @@ export async function listAssignmentsForCourse(
   courseId: number,
 ): Promise<AssignmentSummary[]> {
   void userId
-  const result = await query(
-    `SELECT
-       a.id,
-       a.title,
-       a.due_at::text AS due_at,
-       COUNT(s.id)::int AS submission_count
-     FROM gradience.assignments a
-     JOIN gradience.courses c ON c.id = a.course_id
-     LEFT JOIN gradience.submissions s
-       ON s.assignment_id = a.id
-     WHERE c.id = $1
-     GROUP BY a.id
-     ORDER BY a.due_at ASC, a.created_at ASC`,
-    [courseId],
-  )
+  const rows = await db
+    .select({
+      id: assignments.id,
+      title: assignments.title,
+      dueAt: assignments.dueAt,
+      submissionCount: sql<number>`count(${submissions.id})`,
+    })
+    .from(assignments)
+    .leftJoin(submissions, eq(submissions.assignmentId, assignments.id))
+    .where(eq(assignments.courseId, courseId))
+    .groupBy(assignments.id)
+    .orderBy(asc(assignments.dueAt), asc(assignments.createdAt))
 
-  return result.rows.map((row) => ({
+  return rows.map((row) => ({
     id: Number(row.id),
     title: String(row.title),
-    dueAt: String(row.due_at),
-    submissionCount: Number(row.submission_count),
+    dueAt: String(row.dueAt),
+    submissionCount: Number(row.submissionCount),
   }))
 }
 
@@ -179,32 +168,30 @@ export async function getAssessmentForGrader(
   assignmentId: number,
 ): Promise<AssessmentDetail | null> {
   void userId
-  const result = await query(
-    `SELECT
-       a.id,
-       a.title,
-       a.description,
-       a.due_at::text AS due_at,
-       c.id AS course_id,
-       c.title AS course_title
-     FROM gradience.assignments a
-     JOIN gradience.courses c
-       ON c.id = a.course_id
-     WHERE c.id = $1 AND a.id = $2
-     LIMIT 1`,
-    [courseId, assignmentId],
-  )
+  const rows = await db
+    .select({
+      id: assignments.id,
+      title: assignments.title,
+      description: assignments.description,
+      dueAt: assignments.dueAt,
+      courseId: courses.id,
+      courseTitle: courses.title,
+    })
+    .from(assignments)
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
+    .limit(1)
 
-  const row = result.rows[0]
+  const row = rows[0]
   if (!row) return null
 
   return {
     id: Number(row.id),
     title: String(row.title),
-    dueAt: String(row.due_at),
+    dueAt: String(row.dueAt),
     description: row.description ? String(row.description) : null,
-    courseId: Number(row.course_id),
-    courseTitle: String(row.course_title),
+    courseId: Number(row.courseId),
+    courseTitle: String(row.courseTitle),
   }
 }
 
@@ -214,37 +201,36 @@ export async function listSubmissionsForAssessment(
   assignmentId: number,
 ): Promise<SubmissionSummary[]> {
   void userId
-  const result = await query(
-    `SELECT
-       s.id,
-       s.attempt_number,
-       s.status,
-       s.submitted_at::text AS submitted_at,
-       stu.email AS student_email,
-       TRIM(stu.first_name || ' ' || stu.last_name) AS student_name
-     FROM gradience.submissions s
-     JOIN gradience.assignments a
-       ON a.id = s.assignment_id
-     JOIN gradience.courses c
-       ON c.id = a.course_id
-     JOIN gradience.course_memberships cm_student
-       ON cm_student.id = s.student_membership_id
-      AND cm_student.role = 'student'
-     JOIN gradience.users stu
-       ON stu.id = cm_student.user_id
-     WHERE c.id = $1
-       AND a.id = $2
-     ORDER BY s.submitted_at DESC`,
-    [courseId, assignmentId],
-  )
+  const studentMembership = alias(courseMemberships, "student_membership")
+  const studentUser = alias(users, "student_user")
 
-  return result.rows.map((row) => ({
+  const rows = await db
+    .select({
+      id: submissions.id,
+      attemptNumber: submissions.attemptNumber,
+      status: submissions.status,
+      submittedAt: submissions.submittedAt,
+      studentEmail: studentUser.email,
+      studentName: sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`,
+    })
+    .from(submissions)
+    .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      studentMembership,
+      and(eq(studentMembership.id, submissions.studentMembershipId), eq(studentMembership.role, "student")),
+    )
+    .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
+    .orderBy(desc(submissions.submittedAt))
+
+  return rows.map((row) => ({
     id: Number(row.id),
-    attemptNumber: Number(row.attempt_number),
+    attemptNumber: Number(row.attemptNumber),
     status: String(row.status),
-    submittedAt: String(row.submitted_at),
-    studentName: String(row.student_name),
-    studentEmail: String(row.student_email),
+    submittedAt: String(row.submittedAt),
+    studentName: String(row.studentName),
+    studentEmail: String(row.studentEmail),
   }))
 }
 
@@ -255,52 +241,50 @@ export async function getSubmissionForGrader(
   submissionId: number,
 ): Promise<SubmissionDetail | null> {
   void userId
-  const result = await query(
-    `SELECT
-       s.id,
-       s.attempt_number,
-       s.status,
-       s.submitted_at::text AS submitted_at,
-       s.text_content,
-       s.file_url,
-       TRIM(stu.first_name || ' ' || stu.last_name) AS student_name,
-       stu.email AS student_email,
-       a.id AS assignment_id,
-       a.title AS assignment_title,
-       c.id AS course_id,
-       c.title AS course_title
-     FROM gradience.submissions s
-     JOIN gradience.assignments a
-       ON a.id = s.assignment_id
-     JOIN gradience.courses c
-       ON c.id = a.course_id
-     JOIN gradience.course_memberships cm_student
-       ON cm_student.id = s.student_membership_id
-      AND cm_student.role = 'student'
-     JOIN gradience.users stu
-       ON stu.id = cm_student.user_id
-     WHERE c.id = $1
-       AND a.id = $2
-       AND s.id = $3
-     LIMIT 1`,
-    [courseId, assignmentId, submissionId],
-  )
+  const studentMembership = alias(courseMemberships, "student_membership")
+  const studentUser = alias(users, "student_user")
 
-  const row = result.rows[0]
+  const rows = await db
+    .select({
+      id: submissions.id,
+      attemptNumber: submissions.attemptNumber,
+      status: submissions.status,
+      submittedAt: submissions.submittedAt,
+      textContent: submissions.textContent,
+      fileUrl: submissions.fileUrl,
+      studentName: sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`,
+      studentEmail: studentUser.email,
+      assignmentId: assignments.id,
+      assignmentTitle: assignments.title,
+      courseId: courses.id,
+      courseTitle: courses.title,
+    })
+    .from(submissions)
+    .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      studentMembership,
+      and(eq(studentMembership.id, submissions.studentMembershipId), eq(studentMembership.role, "student")),
+    )
+    .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId), eq(submissions.id, submissionId)))
+    .limit(1)
+
+  const row = rows[0]
   if (!row) return null
 
   return {
     id: Number(row.id),
-    attemptNumber: Number(row.attempt_number),
+    attemptNumber: Number(row.attemptNumber),
     status: String(row.status),
-    submittedAt: String(row.submitted_at),
-    textContent: row.text_content ? String(row.text_content) : null,
-    fileUrl: row.file_url ? String(row.file_url) : null,
-    studentName: String(row.student_name),
-    studentEmail: String(row.student_email),
-    assignmentId: Number(row.assignment_id),
-    assignmentTitle: String(row.assignment_title),
-    courseId: Number(row.course_id),
-    courseTitle: String(row.course_title),
+    submittedAt: String(row.submittedAt),
+    textContent: row.textContent ? String(row.textContent) : null,
+    fileUrl: row.fileUrl ? String(row.fileUrl) : null,
+    studentName: String(row.studentName),
+    studentEmail: String(row.studentEmail),
+    assignmentId: Number(row.assignmentId),
+    assignmentTitle: String(row.assignmentTitle),
+    courseId: Number(row.courseId),
+    courseTitle: String(row.courseTitle),
   }
 }
