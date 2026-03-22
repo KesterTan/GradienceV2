@@ -14,9 +14,25 @@ const signer = new Signer({
   }),
 });
 
-const shouldUseSsl = (process.env.PGSSLMODE || "").toLowerCase() !== "disable";
+function resolveSslMode() {
+  const rawMode = (process.env.PGSSLMODE || "").toLowerCase().trim();
 
-const pool = new Pool({
+  if (rawMode === "disable") {
+    return false;
+  }
+
+  if (["require", "verify-ca", "verify-full", "allow", "prefer"].includes(rawMode)) {
+    return true;
+  }
+
+  // Default to non-SSL to support local PostgreSQL instances that do not expose TLS.
+  // Enable SSL explicitly via PGSSLMODE=require (or verify-*) in environments that need TLS.
+  return false;
+}
+
+const shouldUseSsl = resolveSslMode();
+
+export const pool = new Pool({
   host: process.env.PGHOST,
   user: process.env.PGUSER,
   database: process.env.PGDATABASE || "postgres",
