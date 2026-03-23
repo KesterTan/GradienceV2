@@ -16,7 +16,11 @@ From the project root:
 
 ## 2) Configure environment variables
 
-Create a `.env` file in the project root (or copy from `.env.example`) and set:
+Create `.env` from the example file:
+
+- `cp .env.example .env`
+
+Then update values in `.env` as needed (for local development, use `http://localhost:3000` for base URLs):
 
 - `AUTH0_ISSUER_BASE_URL` (e.g. `https://your-tenant.us.auth0.com`)
 - `AUTH0_DOMAIN` (e.g. `your-tenant.us.auth0.com`)
@@ -27,6 +31,15 @@ Create a `.env` file in the project root (or copy from `.env.example`) and set:
 - `AUTH0_BASE_URL` (local: `http://localhost:3000`)
 - `NEXT_PUBLIC_GA_MEASUREMENT_ID` (optional, for GA)
 (The variables below should be obtained from aws psql db)
+- `AWS_ACCOUNT_ID`
+- `AWS_REGION`
+- `AWS_RESOURCE_ARN`
+- `AWS_ROLE_ARN`
+- `PGDATABASE`
+- `PGHOST`
+- `PGPORT`
+- `PGSSLMODE`
+- `PGUSER`
 - `STORAGE_AWS_ACCOUNT_ID`
 - `STORAGE_AWS_REGION`
 - `STORAGE_AWS_RESOURCE_ARN`
@@ -36,6 +49,7 @@ Create a `.env` file in the project root (or copy from `.env.example`) and set:
 - `STORAGE_PGPORT`
 - `STORAGE_PGSSLMODE`
 - `STORAGE_PGUSER`
+- `VERCEL_OIDC_TOKEN` (has to be generated from vercel cli)
 
 ## 3) Run locally
 

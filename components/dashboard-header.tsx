@@ -70,22 +70,20 @@ export function DashboardHeader({
           )}
         </div>
 
-        {!hasBreadcrumbs && (
-          <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
-            {showCoursesLink && (
-              <Button asChild variant="outline" size="sm">
-                <Link href="/courses">Courses</Link>
-              </Button>
-            )}
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium text-foreground">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
-            </div>
-            <Button asChild size="sm" variant="outline">
-              <a href="/api/auth/logout">Sign out</a>
+        <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
+          {showCoursesLink && !hasBreadcrumbs && (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/courses">Courses</Link>
             </Button>
+          )}
+          <div className="hidden text-right sm:block">
+            <p className="text-sm font-medium text-foreground">{user.name}</p>
+            <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
-        )}
+          <Button asChild size="sm" variant="outline">
+            <a href="/api/auth/logout">Sign out</a>
+          </Button>
+        </div>
       </div>
     </header>
   )
