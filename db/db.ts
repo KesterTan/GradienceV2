@@ -1,57 +1,65 @@
-import { awsCredentialsProvider } from "@vercel/functions/oidc";
 import { attachDatabasePool } from "@vercel/functions";
+import { awsCredentialsProvider } from "@vercel/functions/oidc";
 import { Signer } from "@aws-sdk/rds-signer";
+import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { ClientBase, Pool } from "pg";
 
-const signer = new Signer({
-  hostname: process.env.PGHOST,
-  port: Number(process.env.PGPORT),
-  username: process.env.PGUSER,
-  region: process.env.AWS_REGION,
-  credentials: awsCredentialsProvider({
-    roleArn: process.env.AWS_ROLE_ARN,
-    clientConfig: { region: process.env.AWS_REGION },
-  }),
-});
+const isVercel = !!process.env.VERCEL;
+const useIamAuth = process.env.USE_IAM_AUTH === "true";
 
-function resolveSslMode() {
+function resolveSsl() {
   const rawMode = (process.env.PGSSLMODE || "").toLowerCase().trim();
 
-  if (rawMode === "disable") {
-    return false;
-  }
+  if (rawMode === "disable") return false;
 
   if (["require", "verify-ca", "verify-full", "allow", "prefer"].includes(rawMode)) {
-    return true;
+    return { rejectUnauthorized: false };
   }
 
-  // Default to non-SSL to support local PostgreSQL instances that do not expose TLS.
-  // Enable SSL explicitly via PGSSLMODE=require (or verify-*) in environments that need TLS.
   return false;
 }
 
-const shouldUseSsl = resolveSslMode();
+const ssl = resolveSsl();
+
+const credentials = isVercel
+  ? awsCredentialsProvider({
+      roleArn: process.env.AWS_ROLE_ARN,
+      clientConfig: { region: process.env.AWS_REGION },
+    })
+  : defaultProvider();
+
+const signer =
+  useIamAuth
+    ? new Signer({
+        hostname: process.env.PGHOST!,
+        port: Number(process.env.PGPORT || 5432),
+        username: process.env.PGUSER!,
+        region: process.env.AWS_REGION!,
+        credentials,
+      })
+    : null;
 
 export const pool = new Pool({
   host: process.env.PGHOST,
-  user: process.env.PGUSER,
+  port: Number(process.env.PGPORT || 5432),
   database: process.env.PGDATABASE || "postgres",
-  // The auth token value can be cached for up to 15 minutes (900 seconds) if desired.
-  password: () => signer.getAuthToken(),
-  port: Number(process.env.PGPORT),
-  // Recommended to switch to `true` in production.
-  // See https://docs.aws.amazon.com/lambda/latest/dg/services-rds.html#rds-lambda-certificates
-  ssl: shouldUseSsl ? { rejectUnauthorized: false } : false,
+  user: process.env.PGUSER,
+  password: useIamAuth
+    ? async () => {
+        if (!signer) throw new Error("IAM auth enabled but signer is missing");
+        return signer.getAuthToken();
+      }
+    : process.env.PGPASSWORD,
+  ssl,
   max: 20,
 });
+
 attachDatabasePool(pool);
 
-// Single query transaction.
 export async function query(sql: string, args: unknown[]) {
   return pool.query(sql, args);
 }
 
-// Use it for multiple queries transaction.
 export async function withConnection<T>(
   fn: (client: ClientBase) => Promise<T>,
 ): Promise<T> {
