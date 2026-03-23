@@ -56,9 +56,14 @@ export default async function CourseDashboardPage({
               Instructors: {course.instructors.join(", ") || "None"}
             </p>
           </div>
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/courses">Back to main dashboard</Link>
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+            <Button asChild className="w-full sm:w-auto">
+              <Link href={`/courses/${course.id}/assessments/new`}>Create assessment</Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href="/courses">Back to main dashboard</Link>
+            </Button>
+          </div>
         </div>
 
         {assignments.length === 0 ? (
