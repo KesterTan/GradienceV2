@@ -1,65 +1,39 @@
-import { attachDatabasePool } from "@vercel/functions";
 import { awsCredentialsProvider } from "@vercel/functions/oidc";
+import { attachDatabasePool } from "@vercel/functions";
 import { Signer } from "@aws-sdk/rds-signer";
-import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { ClientBase, Pool } from "pg";
 
-const isVercel = !!process.env.VERCEL;
-const useIamAuth = process.env.USE_IAM_AUTH === "true";
-
-function resolveSsl() {
-  const rawMode = (process.env.PGSSLMODE || "").toLowerCase().trim();
-
-  if (rawMode === "disable") return false;
-
-  if (["require", "verify-ca", "verify-full", "allow", "prefer"].includes(rawMode)) {
-    return { rejectUnauthorized: false };
-  }
-
-  return false;
-}
-
-const ssl = resolveSsl();
-
-const credentials = isVercel
-  ? awsCredentialsProvider({
-      roleArn: process.env.AWS_ROLE_ARN,
-      clientConfig: { region: process.env.AWS_REGION },
-    })
-  : defaultProvider();
-
-const signer =
-  useIamAuth
-    ? new Signer({
-        hostname: process.env.PGHOST!,
-        port: Number(process.env.PGPORT || 5432),
-        username: process.env.PGUSER!,
-        region: process.env.AWS_REGION!,
-        credentials,
-      })
-    : null;
+const signer = new Signer({
+  hostname: process.env.PGHOST,
+  port: Number(process.env.PGPORT),
+  username: process.env.PGUSER,
+  region: process.env.AWS_REGION,
+  credentials: awsCredentialsProvider({
+    roleArn: process.env.AWS_ROLE_ARN,
+    clientConfig: { region: process.env.AWS_REGION },
+  }),
+});
 
 export const pool = new Pool({
   host: process.env.PGHOST,
-  port: Number(process.env.PGPORT || 5432),
-  database: process.env.PGDATABASE || "postgres",
   user: process.env.PGUSER,
-  password: useIamAuth
-    ? async () => {
-        if (!signer) throw new Error("IAM auth enabled but signer is missing");
-        return signer.getAuthToken();
-      }
-    : process.env.PGPASSWORD,
-  ssl,
+  database: process.env.PGDATABASE || "postgres",
+  // The auth token value can be cached for up to 15 minutes (900 seconds) if desired.
+  password: () => signer.getAuthToken(),
+  port: Number(process.env.PGPORT),
+  // Recommended to switch to `true` in production.
+  // See https://docs.aws.amazon.com/lambda/latest/dg/services-rds.html#rds-lambda-certificates
+  ssl: { rejectUnauthorized: false },
   max: 20,
 });
-
 attachDatabasePool(pool);
 
+// Single query transaction.
 export async function query(sql: string, args: unknown[]) {
   return pool.query(sql, args);
 }
 
+// Use it for multiple queries transaction.
 export async function withConnection<T>(
   fn: (client: ClientBase) => Promise<T>,
 ): Promise<T> {
