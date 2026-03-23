@@ -19,25 +19,25 @@ export default function MembersClient({ instructors, students, userId, courseTit
 
   return (
     <main className="min-h-screen bg-muted/30">
-      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-2xl px-2 sm:px-4 py-6 sm:py-8">
         {/* Header Section */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-1">
             <Users className="size-7 text-primary" />
-            <h1 className="text-2xl font-bold">Manage Members</h1>
+            <h1 className="text-2xl font-bold leading-tight">Manage Members</h1>
           </div>
-          <div className="text-sm text-muted-foreground font-medium">
+          <div className="text-sm text-muted-foreground font-medium break-words">
             {courseTitle || "Course"}
           </div>
         </div>
 
         {/* Tabs */}
         <div className="w-full mb-4">
-          <div className="flex gap-2 border-b pb-2">
+          <div className="flex gap-2 border-b pb-2 overflow-x-auto no-scrollbar">
             {tabs.map(tab => (
               <button
                 key={tab.role}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-t-md text-sm font-medium border-b-2 transition-colors ${activeTab === tab.role ? "border-primary text-primary bg-background" : "border-transparent text-muted-foreground"}`}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-t-md text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.role ? "border-primary text-primary bg-background" : "border-transparent text-muted-foreground"}`}
                 onClick={() => setActiveTab(tab.role)}
                 type="button"
               >
@@ -64,21 +64,21 @@ export default function MembersClient({ instructors, students, userId, courseTit
             </div>
           </div>
         ) : (
-          <Card>
-            <CardContent className="p-0 divide-y">
-              <ul>
-                {getMembers(activeTab).map((member: any) => (
-                  <li key={member.id} className="flex items-center justify-between px-4 py-1.5">
-                    <div className="flex items-center gap-2">
+          <ul className="flex flex-col gap-2 sm:gap-2.5">
+            {getMembers(activeTab).map((member: any) => (
+              <li key={member.id} className="list-none">
+                <Card className="w-full p-0 shadow-sm border bg-background rounded-lg sm:rounded-xl transition-all">
+                  <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-4 py-2 sm:py-2.5">
+                    <div className="flex items-center gap-2 w-full">
                       {activeTab === "instructors" ? <GraduationCap className="size-4 text-muted-foreground" /> : <Users className="size-4 text-muted-foreground" />}
-                      <span className="font-medium">{member.name}</span>
+                      <span className="font-medium break-words text-base sm:text-sm">{member.name}</span>
                     </div>
-                    {member.id === userId && <Badge variant="secondary">You</Badge>}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+                    {member.id === userId && <Badge variant="secondary" className="mt-1 sm:mt-0">You</Badge>}
+                  </CardContent>
+                </Card>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </main>
