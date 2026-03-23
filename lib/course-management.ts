@@ -80,9 +80,14 @@ export async function listCoursesForGrader(userId: number): Promise<CourseSummar
     })
     .from(courses)
     .leftJoin(member, eq(member.courseId, courses.id))
-    .leftJoin(
+    .innerJoin(
       myMembership,
-      and(eq(myMembership.courseId, courses.id), eq(myMembership.userId, userId), eq(myMembership.status, "active")),
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "grader"),
+        eq(myMembership.status, "active"),
+      ),
     )
     .leftJoin(memberUser, eq(memberUser.id, member.userId))
     .leftJoin(assignments, eq(assignments.courseId, courses.id))
@@ -105,8 +110,8 @@ export async function getCourseForGrader(
   userId: number,
   courseId: number,
 ): Promise<CourseDetail | null> {
-  void userId
   const member = alias(courseMemberships, "member")
+  const myMembership = alias(courseMemberships, "my_membership")
   const memberUser = alias(users, "member_user")
 
   const rows = await db
@@ -118,6 +123,15 @@ export async function getCourseForGrader(
       instructors: sql<string[]>`coalesce(array_agg(distinct trim(${memberUser.firstName} || ' ' || ${memberUser.lastName})) filter (where ${member.role} = 'grader' and ${member.status} = 'active'), ARRAY[]::text[])`,
     })
     .from(courses)
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "grader"),
+        eq(myMembership.status, "active"),
+      ),
+    )
     .leftJoin(member, eq(member.courseId, courses.id))
     .leftJoin(memberUser, eq(memberUser.id, member.userId))
     .where(eq(courses.id, courseId))
@@ -140,7 +154,7 @@ export async function listAssignmentsForCourse(
   userId: number,
   courseId: number,
 ): Promise<AssignmentSummary[]> {
-  void userId
+  const myMembership = alias(courseMemberships, "my_membership")
   const rows = await db
     .select({
       id: assignments.id,
@@ -149,6 +163,15 @@ export async function listAssignmentsForCourse(
       submissionCount: sql<number>`count(${submissions.id})`,
     })
     .from(assignments)
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, assignments.courseId),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "grader"),
+        eq(myMembership.status, "active"),
+      ),
+    )
     .leftJoin(submissions, eq(submissions.assignmentId, assignments.id))
     .where(eq(assignments.courseId, courseId))
     .groupBy(assignments.id)
@@ -167,7 +190,7 @@ export async function getAssessmentForGrader(
   courseId: number,
   assignmentId: number,
 ): Promise<AssessmentDetail | null> {
-  void userId
+  const myMembership = alias(courseMemberships, "my_membership")
   const rows = await db
     .select({
       id: assignments.id,
@@ -179,6 +202,15 @@ export async function getAssessmentForGrader(
     })
     .from(assignments)
     .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "grader"),
+        eq(myMembership.status, "active"),
+      ),
+    )
     .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
     .limit(1)
 
@@ -200,7 +232,7 @@ export async function listSubmissionsForAssessment(
   courseId: number,
   assignmentId: number,
 ): Promise<SubmissionSummary[]> {
-  void userId
+  const myMembership = alias(courseMemberships, "my_membership")
   const studentMembership = alias(courseMemberships, "student_membership")
   const studentUser = alias(users, "student_user")
 
@@ -216,6 +248,15 @@ export async function listSubmissionsForAssessment(
     .from(submissions)
     .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
     .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "grader"),
+        eq(myMembership.status, "active"),
+      ),
+    )
     .innerJoin(
       studentMembership,
       and(eq(studentMembership.id, submissions.studentMembershipId), eq(studentMembership.role, "student")),
@@ -240,7 +281,7 @@ export async function getSubmissionForGrader(
   assignmentId: number,
   submissionId: number,
 ): Promise<SubmissionDetail | null> {
-  void userId
+  const myMembership = alias(courseMemberships, "my_membership")
   const studentMembership = alias(courseMemberships, "student_membership")
   const studentUser = alias(users, "student_user")
 
@@ -262,6 +303,15 @@ export async function getSubmissionForGrader(
     .from(submissions)
     .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
     .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "grader"),
+        eq(myMembership.status, "active"),
+      ),
+    )
     .innerJoin(
       studentMembership,
       and(eq(studentMembership.id, submissions.studentMembershipId), eq(studentMembership.role, "student")),
