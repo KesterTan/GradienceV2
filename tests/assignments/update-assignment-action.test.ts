@@ -155,7 +155,9 @@ describe("updateAssignmentAction", () => {
     })
 
     const state = await updateAssignmentAction({}, formData)
-    expect(state.errors?.endDate?.[0]).toBe("Assignment must end on or before the course end date")
+    expect(state.errors?.endDate?.[0]).toBe(
+      "Assignment must end on or before the course end date. Valid course date range is 2026-03-01 to 2026-03-10.",
+    )
     expect(mocks.update).not.toHaveBeenCalled()
   })
 })

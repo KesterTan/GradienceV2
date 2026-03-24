@@ -77,6 +77,30 @@ const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) =>
       message: "End date must be on or after start date",
     })
   }
+
+  const startDate = data.startDate
+  const endDate = data.endDate
+  const startTime = data.startTime
+  const endTime = data.endTime
+  if (startDate && endDate && startDate === endDate && startTime && endTime) {
+    const parseMinutes = (value: string) => {
+      const parts = value.trim().split(":")
+      const h = Number(parts[0])
+      const m = Number(parts[1] ?? 0)
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return NaN
+      return h * 60 + m
+    }
+
+    const startMinutes = parseMinutes(startTime)
+    const endMinutes = parseMinutes(endTime)
+    if (Number.isFinite(startMinutes) && Number.isFinite(endMinutes) && endMinutes < startMinutes) {
+      ctx.addIssue({
+        path: ["endTime"],
+        code: z.ZodIssueCode.custom,
+        message: "End time must be on or after start time when start and end date are the same",
+      })
+    }
+  }
 })
 
 function isoFromDateTime(date: string, time: string, endOfDayFallback = false) {
@@ -124,29 +148,68 @@ function validateWithinCourseRange(params: {
   dueAtMs: number
   hasExplicitStart: boolean
   hasExplicitEnd: boolean
+  startDate?: string
+  endDate?: string
+  startTime?: string
+  endTime?: string
 }) {
-  const { courseStartAt, courseEndAt, releaseAtMs, dueAtMs, hasExplicitStart, hasExplicitEnd } = params
+  const {
+    courseStartAt,
+    courseEndAt,
+    releaseAtMs,
+    dueAtMs,
+    hasExplicitStart,
+    hasExplicitEnd,
+    startDate,
+    endDate,
+    startTime,
+    endTime,
+  } = params
+
+  const courseStartDate = new Date(courseStartAt).toISOString().slice(0, 10)
+  const courseEndDate = new Date(courseEndAt).toISOString().slice(0, 10)
+  const courseRangeSuffix = `Valid course date range is ${courseStartDate} to ${courseEndDate}.`
 
   if (Number.isFinite(releaseAtMs) && Number.isFinite(dueAtMs) && releaseAtMs > dueAtMs) {
+    const sameDayTimeConflict = Boolean(
+      startDate &&
+        endDate &&
+        startDate === endDate &&
+        startTime?.trim() &&
+        endTime?.trim(),
+    )
+
+    if (sameDayTimeConflict) {
+      return { endTime: ["End time must be on or after start time when start and end date are the same"] }
+    }
+
     return { endDate: ["End date/time must be on or after start date/time"] }
   }
 
   // Only enforce course-range constraints for fields the user explicitly set.
   if (hasExplicitStart) {
     if (releaseAtMs < courseStartAt) {
-      return { startDate: ["Assignment must start on or after the course start date"] }
+      return {
+        startDate: [`Assignment must start on or after the course start date. ${courseRangeSuffix}`],
+      }
     }
     if (releaseAtMs > courseEndAt) {
-      return { startDate: ["Assignment must start on or before the course end date"] }
+      return {
+        startDate: [`Assignment must start on or before the course end date. ${courseRangeSuffix}`],
+      }
     }
   }
 
   if (hasExplicitEnd) {
     if (dueAtMs > courseEndAt) {
-      return { endDate: ["Assignment must end on or before the course end date"] }
+      return {
+        endDate: [`Assignment must end on or before the course end date. ${courseRangeSuffix}`],
+      }
     }
     if (dueAtMs < courseStartAt) {
-      return { endDate: ["Assignment must end on or after the course start date"] }
+      return {
+        endDate: [`Assignment must end on or after the course start date. ${courseRangeSuffix}`],
+      }
     }
   }
 
@@ -233,6 +296,10 @@ export async function createAssignmentAction(
     dueAtMs,
     hasExplicitStart: Boolean(parsed.data.startDate),
     hasExplicitEnd: Boolean(parsed.data.endDate),
+    startDate: parsed.data.startDate,
+    endDate: parsed.data.endDate,
+    startTime: parsed.data.startTime,
+    endTime: parsed.data.endTime,
   })
   if (rangeErrors) {
     return { errors: rangeErrors, values }
@@ -351,6 +418,10 @@ export async function updateAssignmentAction(
     dueAtMs,
     hasExplicitStart: Boolean(parsed.data.startDate),
     hasExplicitEnd: Boolean(parsed.data.endDate),
+    startDate: parsed.data.startDate,
+    endDate: parsed.data.endDate,
+    startTime: parsed.data.startTime,
+    endTime: parsed.data.endTime,
   })
   if (rangeErrors) {
     return { errors: rangeErrors, values }
