@@ -25,6 +25,64 @@ export type StudentSubmissionSummary = {
   fileUrl: string | null
 }
 
+export type StudentCourseSummary = {
+  id: number
+  title: string
+  courseCode: string
+  term: string
+  startDate: string
+  endDate: string
+  instructors: string[]
+  publishedAssignmentCount: number
+}
+
+/**
+ * Returns all courses the student is actively enrolled in.
+ */
+export async function listCoursesForStudent(userId: number): Promise<StudentCourseSummary[]> {
+  const myMembership = alias(courseMemberships, "my_membership")
+  const member = alias(courseMemberships, "member")
+  const memberUser = alias(users, "member_user")
+
+  const rows = await db
+    .select({
+      id: courses.id,
+      title: courses.title,
+      courseCode: courses.courseCode,
+      term: courses.term,
+      startDate: courses.startDate,
+      endDate: courses.endDate,
+      instructors: sql<string[]>`coalesce(array_agg(distinct trim(${memberUser.firstName} || ' ' || ${memberUser.lastName})) filter (where ${member.role} = 'grader' and ${member.status} = 'active'), ARRAY[]::text[])`,
+      publishedAssignmentCount: sql<number>`count(distinct ${assignments.id}) filter (where ${assignments.isPublished} = true)`,
+    })
+    .from(courses)
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "student"),
+        eq(myMembership.status, "active"),
+      ),
+    )
+    .leftJoin(member, eq(member.courseId, courses.id))
+    .leftJoin(memberUser, eq(memberUser.id, member.userId))
+    .leftJoin(assignments, eq(assignments.courseId, courses.id))
+    .groupBy(courses.id)
+    .orderBy(desc(courses.createdAt))
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    title: String(row.title),
+    courseCode: String(row.courseCode),
+    term: String(row.term),
+    startDate: String(row.startDate),
+    endDate: String(row.endDate),
+    instructors: (row.instructors as string[]) ?? [],
+    publishedAssignmentCount: Number(row.publishedAssignmentCount),
+  }))
+}
+
 export type StudentCourseDetail = {
   id: number
   title: string
