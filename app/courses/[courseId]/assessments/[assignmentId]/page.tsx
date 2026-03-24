@@ -49,6 +49,12 @@ export default async function AssessmentPage({
           <div>
             <h2 className="text-xl font-semibold text-foreground">{assessment.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">Course: {assessment.courseTitle}</p>
+            {assessment.description && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Assignment Description:</span>{" "}
+                {assessment.description}
+              </p>
+            )}
             <p className="mt-1 text-sm text-muted-foreground">
               Due {format(new Date(assessment.dueAt), "MMM d, yyyy h:mm a")}
             </p>

@@ -79,6 +79,12 @@ export default async function CourseDashboardPage({
               <Card key={assignment.id}>
                 <CardHeader>
                   <CardTitle>{assignment.title}</CardTitle>
+                  {assignment.description && (
+                    <CardDescription className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">Assignment Description:</span>{" "}
+                      {assignment.description}
+                    </CardDescription>
+                  )}
                   <CardDescription>Due {format(new Date(assignment.dueAt), "MMM d, yyyy h:mm a")}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">

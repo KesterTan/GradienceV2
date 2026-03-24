@@ -25,6 +25,7 @@ export type CourseDetail = {
 export type AssignmentSummary = {
   id: number
   title: string
+  description: string | null
   dueAt: string
   submissionCount: number
 }
@@ -160,6 +161,7 @@ export async function listAssignmentsForCourse(
     .select({
       id: assignments.id,
       title: assignments.title,
+      description: assignments.description,
       dueAt: assignments.dueAt,
       submissionCount: sql<number>`count(${submissions.id})`,
     })
@@ -181,6 +183,7 @@ export async function listAssignmentsForCourse(
   return rows.map((row) => ({
     id: Number(row.id),
     title: String(row.title),
+    description: row.description ? String(row.description) : null,
     dueAt: String(row.dueAt),
     submissionCount: Number(row.submissionCount),
   }))
