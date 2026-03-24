@@ -17,10 +17,12 @@ type AssignmentFormState = {
     endDate?: string[]
     endTime?: string[]
     courseId?: string[]
+    assignmentId?: string[]
     _form?: string[]
   }
   values?: {
     courseId: string
+    assignmentId?: string
     title: string
     description: string
     startDate: string
@@ -75,6 +77,30 @@ const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) =>
       message: "End date must be on or after start date",
     })
   }
+
+  const startDate = data.startDate
+  const endDate = data.endDate
+  const startTime = data.startTime
+  const endTime = data.endTime
+  if (startDate && endDate && startDate === endDate && startTime && endTime) {
+    const parseMinutes = (value: string) => {
+      const parts = value.trim().split(":")
+      const h = Number(parts[0])
+      const m = Number(parts[1] ?? 0)
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return NaN
+      return h * 60 + m
+    }
+
+    const startMinutes = parseMinutes(startTime)
+    const endMinutes = parseMinutes(endTime)
+    if (Number.isFinite(startMinutes) && Number.isFinite(endMinutes) && endMinutes < startMinutes) {
+      ctx.addIssue({
+        path: ["endTime"],
+        code: z.ZodIssueCode.custom,
+        message: "End time must be on or after start time when start and end date are the same",
+      })
+    }
+  }
 })
 
 function isoFromDateTime(date: string, time: string, endOfDayFallback = false) {
@@ -86,6 +112,108 @@ function isoFromDateTime(date: string, time: string, endOfDayFallback = false) {
   }
 
   return new Date(`${date}T${endOfDayFallback ? "23:59:59.999Z" : "00:00:00.000Z"}`).toISOString()
+}
+
+async function requireActiveGraderMembership(courseId: number, userId: number) {
+  const membership = await db
+    .select({ id: courseMemberships.id })
+    .from(courseMemberships)
+    .where(
+      and(
+        eq(courseMemberships.courseId, courseId),
+        eq(courseMemberships.userId, userId),
+        eq(courseMemberships.role, "grader"),
+        eq(courseMemberships.status, "active"),
+      ),
+    )
+    .limit(1)
+
+  return membership[0] ?? null
+}
+
+async function getCourseDateRange(courseId: number) {
+  const courseRows = await db
+    .select({ startDate: courses.startDate, endDate: courses.endDate })
+    .from(courses)
+    .where(eq(courses.id, courseId))
+    .limit(1)
+
+  return courseRows[0] ?? null
+}
+
+function validateWithinCourseRange(params: {
+  courseStartAt: number
+  courseEndAt: number
+  releaseAtMs: number
+  dueAtMs: number
+  hasExplicitStart: boolean
+  hasExplicitEnd: boolean
+  startDate?: string
+  endDate?: string
+  startTime?: string
+  endTime?: string
+}) {
+  const {
+    courseStartAt,
+    courseEndAt,
+    releaseAtMs,
+    dueAtMs,
+    hasExplicitStart,
+    hasExplicitEnd,
+    startDate,
+    endDate,
+    startTime,
+    endTime,
+  } = params
+
+  const courseStartDate = new Date(courseStartAt).toISOString().slice(0, 10)
+  const courseEndDate = new Date(courseEndAt).toISOString().slice(0, 10)
+  const courseRangeSuffix = `Valid course date range is ${courseStartDate} to ${courseEndDate}.`
+
+  if (Number.isFinite(releaseAtMs) && Number.isFinite(dueAtMs) && releaseAtMs > dueAtMs) {
+    const sameDayTimeConflict = Boolean(
+      startDate &&
+        endDate &&
+        startDate === endDate &&
+        startTime?.trim() &&
+        endTime?.trim(),
+    )
+
+    if (sameDayTimeConflict) {
+      return { endTime: ["End time must be on or after start time when start and end date are the same"] }
+    }
+
+    return { endDate: ["End date/time must be on or after start date/time"] }
+  }
+
+  // Only enforce course-range constraints for fields the user explicitly set.
+  if (hasExplicitStart) {
+    if (releaseAtMs < courseStartAt) {
+      return {
+        startDate: [`Assignment must start on or after the course start date. ${courseRangeSuffix}`],
+      }
+    }
+    if (releaseAtMs > courseEndAt) {
+      return {
+        startDate: [`Assignment must start on or before the course end date. ${courseRangeSuffix}`],
+      }
+    }
+  }
+
+  if (hasExplicitEnd) {
+    if (dueAtMs > courseEndAt) {
+      return {
+        endDate: [`Assignment must end on or before the course end date. ${courseRangeSuffix}`],
+      }
+    }
+    if (dueAtMs < courseStartAt) {
+      return {
+        endDate: [`Assignment must end on or after the course start date. ${courseRangeSuffix}`],
+      }
+    }
+  }
+
+  return null
 }
 
 export async function createAssignmentAction(
@@ -123,30 +251,12 @@ export async function createAssignmentAction(
     return { errors: { courseId: ["Invalid course id"] }, values }
   }
 
-  const membership = await db
-    .select({ id: courseMemberships.id })
-    .from(courseMemberships)
-    .where(
-      and(
-        eq(courseMemberships.courseId, courseId),
-        eq(courseMemberships.userId, grader.id),
-        eq(courseMemberships.role, "grader"),
-        eq(courseMemberships.status, "active"),
-      ),
-    )
-    .limit(1)
-
-  if (!membership[0]) {
+  const membership = await requireActiveGraderMembership(courseId, grader.id)
+  if (!membership) {
     return { errors: { _form: ["You do not have permission to create assignments for this course."] }, values }
   }
 
-  const courseRows = await db
-    .select({ startDate: courses.startDate, endDate: courses.endDate })
-    .from(courses)
-    .where(eq(courses.id, courseId))
-    .limit(1)
-
-  const course = courseRows[0]
+  const course = await getCourseDateRange(courseId)
   if (!course) {
     return { errors: { _form: ["Course not found."] }, values }
   }
@@ -179,27 +289,20 @@ export async function createAssignmentAction(
     }
   }
 
-  if (Number.isFinite(releaseAtMs) && Number.isFinite(dueAtMs) && releaseAtMs > dueAtMs) {
-    return { errors: { endDate: ["End date/time must be on or after start date/time"] }, values }
-  }
-
-  // Only enforce course-range constraints for fields the user explicitly set.
-  if (parsed.data.startDate) {
-    if (releaseAtMs < courseStartAt) {
-      return { errors: { startDate: ["Assignment must start on or after the course start date"] }, values }
-    }
-    if (releaseAtMs > courseEndAt) {
-      return { errors: { startDate: ["Assignment must start on or before the course end date"] }, values }
-    }
-  }
-
-  if (parsed.data.endDate) {
-    if (dueAtMs > courseEndAt) {
-      return { errors: { endDate: ["Assignment must end on or before the course end date"] }, values }
-    }
-    if (dueAtMs < courseStartAt) {
-      return { errors: { endDate: ["Assignment must end on or after the course start date"] }, values }
-    }
+  const rangeErrors = validateWithinCourseRange({
+    courseStartAt,
+    courseEndAt,
+    releaseAtMs,
+    dueAtMs,
+    hasExplicitStart: Boolean(parsed.data.startDate),
+    hasExplicitEnd: Boolean(parsed.data.endDate),
+    startDate: parsed.data.startDate,
+    endDate: parsed.data.endDate,
+    startTime: parsed.data.startTime,
+    endTime: parsed.data.endTime,
+  })
+  if (rangeErrors) {
+    return { errors: rangeErrors, values }
   }
 
   await db.insert(assignments).values({
@@ -222,3 +325,120 @@ export async function createAssignmentAction(
   redirect(`/courses/${courseId}`)
 }
 
+export async function updateAssignmentAction(
+  _prevState: AssignmentFormState,
+  formData: FormData,
+): Promise<AssignmentFormState> {
+  const grader = await requireGraderUser()
+
+  const values = {
+    courseId: readFormValue(formData, "courseId"),
+    assignmentId: readFormValue(formData, "assignmentId"),
+    title: readFormValue(formData, "title"),
+    description: readFormValue(formData, "description"),
+    startDate: readFormValue(formData, "startDate"),
+    startTime: readFormValue(formData, "startTime"),
+    endDate: readFormValue(formData, "endDate"),
+    endTime: readFormValue(formData, "endTime"),
+  }
+
+  const parsed = createAssignmentSchema.safeParse({
+    courseId: values.courseId,
+    title: values.title,
+    description: values.description,
+    startDate: values.startDate,
+    startTime: values.startTime,
+    endDate: values.endDate,
+    endTime: values.endTime,
+  })
+
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors, values }
+  }
+
+  const courseId = Number(values.courseId)
+  const assignmentId = Number(values.assignmentId)
+  if (!Number.isFinite(courseId)) {
+    return { errors: { courseId: ["Invalid course id"] }, values }
+  }
+  if (!Number.isFinite(assignmentId)) {
+    return { errors: { assignmentId: ["Invalid assignment id"] }, values }
+  }
+
+  const membership = await requireActiveGraderMembership(courseId, grader.id)
+  if (!membership) {
+    return { errors: { _form: ["You do not have permission to edit assignments for this course."] }, values }
+  }
+
+  const existingRows = await db
+    .select({ id: assignments.id, releaseAt: assignments.releaseAt, dueAt: assignments.dueAt })
+    .from(assignments)
+    .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
+    .limit(1)
+
+  const existing = existingRows[0]
+  if (!existing) {
+    return { errors: { _form: ["Assignment not found."] }, values }
+  }
+
+  const course = await getCourseDateRange(courseId)
+  if (!course) {
+    return { errors: { _form: ["Course not found."] }, values }
+  }
+
+  const courseStartAt = new Date(`${course.startDate}T00:00:00.000Z`).getTime()
+  const courseEndAt = new Date(`${course.endDate}T23:59:59.999Z`).getTime()
+
+  const releaseAt = parsed.data.startDate
+    ? isoFromDateTime(parsed.data.startDate, parsed.data.startTime ?? "", false)
+    : new Date().toISOString()
+
+  const dueAt = parsed.data.endDate
+    ? isoFromDateTime(parsed.data.endDate, parsed.data.endTime ?? "", true)
+    : new Date(courseEndAt).toISOString()
+
+  const releaseAtMs = new Date(releaseAt).getTime()
+  const dueAtMs = new Date(dueAt).getTime()
+
+  if (!parsed.data.startDate && !parsed.data.endDate && releaseAtMs > courseEndAt) {
+    return {
+      errors: {
+        _form: [
+          "Course has already ended. Cannot update an assignment to start after the course end date.",
+        ],
+      },
+      values,
+    }
+  }
+
+  const rangeErrors = validateWithinCourseRange({
+    courseStartAt,
+    courseEndAt,
+    releaseAtMs,
+    dueAtMs,
+    hasExplicitStart: Boolean(parsed.data.startDate),
+    hasExplicitEnd: Boolean(parsed.data.endDate),
+    startDate: parsed.data.startDate,
+    endDate: parsed.data.endDate,
+    startTime: parsed.data.startTime,
+    endTime: parsed.data.endTime,
+  })
+  if (rangeErrors) {
+    return { errors: rangeErrors, values }
+  }
+
+  await db
+    .update(assignments)
+    .set({
+      title: parsed.data.title,
+      description: parsed.data.description ?? null,
+      releaseAt,
+      dueAt,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(assignments.id, assignmentId))
+
+  revalidatePath(`/courses/${courseId}/assessments/${assignmentId}`)
+  revalidatePath(`/courses/${courseId}`)
+  redirect(`/courses/${courseId}/assessments/${assignmentId}`)
+}

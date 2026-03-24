@@ -303,11 +303,6 @@ describe("createAssignmentAction", () => {
   })
 
   it("rejects when start date/time is after end date/time", async () => {
-    mocks.selectQueue.push(
-      [{ id: 999 }],
-      [{ startDate: "2026-03-01", endDate: "2026-05-01" }],
-    )
-
     const formData = createAssignmentFormData({
       courseId: 34,
       title: "HW1",
@@ -319,7 +314,9 @@ describe("createAssignmentAction", () => {
 
     const state = await createAssignmentAction({}, formData)
 
-    expect(state.errors?.endDate?.[0]).toBe("End date/time must be on or after start date/time")
+    expect(state.errors?.endTime?.[0]).toBe(
+      "End time must be on or after start time when start and end date are the same",
+    )
     expect(mocks.insert).not.toHaveBeenCalled()
   })
 
@@ -338,7 +335,9 @@ describe("createAssignmentAction", () => {
 
     const state = await createAssignmentAction({}, formData)
 
-    expect(state.errors?.startDate?.[0]).toBe("Assignment must start on or after the course start date")
+    expect(state.errors?.startDate?.[0]).toBe(
+      "Assignment must start on or after the course start date. Valid course date range is 2026-03-05 to 2026-05-01.",
+    )
     expect(mocks.insert).not.toHaveBeenCalled()
   })
 
@@ -359,7 +358,9 @@ describe("createAssignmentAction", () => {
 
     const state = await createAssignmentAction({}, formData)
 
-    expect(state.errors?.endDate?.[0]).toBe("Assignment must end on or before the course end date")
+    expect(state.errors?.endDate?.[0]).toBe(
+      "Assignment must end on or before the course end date. Valid course date range is 2026-03-01 to 2026-03-10.",
+    )
     expect(mocks.insert).not.toHaveBeenCalled()
   })
 

@@ -49,13 +49,24 @@ export default async function AssessmentPage({
           <div>
             <h2 className="text-xl font-semibold text-foreground">{assessment.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">Course: {assessment.courseTitle}</p>
+            {assessment.description && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Assignment Description:</span>{" "}
+                {assessment.description}
+              </p>
+            )}
             <p className="mt-1 text-sm text-muted-foreground">
               Due {format(new Date(assessment.dueAt), "MMM d, yyyy h:mm a")}
             </p>
           </div>
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href={`/courses/${assessment.courseId}`}>Back to course dashboard</Link>
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+            <Button asChild className="w-full sm:w-auto" variant="outline">
+              <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/edit`}>Edit assignment</Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href={`/courses/${assessment.courseId}`}>Back to course dashboard</Link>
+            </Button>
+          </div>
         </div>
 
         {submissions.length === 0 ? (

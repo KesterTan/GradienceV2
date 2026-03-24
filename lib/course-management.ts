@@ -25,6 +25,7 @@ export type CourseDetail = {
 export type AssignmentSummary = {
   id: number
   title: string
+  description: string | null
   dueAt: string
   submissionCount: number
 }
@@ -33,6 +34,7 @@ export type AssessmentDetail = {
   id: number
   title: string
   dueAt: string
+  releaseAt: string
   description: string | null
   courseId: number
   courseTitle: string
@@ -159,6 +161,7 @@ export async function listAssignmentsForCourse(
     .select({
       id: assignments.id,
       title: assignments.title,
+      description: assignments.description,
       dueAt: assignments.dueAt,
       submissionCount: sql<number>`count(${submissions.id})`,
     })
@@ -180,6 +183,7 @@ export async function listAssignmentsForCourse(
   return rows.map((row) => ({
     id: Number(row.id),
     title: String(row.title),
+    description: row.description ? String(row.description) : null,
     dueAt: String(row.dueAt),
     submissionCount: Number(row.submissionCount),
   }))
@@ -196,6 +200,7 @@ export async function getAssessmentForGrader(
       id: assignments.id,
       title: assignments.title,
       description: assignments.description,
+      releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
       courseId: courses.id,
       courseTitle: courses.title,
@@ -220,6 +225,7 @@ export async function getAssessmentForGrader(
   return {
     id: Number(row.id),
     title: String(row.title),
+    releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),

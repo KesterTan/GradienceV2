@@ -76,6 +76,7 @@ describe("course-management data functions", () => {
       {
         id: 1,
         title: "Midterm",
+        description: null,
         dueAt: "2026-03-01T10:00:00Z",
         submissionCount: 25,
       },
@@ -87,6 +88,7 @@ describe("course-management data functions", () => {
       {
         id: 1,
         title: "Midterm",
+        description: null,
         dueAt: "2026-03-01T10:00:00Z",
         submissionCount: 25,
       },

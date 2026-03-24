@@ -41,6 +41,7 @@ describe("Course dashboard assignments UI", () => {
       {
         id: 7,
         title: "HW1",
+        description: "Intro problems",
         dueAt: "2026-03-10T23:59:59.999Z",
         submissionCount: 0,
       },
@@ -54,6 +55,8 @@ describe("Course dashboard assignments UI", () => {
 
     expect(html).toContain("/courses/34/assessments/new")
     expect(html).toContain("HW1")
+    expect(html).toContain("Assignment Description:")
+    expect(html).toContain("Intro problems")
     expect(html).toContain("/courses/34/assessments/7")
   })
 })
