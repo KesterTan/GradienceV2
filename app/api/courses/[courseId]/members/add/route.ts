@@ -68,7 +68,6 @@ export async function POST(
 
     return NextResponse.json({ success: true, id: inserted[0]?.id });
   } catch (err) {
-    // ...existing code...
     return NextResponse.json({ error: "Unexpected server error" }, { status: 500 });
   }
 }

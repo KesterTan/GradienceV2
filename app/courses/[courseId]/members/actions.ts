@@ -72,7 +72,6 @@ export async function getCourseMembers(courseId: number) {
         .from(courseMemberships)
         .innerJoin(users, eq(courseMemberships.userId, users.id))
         .where(and(eq(courseMemberships.courseId, courseId), eq(courseMemberships.role, "grader")));
-      // ...
 
   // Add creator if not already in instructors
   const creatorArr = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
