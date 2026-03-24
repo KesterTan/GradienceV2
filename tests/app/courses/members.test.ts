@@ -2,14 +2,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST as addMember } from '@/app/api/courses/[courseId]/members/add/route';
 import { db } from '@/db/orm';
-import { users, courses, courseMemberships } from '@/db/schema';
+import { users, courses, courseMemberships, grades, rubricScores, feedbackComments } from '@/db/schema';
+// Import dependent tables for cleanup
+import { grades } from '@/db/schema';
+// If you have rubricScores and submissions tables, import them as well
+// import { rubricScores, submissions } from '@/db/schema';
 import * as currentUser from '../../../lib/current-user';
 
 
 describe('Manage Members - Add Member', () => {
 
   beforeEach(async () => {
-    // Clear test tables (mock or real test DB)
+    // Clear dependent tables first to avoid foreign key constraint errors
+    await db.delete(rubricScores);
+    await db.delete(grades);
+    await db.delete(feedbackComments);
+    // If you add submissions, delete them here as well
     await db.delete(courseMemberships);
     await db.delete(courses);
     await db.delete(users);
