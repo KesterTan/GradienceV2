@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { format, parseISO } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
+// ...existing code...
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCourseForGrader, listAssignmentsForCourse } from "@/lib/course-management"
 import { requireGraderUser } from "@/lib/current-user"
@@ -56,13 +57,21 @@ export default async function CourseDashboardPage({
               Instructors: {course.instructors.join(", ") || "None"}
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center sm:justify-end">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href={`/courses/${course.id}/members`}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 mr-1"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Members
+              </Link>
+            </Button>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             <Button asChild className="w-full sm:w-auto">
               <Link href={`/courses/${course.id}/assessments/new`}>Create assessment</Link>
             </Button>
             <Button asChild variant="outline" className="w-full sm:w-auto">
-              <Link href="/courses">Back to main dashboard</Link>
-            </Button>
+                <Link href="/courses">Back to main dashboard</Link>
+              </Button>
+          </div>
           </div>
         </div>
 
