@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation"
 import { auth0 } from "@/lib/auth0"
-import { and, eq, isNull, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { db } from "@/db/orm"
-import { users } from "@/db/schema"
+import { courseMemberships, users } from "@/db/schema"
 
 export type AppUser = {
   id: number
@@ -145,4 +145,46 @@ export async function requireGraderUser(): Promise<AppUser> {
     redirect("/login?error=unauthorized")
   }
   return user
+}
+
+export type StudentMembership = {
+  id: number
+  courseId: number
+}
+
+/**
+ * Verifies the logged-in user is an active student in the given course.
+ * Returns the user and their membership record.
+ * Redirects to /login?error=unauthorized if not enrolled or wrong role.
+ */
+export async function requireStudentMembership(
+  courseId: number,
+): Promise<{ user: AppUser; membership: StudentMembership }> {
+  const user = await requireAppUser()
+
+  const rows = await db
+    .select({ id: courseMemberships.id, courseId: courseMemberships.courseId })
+    .from(courseMemberships)
+    .where(
+      and(
+        eq(courseMemberships.userId, user.id),
+        eq(courseMemberships.courseId, courseId),
+        eq(courseMemberships.role, "student"),
+        eq(courseMemberships.status, "active"),
+      ),
+    )
+    .limit(1)
+
+  const membership = rows[0]
+  if (!membership) {
+    redirect("/login?error=unauthorized")
+  }
+
+  return {
+    user,
+    membership: {
+      id: Number(membership.id),
+      courseId: Number(membership.courseId),
+    },
+  }
 }

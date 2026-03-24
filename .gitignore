@@ -9,3 +9,7 @@ node_modules/
 .env
 .DS_Store
 .vercel
+
+# Local file uploads (dev only — swap for S3 in production)
+public/uploads/*
+!public/uploads/.gitkeep
