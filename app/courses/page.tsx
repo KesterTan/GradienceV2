@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { ArrowRight, BookOpen, Calendar, Plus } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +9,7 @@ import { listCoursesForGrader } from "@/lib/course-management"
 import { requireGraderUser } from "@/lib/current-user"
 
 function formatDate(value: string) {
-  return format(new Date(value), "MMM d, yyyy")
+  return format(parseISO(value), "MMM d, yyyy")
 }
 
 function pluralize(count: number, singular: string, plural: string) {

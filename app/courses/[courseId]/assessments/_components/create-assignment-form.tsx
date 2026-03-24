@@ -13,7 +13,9 @@ type AssignmentFormState = {
     title?: string[]
     description?: string[]
     startDate?: string[]
+    startTime?: string[]
     endDate?: string[]
+    endTime?: string[]
     courseId?: string[]
     _form?: string[]
   }
@@ -68,6 +70,24 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
           <Label htmlFor="endDate">End date</Label>
           <Input id="endDate" name="endDate" type="date" aria-invalid={!!state.errors?.endDate} />
           {dateError && <p className="text-sm text-destructive">{dateError}</p>}
+        </div>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="startTime">Start time</Label>
+          <Input id="startTime" name="startTime" type="time" aria-invalid={!!state.errors?.startTime} />
+          {state.errors?.startTime?.[0] && (
+            <p className="text-sm text-destructive">{state.errors.startTime[0]}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="endTime">End time</Label>
+          <Input id="endTime" name="endTime" type="time" aria-invalid={!!state.errors?.endTime} />
+          {state.errors?.endTime?.[0] && (
+            <p className="text-sm text-destructive">{state.errors.endTime[0]}</p>
+          )}
         </div>
       </div>
 

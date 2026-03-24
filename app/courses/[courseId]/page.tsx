@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,7 +8,7 @@ import { getCourseForGrader, listAssignmentsForCourse } from "@/lib/course-manag
 import { requireGraderUser } from "@/lib/current-user"
 
 function formatDate(value: string) {
-  return format(new Date(value), "MMM d, yyyy")
+  return format(parseISO(value), "MMM d, yyyy")
 }
 
 export default async function CourseDashboardPage({

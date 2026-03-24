@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/db/orm"
-import { assignments, courseMemberships } from "@/db/schema"
+import { assignments, courseMemberships, courses } from "@/db/schema"
 import { requireGraderUser } from "@/lib/current-user"
 
 type AssignmentFormState = {
@@ -13,7 +13,9 @@ type AssignmentFormState = {
     title?: string[]
     description?: string[]
     startDate?: string[]
+    startTime?: string[]
     endDate?: string[]
+    endTime?: string[]
     courseId?: string[]
     _form?: string[]
   }
@@ -30,10 +32,28 @@ const assignmentFieldsSchema = z.object({
   title: z.string().trim().min(1, "Assignment title is required"),
   description: z.preprocess(emptyToUndefined, z.string().optional()),
   startDate: z.preprocess(emptyToUndefined, z.string().optional()),
+  startTime: z.preprocess(emptyToUndefined, z.string().optional()),
   endDate: z.preprocess(emptyToUndefined, z.string().optional()),
+  endTime: z.preprocess(emptyToUndefined, z.string().optional()),
 })
 
 const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) => {
+  if (data.startTime && !data.startDate) {
+    ctx.addIssue({
+      path: ["startTime"],
+      code: z.ZodIssueCode.custom,
+      message: "Start date is required when a start time is provided",
+    })
+  }
+
+  if (data.endTime && !data.endDate) {
+    ctx.addIssue({
+      path: ["endTime"],
+      code: z.ZodIssueCode.custom,
+      message: "End date is required when an end time is provided",
+    })
+  }
+
   if (data.startDate && data.endDate && data.endDate < data.startDate) {
     ctx.addIssue({
       path: ["endDate"],
@@ -43,12 +63,15 @@ const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) =>
   }
 })
 
-function startOfDayIso(date: string) {
-  return new Date(`${date}T00:00:00.000Z`).toISOString()
-}
+function isoFromDateTime(date: string, time: string, endOfDayFallback = false) {
+  const normalizedTime = time?.trim()
+  if (normalizedTime) {
+    // Accept "HH:mm" or "HH:mm:ss"
+    const full = normalizedTime.length === 5 ? `${normalizedTime}:00.000Z` : `${normalizedTime}.000Z`
+    return new Date(`${date}T${full}`).toISOString()
+  }
 
-function endOfDayIso(date: string) {
-  return new Date(`${date}T23:59:59.999Z`).toISOString()
+  return new Date(`${date}T${endOfDayFallback ? "23:59:59.999Z" : "00:00:00.000Z"}`).toISOString()
 }
 
 export async function createAssignmentAction(
@@ -62,7 +85,9 @@ export async function createAssignmentAction(
     title: formData.get("title"),
     description: formData.get("description"),
     startDate: formData.get("startDate"),
+    startTime: formData.get("startTime"),
     endDate: formData.get("endDate"),
+    endTime: formData.get("endTime"),
   })
 
   if (!parsed.success) {
@@ -91,10 +116,66 @@ export async function createAssignmentAction(
     return { errors: { _form: ["You do not have permission to create assignments for this course."] } }
   }
 
-  const releaseAt = parsed.data.startDate ? startOfDayIso(parsed.data.startDate) : new Date().toISOString()
+  const courseRows = await db
+    .select({ startDate: courses.startDate, endDate: courses.endDate })
+    .from(courses)
+    .where(eq(courses.id, courseId))
+    .limit(1)
+
+  const course = courseRows[0]
+  if (!course) {
+    return { errors: { _form: ["Course not found."] } }
+  }
+
+  const courseStartAt = new Date(`${course.startDate}T00:00:00.000Z`).getTime()
+  const courseEndAt = new Date(`${course.endDate}T23:59:59.999Z`).getTime()
+
+  const releaseAt = parsed.data.startDate
+    ? isoFromDateTime(parsed.data.startDate, parsed.data.startTime ?? "", false)
+    : new Date().toISOString()
+
+  // If the user does not provide an end date/time, default to the course end.
   const dueAt = parsed.data.endDate
-    ? endOfDayIso(parsed.data.endDate)
-    : new Date(new Date(releaseAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    ? isoFromDateTime(parsed.data.endDate, parsed.data.endTime ?? "", true)
+    : new Date(courseEndAt).toISOString()
+
+  const releaseAtMs = new Date(releaseAt).getTime()
+  const dueAtMs = new Date(dueAt).getTime()
+
+  // Even when users omit dates, the derived start/end must still be feasible.
+  // If the course already ended, we cannot default an assignment start to "now".
+  if (!parsed.data.startDate && !parsed.data.endDate && releaseAtMs > courseEndAt) {
+    return {
+      errors: {
+        _form: [
+          "Course has already ended. Cannot create an assignment that starts after the course end date.",
+        ],
+      },
+    }
+  }
+
+  if (Number.isFinite(releaseAtMs) && Number.isFinite(dueAtMs) && releaseAtMs > dueAtMs) {
+    return { errors: { endDate: ["End date/time must be on or after start date/time"] } }
+  }
+
+  // Only enforce course-range constraints for fields the user explicitly set.
+  if (parsed.data.startDate) {
+    if (releaseAtMs < courseStartAt) {
+      return { errors: { startDate: ["Assignment must start on or after the course start date"] } }
+    }
+    if (releaseAtMs > courseEndAt) {
+      return { errors: { startDate: ["Assignment must start on or before the course end date"] } }
+    }
+  }
+
+  if (parsed.data.endDate) {
+    if (dueAtMs > courseEndAt) {
+      return { errors: { endDate: ["Assignment must end on or before the course end date"] } }
+    }
+    if (dueAtMs < courseStartAt) {
+      return { errors: { endDate: ["Assignment must end on or after the course start date"] } }
+    }
+  }
 
   await db.insert(assignments).values({
     courseId,
