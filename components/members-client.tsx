@@ -11,7 +11,7 @@ export default function MembersClient({ instructors, students, userId, courseTit
   // Local state for members to allow immediate UI update
   const [localInstructors, setLocalInstructors] = useState(instructors);
   const [localStudents, setLocalStudents] = useState(students);
-  // ...existing code...
+
   const [activeTab, setActiveTab] = useState("instructors");
   const tabs = [
     { role: "instructors", label: "Instructors", icon: <GraduationCap className="size-4 mr-1" />, count: localInstructors.length },
