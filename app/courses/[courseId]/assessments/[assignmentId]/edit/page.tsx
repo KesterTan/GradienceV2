@@ -65,6 +65,8 @@ export default async function EditAssessmentPage({
                 startTime: toTimeValue(assessment.releaseAt),
                 endDate: toDateValue(assessment.dueAt),
                 endTime: toTimeValue(assessment.dueAt),
+                lateUntilDate: assessment.lateUntil ? toDateValue(assessment.lateUntil) : "",
+                lateUntilTime: assessment.lateUntil ? toTimeValue(assessment.lateUntil) : "",
               }}
             />
           </CardContent>

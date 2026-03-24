@@ -16,6 +16,8 @@ type AssignmentFormState = {
     startTime?: string[]
     endDate?: string[]
     endTime?: string[]
+    lateUntilDate?: string[]
+    lateUntilTime?: string[]
     courseId?: string[]
     assignmentId?: string[]
     _form?: string[]
@@ -29,6 +31,8 @@ type AssignmentFormState = {
     startTime: string
     endDate: string
     endTime: string
+    lateUntilDate: string
+    lateUntilTime: string
   }
 }
 
@@ -51,6 +55,8 @@ const assignmentFieldsSchema = z.object({
   startTime: z.preprocess(emptyToUndefined, z.string().optional()),
   endDate: z.preprocess(emptyToUndefined, z.string().optional()),
   endTime: z.preprocess(emptyToUndefined, z.string().optional()),
+  lateUntilDate: z.preprocess(emptyToUndefined, z.string().optional()),
+  lateUntilTime: z.preprocess(emptyToUndefined, z.string().optional()),
 })
 
 const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) => {
@@ -75,6 +81,22 @@ const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) =>
       path: ["endDate"],
       code: z.ZodIssueCode.custom,
       message: "End date must be on or after start date",
+    })
+  }
+
+  if (data.lateUntilTime && !data.lateUntilDate) {
+    ctx.addIssue({
+      path: ["lateUntilTime"],
+      code: z.ZodIssueCode.custom,
+      message: "Late until date is required when a late until time is provided",
+    })
+  }
+
+  if (data.lateUntilDate && data.endDate && data.lateUntilDate < data.endDate) {
+    ctx.addIssue({
+      path: ["lateUntilDate"],
+      code: z.ZodIssueCode.custom,
+      message: "Late until date must be on or after the end date",
     })
   }
 
@@ -230,6 +252,8 @@ export async function createAssignmentAction(
     startTime: readFormValue(formData, "startTime"),
     endDate: readFormValue(formData, "endDate"),
     endTime: readFormValue(formData, "endTime"),
+    lateUntilDate: readFormValue(formData, "lateUntilDate"),
+    lateUntilTime: readFormValue(formData, "lateUntilTime"),
   }
 
   const parsed = createAssignmentSchema.safeParse({
@@ -240,6 +264,8 @@ export async function createAssignmentAction(
     startTime: values.startTime,
     endDate: values.endDate,
     endTime: values.endTime,
+    lateUntilDate: values.lateUntilDate,
+    lateUntilTime: values.lateUntilTime,
   })
 
   if (!parsed.success) {
@@ -305,6 +331,10 @@ export async function createAssignmentAction(
     return { errors: rangeErrors, values }
   }
 
+  const lateUntil = parsed.data.lateUntilDate
+    ? isoFromDateTime(parsed.data.lateUntilDate, parsed.data.lateUntilTime ?? "", true)
+    : null
+
   await db.insert(assignments).values({
     courseId,
     title: parsed.data.title,
@@ -313,11 +343,11 @@ export async function createAssignmentAction(
     totalPoints: 100,
     releaseAt,
     dueAt,
-    lateUntil: null,
-    submissionType: "text",
-    allowResubmissions: false,
+    lateUntil,
+    submissionType: "file_upload",
+    allowResubmissions: true,
     maxAttemptResubmission: 0,
-    isPublished: false,
+    isPublished: true,
     createdByUserId: grader.id,
   })
 
@@ -340,6 +370,8 @@ export async function updateAssignmentAction(
     startTime: readFormValue(formData, "startTime"),
     endDate: readFormValue(formData, "endDate"),
     endTime: readFormValue(formData, "endTime"),
+    lateUntilDate: readFormValue(formData, "lateUntilDate"),
+    lateUntilTime: readFormValue(formData, "lateUntilTime"),
   }
 
   const parsed = createAssignmentSchema.safeParse({
@@ -350,6 +382,8 @@ export async function updateAssignmentAction(
     startTime: values.startTime,
     endDate: values.endDate,
     endTime: values.endTime,
+    lateUntilDate: values.lateUntilDate,
+    lateUntilTime: values.lateUntilTime,
   })
 
   if (!parsed.success) {
@@ -427,6 +461,10 @@ export async function updateAssignmentAction(
     return { errors: rangeErrors, values }
   }
 
+  const lateUntil = parsed.data.lateUntilDate
+    ? isoFromDateTime(parsed.data.lateUntilDate, parsed.data.lateUntilTime ?? "", true)
+    : null
+
   await db
     .update(assignments)
     .set({
@@ -434,6 +472,7 @@ export async function updateAssignmentAction(
       description: parsed.data.description ?? null,
       releaseAt,
       dueAt,
+      lateUntil,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(assignments.id, assignmentId))

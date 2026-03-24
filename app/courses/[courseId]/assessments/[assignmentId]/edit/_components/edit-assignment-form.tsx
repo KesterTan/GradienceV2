@@ -16,6 +16,8 @@ type AssignmentFormState = {
     startTime?: string[]
     endDate?: string[]
     endTime?: string[]
+    lateUntilDate?: string[]
+    lateUntilTime?: string[]
     courseId?: string[]
     assignmentId?: string[]
     _form?: string[]
@@ -35,6 +37,8 @@ export function EditAssignmentForm(props: {
     startTime: string
     endDate: string
     endTime: string
+    lateUntilDate: string
+    lateUntilTime: string
   }
 }) {
   const { courseId, assignmentId, initialValues } = props
@@ -130,6 +134,45 @@ export function EditAssignmentForm(props: {
           {state.errors?.endTime?.[0] && (
             <p className="text-sm text-destructive">{state.errors.endTime[0]}</p>
           )}
+        </div>
+      </div>
+
+      {/* Late submissions */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">
+          Late submissions until{" "}
+          <span className="font-normal text-muted-foreground">(optional)</span>
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          If set, submissions will be accepted after the deadline until this date and marked as late.
+        </p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="lateUntilDate">Date</Label>
+            <Input
+              id="lateUntilDate"
+              name="lateUntilDate"
+              type="date"
+              defaultValue={values.lateUntilDate ?? initialValues.lateUntilDate}
+              aria-invalid={!!state.errors?.lateUntilDate}
+            />
+            {state.errors?.lateUntilDate?.[0] && (
+              <p className="text-sm text-destructive">{state.errors.lateUntilDate[0]}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="lateUntilTime">Time</Label>
+            <Input
+              id="lateUntilTime"
+              name="lateUntilTime"
+              type="time"
+              defaultValue={values.lateUntilTime ?? initialValues.lateUntilTime}
+              aria-invalid={!!state.errors?.lateUntilTime}
+            />
+            {state.errors?.lateUntilTime?.[0] && (
+              <p className="text-sm text-destructive">{state.errors.lateUntilTime[0]}</p>
+            )}
+          </div>
         </div>
       </div>
 
