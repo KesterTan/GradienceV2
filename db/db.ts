@@ -14,18 +14,18 @@ const signer = new Signer({
   }),
 });
 
-export const pool = new Pool({
+const poolConfig: any = {
   host: process.env.PGHOST,
   user: process.env.PGUSER,
   database: process.env.PGDATABASE || "postgres",
-  // The auth token value can be cached for up to 15 minutes (900 seconds) if desired.
   password: () => signer.getAuthToken(),
   port: Number(process.env.PGPORT),
-  // Recommended to switch to `true` in production.
-  // See https://docs.aws.amazon.com/lambda/latest/dg/services-rds.html#rds-lambda-certificates
-  ssl: { rejectUnauthorized: false },
   max: 20,
-});
+};
+if (process.env.PGSSLMODE === 'require') {
+  poolConfig.ssl = { rejectUnauthorized: false };
+}
+export const pool = new Pool(poolConfig);
 attachDatabasePool(pool);
 
 // Single query transaction.

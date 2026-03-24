@@ -3,7 +3,6 @@ import { notFound } from "next/navigation"
 import { format, parseISO } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
-// ...existing code...
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCourseForGrader, listAssignmentsForCourse } from "@/lib/course-management"
 import { requireGraderUser } from "@/lib/current-user"

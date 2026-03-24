@@ -1,6 +1,45 @@
+
 import { bigint, bigserial, boolean, date, integer, pgSchema, text, timestamp, unique } from "drizzle-orm/pg-core"
 
 const gradience = pgSchema("gradience")
+
+// --- Minimal test tables for feature isolation ---
+export const grades = gradience.table("grades", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  submissionId: bigint("submission_id", { mode: "number" }).notNull(),
+  gradedByMembershipId: bigint("graded_by_membership_id", { mode: "number" }).notNull(),
+  totalScore: integer("total_score").notNull(),
+  overallFeedback: text("overall_feedback"),
+  isReleasedToStudent: boolean("is_released_to_student").notNull().default(false),
+  releasedAt: timestamp("released_at", { withTimezone: true, mode: "string" }),
+  gradedAt: timestamp("graded_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+});
+
+export const rubricScores = gradience.table("rubric_scores", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  gradeId: bigint("grade_id", { mode: "number" }).notNull(),
+  rubricItemId: bigint("rubric_item_id", { mode: "number" }).notNull(),
+  pointsAwarded: integer("points_awarded").notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+});
+
+export const feedbackComments = gradience.table("feedback_comments", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  submissionId: bigint("submission_id", { mode: "number" }).notNull(),
+  authorMembershipId: bigint("author_membership_id", { mode: "number" }).notNull(),
+  rubricItemId: bigint("rubric_item_id", { mode: "number" }),
+  commentType: text("comment_type").notNull().default('summary'),
+  content: text("content").notNull(),
+  pageNumber: integer("page_number"),
+  anchorData: text("anchor_data"), // Use text for JSONB for now
+  isVisibleToStudent: boolean("is_visible_to_student").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+});
 
 export const users = gradience.table("users", {
   id: bigserial("id", { mode: "number" }).primaryKey(),

@@ -442,4 +442,3 @@ export async function updateAssignmentAction(
   revalidatePath(`/courses/${courseId}`)
   redirect(`/courses/${courseId}/assessments/${assignmentId}`)
 }
-

@@ -1,24 +1,78 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { toast } from "@/hooks/use-toast";
 import { GraduationCap, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export default function MembersClient({ instructors, students, userId, courseTitle }: any) {
+export default function MembersClient({ instructors, students, userId, courseTitle, isInstructor = false, courseId }: any) {
+  // Local state for members to allow immediate UI update
+  const [localInstructors, setLocalInstructors] = useState(instructors);
+  const [localStudents, setLocalStudents] = useState(students);
+
   const [activeTab, setActiveTab] = useState("instructors");
   const tabs = [
-    { role: "instructors", label: "Instructors", icon: <GraduationCap className="size-4 mr-1" />, count: instructors.length },
-    { role: "students", label: "Students", icon: <Users className="size-4 mr-1" />, count: students.length },
+    { role: "instructors", label: "Instructors", icon: <GraduationCap className="size-4 mr-1" />, count: localInstructors.length },
+    { role: "students", label: "Students", icon: <Users className="size-4 mr-1" />, count: localStudents.length },
   ];
   const getMembers = (tab: string) =>
     tab === "instructors"
-      ? instructors.map((m: any) => ({ ...m, role: "instructor" }))
-      : students.map((m: any) => ({ ...m, role: "student" }));
+      ? localInstructors.map((m: any) => ({ ...m, role: "instructor" }))
+      : localStudents.map((m: any) => ({ ...m, role: "student" }));
+
+  // Add Member form state
+  const [addEmail, setAddEmail] = useState("");
+  // Role is determined by activeTab: "grader" for instructors, "student" for students
+  const [addRole, setAddRole] = useState("student");
+  const [addError, setAddError] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  // Handler for add member
+  async function handleAddMember(e: React.FormEvent) {
+    e.preventDefault();
+    setAddError("");
+    setAddLoading(true);
+    // Set role based on activeTab
+    const role = activeTab === "instructors" ? "grader" : "student";
+    try {
+      const res = await fetch(`/api/courses/${courseId}/members/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: addEmail, role }),
+      });
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Unexpected server response. Please try again.");
+      }
+      if (!res.ok) throw new Error(data.error || "Failed to add member");
+      // Add the new member to local state for immediate UI update
+      if (role === "grader") {
+        setLocalInstructors((prev: any[]) => [...prev, { email: addEmail, id: data.id || Date.now(), name: addEmail }]);
+      } else {
+        setLocalStudents((prev: any[]) => [...prev, { email: addEmail, id: data.id || Date.now(), name: addEmail }]);
+      }
+      setAddEmail("");
+      setAddRole("student");
+      toast({
+        title: "Member added",
+        description: `Successfully added ${addEmail} as ${role === "grader" ? "instructor" : "student"}.`,
+        duration: 4000,
+      });
+    } catch (err: any) {
+      setAddError(err.message);
+      emailInputRef.current?.focus();
+    } finally {
+      setAddLoading(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-muted/30">
+
       <div className="mx-auto w-full max-w-2xl px-2 sm:px-4 py-6 sm:py-8">
         {/* Header Section */}
         <div className="mb-6">
@@ -32,7 +86,7 @@ export default function MembersClient({ instructors, students, userId, courseTit
         </div>
 
         {/* Tabs */}
-        <div className="w-full mb-4">
+        <div className="w-full mb-2">
           <div className="flex gap-2 border-b pb-2 overflow-x-auto no-scrollbar">
             {tabs.map(tab => (
               <button
@@ -47,6 +101,51 @@ export default function MembersClient({ instructors, students, userId, courseTit
             ))}
           </div>
         </div>
+
+        {/* Add Member Row (always visible for instructors, directly below tabs) */}
+        {isInstructor && (
+          <>
+            <form
+              onSubmit={handleAddMember}
+              className="flex w-full items-center gap-2 mb-2"
+            >
+              <Input
+                ref={emailInputRef}
+                type="email"
+                placeholder={
+                  activeTab === "instructors"
+                    ? "Instructor email address"
+                    : "Student email address"
+                }
+                value={addEmail}
+                onChange={e => setAddEmail(e.target.value)}
+                required
+                className="flex-grow min-w-0 rounded-md h-10 px-3 text-sm mt-2 sm:mt-3"
+                autoComplete="off"
+                disabled={addLoading}
+                style={{ width: '80%' }}
+              />
+              <Button
+                type="submit"
+                disabled={addLoading || !addEmail}
+                className="mt-2 sm:mt-3"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="size-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 8v6m3-3h-6" />
+                </svg>
+                Add
+              </Button>
+            </form>
+            {addError && (
+              <div className="text-destructive text-xs mb-2 ml-1">
+                {addError}
+              </div>
+            )}
+            {/* Success notification is now a toast popup */}
+          </>
+        )}
 
 
 

@@ -1,3 +1,60 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireGraderUser } from "@/lib/current-user";
+// POST /courses/[courseId]/members/add
+export async function POST(req: NextRequest, { params }: { params: { courseId: string } }) {
+  const user = await requireGraderUser();
+  const { courseId } = params;
+  const parsedCourseId = Number(courseId);
+  if (!Number.isFinite(parsedCourseId)) {
+    return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
+  }
+  const { email, role } = await req.json();
+  if (!email || !role || !["student", "grader"].includes(role)) {
+    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  }
+
+  // Check if user is an instructor or creator
+  const courseArr = await db.select({ creatorId: courses.createdByUserId }).from(courses).where(eq(courses.id, parsedCourseId));
+  const course = courseArr[0];
+  if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
+
+  // Get instructors (including creator)
+  const instructorMemberships = await db
+    .select({ courseMemberships, users })
+    .from(courseMemberships)
+    .innerJoin(users, eq(courseMemberships.userId, users.id))
+    .where(and(eq(courseMemberships.courseId, parsedCourseId), eq(courseMemberships.role, "grader")));
+  const isInstructor = instructorMemberships.some(row => row.users.id === user.id) || course.creatorId === user.id;
+  if (!isInstructor) {
+    return NextResponse.json({ error: "Only instructors can add members" }, { status: 403 });
+  }
+
+  // Find user by email
+  const userArr = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+  const memberUser = userArr[0];
+  if (!memberUser) {
+    return NextResponse.json({ error: "User with this email does not exist" }, { status: 404 });
+  }
+
+  // Prevent duplicate
+  const existingMembership = await db
+    .select({ id: courseMemberships.id })
+    .from(courseMemberships)
+    .where(and(eq(courseMemberships.courseId, parsedCourseId), eq(courseMemberships.userId, memberUser.id)));
+  if (existingMembership.length > 0) {
+    return NextResponse.json({ error: "User is already a member of this course" }, { status: 409 });
+  }
+
+  // Add membership
+  await db.insert(courseMemberships).values({
+    courseId: parsedCourseId,
+    userId: memberUser.id,
+    role,
+    status: "active",
+  });
+
+  return NextResponse.json({ success: true });
+}
 import { db } from "@/db/orm";
 import { eq, and } from "drizzle-orm";
 import { courses, courseMemberships, users } from "@/db/schema";
@@ -15,8 +72,6 @@ export async function getCourseMembers(courseId: number) {
         .from(courseMemberships)
         .innerJoin(users, eq(courseMemberships.userId, users.id))
         .where(and(eq(courseMemberships.courseId, courseId), eq(courseMemberships.role, "grader")));
-      // TEMP: Log the result structure for debugging
-      console.log('DEBUG instructorMemberships:', JSON.stringify(instructorMemberships, null, 2));
 
   // Add creator if not already in instructors
   const creatorArr = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
