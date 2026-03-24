@@ -13,6 +13,7 @@ export default async function MembersPage({ params }: { params: { courseId: stri
   if (!Number.isFinite(parsedCourseId)) notFound();
   const { instructors, students, creatorId, courseTitle, courseCode } = await getCourseMembers(parsedCourseId);
 
+  const isInstructor = instructors.some((i: any) => i.id === user.id) || creatorId === user.id;
   return (
     <main className="min-h-screen bg-muted/30">
       <DashboardHeader
@@ -31,6 +32,8 @@ export default async function MembersPage({ params }: { params: { courseId: stri
           students={students}
           userId={user.id}
           courseTitle={courseTitle}
+          isInstructor={isInstructor}
+          courseId={parsedCourseId}
         />
       </section>
     </main>
