@@ -8,6 +8,7 @@ import { StudentAssignmentDetail, StudentSubmissionSummary } from "@/lib/student
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -29,10 +30,54 @@ const STATUS_STYLES: Record<string, string> = {
 export function AssignmentClient({ assignment, initialSubmissions }: AssignmentClientProps) {
   const [submissions, setSubmissions] = useState<StudentSubmissionSummary[]>(initialSubmissions)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [restoreTarget, setRestoreTarget] = useState<StudentSubmissionSummary | null>(null)
+  const [restoreLoading, setRestoreLoading] = useState(false)
+  const [restoreError, setRestoreError] = useState<string | null>(null)
 
   function handleUploadSuccess(newSubmission: StudentSubmissionSummary) {
     setSubmissions((prev) => [...prev, newSubmission])
     setShowSuccess(true)
+  }
+
+  async function handleRestore() {
+    if (!restoreTarget) return
+    setRestoreLoading(true)
+    setRestoreError(null)
+
+    try {
+      const res = await fetch(
+        `/api/courses/${assignment.courseId}/assignments/${assignment.id}/restore`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ submissionId: restoreTarget.id }),
+        },
+      )
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setRestoreError(data.error ?? "Restore failed. Please try again.")
+        return
+      }
+
+      setSubmissions((prev) => [
+        ...prev,
+        {
+          id: data.submissionId,
+          attemptNumber: data.attemptNumber,
+          status: "resubmitted",
+          submittedAt: new Date().toISOString(),
+          fileUrl: data.fileUrl,
+        },
+      ])
+      setRestoreTarget(null)
+      setShowSuccess(true)
+    } catch {
+      setRestoreError("A network error occurred. Please try again.")
+    } finally {
+      setRestoreLoading(false)
+    }
   }
 
   const dueDate = new Date(assignment.dueAt)
@@ -66,6 +111,52 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Restore confirmation dialog */}
+      <Dialog
+        open={restoreTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRestoreTarget(null)
+            setRestoreError(null)
+          }
+        }}
+      >
+        <DialogContent showCloseButton={false} className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Restore Version {restoreTarget?.attemptNumber}?</DialogTitle>
+            <DialogDescription>
+              This will create a new submission (Version {submissions.length + 1}) using the same
+              file as Version {restoreTarget?.attemptNumber}. Your current submission will remain
+              in the history.
+            </DialogDescription>
+          </DialogHeader>
+          {restoreError && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
+              {restoreError}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRestoreTarget(null)
+                setRestoreError(null)
+              }}
+              disabled={restoreLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRestore}
+              disabled={restoreLoading}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {restoreLoading ? "Restoring…" : "Yes, restore"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Assignment details card */}
       <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
         <div className="flex items-start gap-4">
@@ -135,43 +226,66 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
         <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
           <h3 className="mb-4 text-sm font-semibold text-gray-900">Submission history</h3>
           <div className="space-y-3">
-            {[...submissions].reverse().map((submission) => (
-              <div
-                key={submission.id}
-                className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
-                    <FileText className="h-4 w-4 text-indigo-500" />
+            {[...submissions].reverse().map((submission, index) => {
+              const isCurrent = index === 0
+              return (
+                <div
+                  key={submission.id}
+                  className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-3 ${
+                    isCurrent
+                      ? "border-indigo-200 bg-white border-l-4 border-l-indigo-500"
+                      : "border-gray-100 bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${isCurrent ? "bg-indigo-100" : "bg-gray-200"}`}>
+                      <FileText className={`h-4 w-4 ${isCurrent ? "text-indigo-500" : "text-gray-400"}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-gray-800">
+                          Version {submission.attemptNumber}
+                        </p>
+                        {isCurrent && (
+                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        {format(new Date(submission.submittedAt), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800">
-                      Version {submission.attemptNumber}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {format(new Date(submission.submittedAt), "MMM d, yyyy 'at' h:mm a")}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span
-                    className={`rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[submission.status] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}
-                  >
-                    {submission.status}
-                  </span>
-                  {submission.fileUrl && (
-                    <a
-                      href={submission.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span
+                      className={`hidden sm:inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[submission.status] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}
                     >
-                      View PDF
-                    </a>
-                  )}
+                      {submission.status}
+                    </span>
+                    {submission.fileUrl && (
+                      <a
+                        href={submission.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700 whitespace-nowrap"
+                      >
+                        View PDF ↗
+                      </a>
+                    )}
+                    {!isCurrent && !isDeadlinePassed && (
+                      <button
+                        type="button"
+                        onClick={() => setRestoreTarget(submission)}
+                        className="text-xs font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap"
+                      >
+                        Restore
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
