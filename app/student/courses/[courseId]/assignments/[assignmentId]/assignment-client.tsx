@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, CheckCircle, FileText } from "lucide-react"
+import { Calendar, CheckCircle, FileText, Lock } from "lucide-react"
 import { format } from "date-fns"
 import { PdfUploadForm } from "@/components/pdf-upload-form"
 import { StudentAssignmentDetail, StudentSubmissionSummary } from "@/lib/student-queries"
@@ -36,7 +36,10 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
   }
 
   const dueDate = new Date(assignment.dueAt)
-  const isOverdue = new Date() > dueDate
+  const lateUntilDate = assignment.lateUntil ? new Date(assignment.lateUntil) : null
+  const now = new Date()
+  const isOverdue = now > dueDate
+  const isDeadlinePassed = now > dueDate && (lateUntilDate === null || now > lateUntilDate)
 
   return (
     <div className="space-y-6">
@@ -90,17 +93,42 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
         </div>
       </div>
 
-      {/* Upload form */}
-      <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900">
-          {submissions.length === 0 ? "Submit your work" : "Submit a new version"}
-        </h3>
-        <PdfUploadForm
-          courseId={assignment.courseId}
-          assignmentId={assignment.id}
-          onSuccess={handleUploadSuccess}
-        />
-      </div>
+      {/* Upload form / deadline closed */}
+      {isDeadlinePassed ? (
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+              <Lock className="h-5 w-5 text-gray-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Submissions closed</p>
+              <p className="mt-1 text-sm text-gray-500">
+                The deadline for this assignment has passed. No further submissions are accepted.
+              </p>
+              <p className="mt-1 text-xs text-gray-400">
+                Closed {format(lateUntilDate ?? dueDate, "MMM d, yyyy 'at' h:mm a")}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
+          <h3 className="mb-4 text-sm font-semibold text-gray-900">
+            {submissions.length === 0 ? "Submit your work" : "Submit a new version"}
+          </h3>
+          {lateUntilDate && isOverdue && (
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-700">
+              The deadline has passed but late submissions are accepted until{" "}
+              <span className="font-medium">{format(lateUntilDate, "MMM d, yyyy 'at' h:mm a")}</span>.
+            </p>
+          )}
+          <PdfUploadForm
+            courseId={assignment.courseId}
+            assignmentId={assignment.id}
+            onSuccess={handleUploadSuccess}
+          />
+        </div>
+      )}
 
       {/* Submission history */}
       {submissions.length > 0 && (

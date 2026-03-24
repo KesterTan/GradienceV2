@@ -66,16 +66,15 @@ export async function POST(
     const dueAt = new Date(assignment.dueAt)
     const lateUntil = assignment.lateUntil ? new Date(assignment.lateUntil) : null
 
-    let status: string
-    if (now <= dueAt) {
-      status = "submitted"
-    } else if (lateUntil && now <= lateUntil) {
-      status = "late"
-    } else {
-      status = "late"
+    const isDeadlinePassed = now > dueAt && (lateUntil === null || now > lateUntil)
+    if (isDeadlinePassed) {
+      return NextResponse.json(
+        { error: "The submission deadline has passed. No further submissions are accepted." },
+        { status: 409 },
+      )
     }
 
-    // Determine attempt number: count existing submissions for this student + assignment
+    // Count existing submissions to determine attempt number and status label
     const countRows = await db
       .select({ count: count() })
       .from(submissions)
@@ -85,8 +84,17 @@ export async function POST(
           eq(submissions.studentMembershipId, membership.id),
         ),
       )
+    const existingCount = Number(countRows[0]?.count ?? 0)
 
-    const attemptNumber = Number(countRows[0]?.count ?? 0) + 1
+    let status: string
+    if (now <= dueAt) {
+      status = existingCount === 0 ? "submitted" : "resubmitted"
+    } else {
+      // within lateUntil grace period
+      status = "late"
+    }
+
+    const attemptNumber = existingCount + 1
 
     // Store the file
     const filePath = `submissions/${courseId}/${assignmentId}/${membership.id}/${attemptNumber}.pdf`
