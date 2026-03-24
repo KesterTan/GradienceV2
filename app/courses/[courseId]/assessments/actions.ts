@@ -19,6 +19,20 @@ type AssignmentFormState = {
     courseId?: string[]
     _form?: string[]
   }
+  values?: {
+    courseId: string
+    title: string
+    description: string
+    startDate: string
+    startTime: string
+    endDate: string
+    endTime: string
+  }
+}
+
+function readFormValue(formData: FormData, key: string) {
+  const value = formData.get(key)
+  return typeof value === "string" ? value : ""
 }
 
 const emptyToUndefined = (value: unknown) => {
@@ -80,23 +94,33 @@ export async function createAssignmentAction(
 ): Promise<AssignmentFormState> {
   const grader = await requireGraderUser()
 
+  const values = {
+    courseId: readFormValue(formData, "courseId"),
+    title: readFormValue(formData, "title"),
+    description: readFormValue(formData, "description"),
+    startDate: readFormValue(formData, "startDate"),
+    startTime: readFormValue(formData, "startTime"),
+    endDate: readFormValue(formData, "endDate"),
+    endTime: readFormValue(formData, "endTime"),
+  }
+
   const parsed = createAssignmentSchema.safeParse({
-    courseId: formData.get("courseId"),
-    title: formData.get("title"),
-    description: formData.get("description"),
-    startDate: formData.get("startDate"),
-    startTime: formData.get("startTime"),
-    endDate: formData.get("endDate"),
-    endTime: formData.get("endTime"),
+    courseId: values.courseId,
+    title: values.title,
+    description: values.description,
+    startDate: values.startDate,
+    startTime: values.startTime,
+    endDate: values.endDate,
+    endTime: values.endTime,
   })
 
   if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors }
+    return { errors: parsed.error.flatten().fieldErrors, values }
   }
 
   const courseId = Number(parsed.data.courseId)
   if (!Number.isFinite(courseId)) {
-    return { errors: { courseId: ["Invalid course id"] } }
+    return { errors: { courseId: ["Invalid course id"] }, values }
   }
 
   const membership = await db
@@ -113,7 +137,7 @@ export async function createAssignmentAction(
     .limit(1)
 
   if (!membership[0]) {
-    return { errors: { _form: ["You do not have permission to create assignments for this course."] } }
+    return { errors: { _form: ["You do not have permission to create assignments for this course."] }, values }
   }
 
   const courseRows = await db
@@ -124,7 +148,7 @@ export async function createAssignmentAction(
 
   const course = courseRows[0]
   if (!course) {
-    return { errors: { _form: ["Course not found."] } }
+    return { errors: { _form: ["Course not found."] }, values }
   }
 
   const courseStartAt = new Date(`${course.startDate}T00:00:00.000Z`).getTime()
@@ -151,29 +175,30 @@ export async function createAssignmentAction(
           "Course has already ended. Cannot create an assignment that starts after the course end date.",
         ],
       },
+      values,
     }
   }
 
   if (Number.isFinite(releaseAtMs) && Number.isFinite(dueAtMs) && releaseAtMs > dueAtMs) {
-    return { errors: { endDate: ["End date/time must be on or after start date/time"] } }
+    return { errors: { endDate: ["End date/time must be on or after start date/time"] }, values }
   }
 
   // Only enforce course-range constraints for fields the user explicitly set.
   if (parsed.data.startDate) {
     if (releaseAtMs < courseStartAt) {
-      return { errors: { startDate: ["Assignment must start on or after the course start date"] } }
+      return { errors: { startDate: ["Assignment must start on or after the course start date"] }, values }
     }
     if (releaseAtMs > courseEndAt) {
-      return { errors: { startDate: ["Assignment must start on or before the course end date"] } }
+      return { errors: { startDate: ["Assignment must start on or before the course end date"] }, values }
     }
   }
 
   if (parsed.data.endDate) {
     if (dueAtMs > courseEndAt) {
-      return { errors: { endDate: ["Assignment must end on or before the course end date"] } }
+      return { errors: { endDate: ["Assignment must end on or before the course end date"] }, values }
     }
     if (dueAtMs < courseStartAt) {
-      return { errors: { endDate: ["Assignment must end on or after the course start date"] } }
+      return { errors: { endDate: ["Assignment must end on or after the course start date"] }, values }
     }
   }
 

@@ -19,6 +19,14 @@ type AssignmentFormState = {
     courseId?: string[]
     _form?: string[]
   }
+  values?: {
+    title: string
+    description: string
+    startDate: string
+    startTime: string
+    endDate: string
+    endTime: string
+  }
 }
 
 const initialState: AssignmentFormState = {}
@@ -39,6 +47,7 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
           name="title"
           required
           placeholder="e.g. Midterm 1"
+          defaultValue={state.values?.title ?? ""}
           aria-invalid={!!state.errors?.title}
         />
         {state.errors?.title?.[0] && <p className="text-sm text-destructive">{state.errors.title[0]}</p>}
@@ -50,6 +59,7 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
           id="description"
           name="description"
           placeholder="Optional instructions, topics covered, grading policy..."
+          defaultValue={state.values?.description ?? ""}
           aria-invalid={!!state.errors?.description}
         />
         {state.errors?.description?.[0] && (
@@ -60,7 +70,13 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="startDate">Start date</Label>
-          <Input id="startDate" name="startDate" type="date" aria-invalid={!!state.errors?.startDate} />
+          <Input
+            id="startDate"
+            name="startDate"
+            type="date"
+            defaultValue={state.values?.startDate ?? ""}
+            aria-invalid={!!state.errors?.startDate}
+          />
           {state.errors?.startDate?.[0] && (
             <p className="text-sm text-destructive">{state.errors.startDate[0]}</p>
           )}
@@ -68,7 +84,13 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
 
         <div className="space-y-2">
           <Label htmlFor="endDate">End date</Label>
-          <Input id="endDate" name="endDate" type="date" aria-invalid={!!state.errors?.endDate} />
+          <Input
+            id="endDate"
+            name="endDate"
+            type="date"
+            defaultValue={state.values?.endDate ?? ""}
+            aria-invalid={!!state.errors?.endDate}
+          />
           {dateError && <p className="text-sm text-destructive">{dateError}</p>}
         </div>
       </div>
@@ -76,7 +98,13 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="startTime">Start time</Label>
-          <Input id="startTime" name="startTime" type="time" aria-invalid={!!state.errors?.startTime} />
+          <Input
+            id="startTime"
+            name="startTime"
+            type="time"
+            defaultValue={state.values?.startTime ?? ""}
+            aria-invalid={!!state.errors?.startTime}
+          />
           {state.errors?.startTime?.[0] && (
             <p className="text-sm text-destructive">{state.errors.startTime[0]}</p>
           )}
@@ -84,7 +112,13 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
 
         <div className="space-y-2">
           <Label htmlFor="endTime">End time</Label>
-          <Input id="endTime" name="endTime" type="time" aria-invalid={!!state.errors?.endTime} />
+          <Input
+            id="endTime"
+            name="endTime"
+            type="time"
+            defaultValue={state.values?.endTime ?? ""}
+            aria-invalid={!!state.errors?.endTime}
+          />
           {state.errors?.endTime?.[0] && (
             <p className="text-sm text-destructive">{state.errors.endTime[0]}</p>
           )}

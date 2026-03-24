@@ -73,6 +73,57 @@ describe("createAssignmentAction", () => {
     vi.useRealTimers()
   })
 
+  it("defaults end to course end when only start is provided", async () => {
+    mocks.selectQueue.push(
+      [{ id: 999 }],
+      [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
+    )
+
+    const formData = createAssignmentFormData({
+      courseId: 34,
+      title: "HW1",
+      startDate: "2026-03-02",
+      startTime: "08:15",
+    })
+
+    await expect(createAssignmentAction({}, formData)).rejects.toThrow("REDIRECT:/courses/34")
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        releaseAt: "2026-03-02T08:15:00.000Z",
+        dueAt: "2026-03-10T23:59:59.999Z",
+      }),
+    )
+  })
+
+  it("defaults start to now when only end is provided (and now is before end)", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-03-05T12:00:00.000Z"))
+
+    mocks.selectQueue.push(
+      [{ id: 999 }],
+      [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
+    )
+
+    const formData = createAssignmentFormData({
+      courseId: 34,
+      title: "HW1",
+      endDate: "2026-03-06",
+      endTime: "09:00",
+    })
+
+    await expect(createAssignmentAction({}, formData)).rejects.toThrow("REDIRECT:/courses/34")
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        releaseAt: "2026-03-05T12:00:00.000Z",
+        dueAt: "2026-03-06T09:00:00.000Z",
+      }),
+    )
+
+    vi.useRealTimers()
+  })
+
   it("rejects creation when course already ended and dates are omitted (start would be after course end)", async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-03-20T12:00:00.000Z"))
@@ -103,6 +154,12 @@ describe("createAssignmentAction", () => {
     const state = await createAssignmentAction({}, formData)
 
     expect(state.errors?.title?.[0]).toBe("Assignment title is required")
+    expect(state.values).toEqual(
+      expect.objectContaining({
+        courseId: "34",
+        title: "",
+      }),
+    )
     expect(mocks.insert).not.toHaveBeenCalled()
     expect(mocks.revalidatePath).not.toHaveBeenCalled()
   })
@@ -118,6 +175,14 @@ describe("createAssignmentAction", () => {
     const state = await createAssignmentAction({}, formData)
 
     expect(state.errors?.endDate?.[0]).toBe("End date must be on or after start date")
+    expect(state.values).toEqual(
+      expect.objectContaining({
+        courseId: "34",
+        title: "HW1",
+        startDate: "2026-05-10",
+        endDate: "2026-05-01",
+      }),
+    )
     expect(mocks.insert).not.toHaveBeenCalled()
   })
 
@@ -141,6 +206,39 @@ describe("createAssignmentAction", () => {
     const state = await createAssignmentAction({}, formData)
 
     expect(state.errors?._form?.[0]).toBe("You do not have permission to create assignments for this course.")
+    expect(state.values).toEqual(
+      expect.objectContaining({
+        courseId: "34",
+        title: "HW1",
+      }),
+    )
+    expect(mocks.insert).not.toHaveBeenCalled()
+  })
+
+  it("returns values on course not found", async () => {
+    mocks.selectQueue.push(
+      [{ id: 999 }], // membership exists
+      [], // course lookup empty
+    )
+
+    const formData = createAssignmentFormData({
+      courseId: 34,
+      title: "HW1",
+      startDate: "2026-03-02",
+      startTime: "08:15",
+    })
+
+    const state = await createAssignmentAction({}, formData)
+
+    expect(state.errors?._form?.[0]).toBe("Course not found.")
+    expect(state.values).toEqual(
+      expect.objectContaining({
+        courseId: "34",
+        title: "HW1",
+        startDate: "2026-03-02",
+        startTime: "08:15",
+      }),
+    )
     expect(mocks.insert).not.toHaveBeenCalled()
   })
 
