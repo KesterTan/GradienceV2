@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react"
 import { FileText, UploadCloud, X } from "lucide-react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { StudentSubmissionSummary } from "@/lib/student-queries"
 
@@ -65,7 +64,6 @@ export function PdfUploadForm({ courseId, assignmentId, onSuccess }: PdfUploadFo
         return
       }
 
-      toast.success("Submission uploaded successfully.")
       handleClear()
       onSuccess({
         id: data.submissionId,

@@ -1,10 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, FileText } from "lucide-react"
+import { Calendar, CheckCircle, FileText } from "lucide-react"
 import { format } from "date-fns"
 import { PdfUploadForm } from "@/components/pdf-upload-form"
 import { StudentAssignmentDetail, StudentSubmissionSummary } from "@/lib/student-queries"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 interface AssignmentClientProps {
   assignment: StudentAssignmentDetail
@@ -20,9 +28,11 @@ const STATUS_STYLES: Record<string, string> = {
 
 export function AssignmentClient({ assignment, initialSubmissions }: AssignmentClientProps) {
   const [submissions, setSubmissions] = useState<StudentSubmissionSummary[]>(initialSubmissions)
+  const [showSuccess, setShowSuccess] = useState(false)
 
   function handleUploadSuccess(newSubmission: StudentSubmissionSummary) {
     setSubmissions((prev) => [...prev, newSubmission])
+    setShowSuccess(true)
   }
 
   const dueDate = new Date(assignment.dueAt)
@@ -30,6 +40,29 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
 
   return (
     <div className="space-y-6">
+      <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
+        <DialogContent showCloseButton={false} className="sm:max-w-md text-center">
+          <DialogHeader>
+            <div className="flex justify-center mb-2">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+                <CheckCircle className="h-7 w-7 text-green-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-lg">Submission received!</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500">
+            Your submission for <span className="font-semibold text-gray-800">{assignment.title}</span> has been successfully uploaded.
+          </p>
+          <DialogFooter className="sm:justify-center">
+            <Button
+              onClick={() => setShowSuccess(false)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Assignment details card */}
       <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
         <div className="flex items-start gap-4">
