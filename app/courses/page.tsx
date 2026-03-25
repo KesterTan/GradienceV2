@@ -5,8 +5,8 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { listCoursesForGrader } from "@/lib/course-management"
-import { requireGraderUser } from "@/lib/current-user"
+import { listCoursesForUser } from "@/lib/course-management"
+import { requireAppUser } from "@/lib/current-user"
 
 function formatDate(value: string) {
   return format(parseISO(value), "MMM d, yyyy")
@@ -17,8 +17,9 @@ function pluralize(count: number, singular: string, plural: string) {
 }
 
 export default async function CoursesDashboardPage() {
-  const user = await requireGraderUser()
-  const courses = await listCoursesForGrader(user.id)
+  const user = await requireAppUser()
+  const courses = await listCoursesForUser(user.id)
+  const canCreateCourses = user.globalRole === "grader"
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -41,27 +42,39 @@ export default async function CoursesDashboardPage() {
               </div>
               <h2 className="text-xl font-semibold text-foreground">Course Dashboard</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">Manage your courses, assignments, and student submissions.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {canCreateCourses
+                ? "Manage your courses, assignments, and student submissions."
+                : "View the courses you are enrolled in."}
+            </p>
           </div>
-          <Button asChild className="w-full sm:w-auto">
-            <Link href="/courses/new" className="gap-2">
-              <Plus className="size-4" />
-              Create Course
-            </Link>
-          </Button>
+          {canCreateCourses ? (
+            <Button asChild className="w-full sm:w-auto">
+              <Link href="/courses/new" className="gap-2">
+                <Plus className="size-4" />
+                Create Course
+              </Link>
+            </Button>
+          ) : null}
         </div>
 
         {courses.length === 0 ? (
           <Card>
             <CardHeader>
               <CardTitle>No courses yet</CardTitle>
-              <CardDescription>Create your first course to start managing assessments and submissions.</CardDescription>
+              <CardDescription>
+                {canCreateCourses
+                  ? "Create your first course to start managing assessments and submissions."
+                  : "You have not been added to any courses yet."}
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button asChild>
-                <Link href="/courses/new">Create first course</Link>
-              </Button>
-            </CardContent>
+            {canCreateCourses ? (
+              <CardContent>
+                <Button asChild>
+                  <Link href="/courses/new">Create first course</Link>
+                </Button>
+              </CardContent>
+            ) : null}
           </Card>
         ) : (
           <div className="grid gap-4">

@@ -10,7 +10,7 @@ vi.mock("@/db/orm", () => ({ db: { select: mocks.select } }))
 import {
   getCourseForGrader,
   listAssignmentsForCourse,
-  listCoursesForGrader,
+  listCoursesForUser,
   listSubmissionsForAssessment,
 } from "@/lib/course-management"
 
@@ -33,7 +33,7 @@ describe("course-management data functions", () => {
     mocks.select.mockImplementation(() => createSelectBuilder(mocks.selectQueue.shift() ?? []))
   })
 
-  it("listCoursesForGrader maps database rows into typed summary objects", async () => {
+  it("listCoursesForUser maps database rows into typed summary objects", async () => {
     mocks.selectQueue.push([
       {
         id: 10,
@@ -47,7 +47,7 @@ describe("course-management data functions", () => {
       },
     ])
 
-    const courses = await listCoursesForGrader(7)
+    const courses = await listCoursesForUser(7)
 
     expect(courses).toEqual([
       {

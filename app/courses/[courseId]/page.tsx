@@ -5,7 +5,7 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCourseForGrader, listAssignmentsForCourse } from "@/lib/course-management"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 function formatDate(value: string) {
   return format(parseISO(value), "MMM d, yyyy")
@@ -16,7 +16,7 @@ export default async function CourseDashboardPage({
 }: {
   params: Promise<{ courseId: string }>
 }) {
-  const user = await requireGraderUser()
+  const user = await requireAppUser()
   const { courseId } = await params
   const parsedCourseId = Number(courseId)
 
@@ -32,6 +32,8 @@ export default async function CourseDashboardPage({
   if (!course) {
     notFound()
   }
+
+  const isInstructor = course.viewerRole === "Instructor"
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -57,16 +59,20 @@ export default async function CourseDashboardPage({
             </p>
           </div>
           <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center sm:justify-end">
-            <Button asChild variant="outline" className="w-full sm:w-auto">
-              <Link href={`/courses/${course.id}/members`}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 mr-1"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                Members
-              </Link>
-            </Button>
+            {isInstructor ? (
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href={`/courses/${course.id}/members`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 mr-1"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  Members
+                </Link>
+              </Button>
+            ) : null}
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-            <Button asChild className="w-full sm:w-auto">
-              <Link href={`/courses/${course.id}/assessments/new`}>Create assessment</Link>
-            </Button>
+            {isInstructor ? (
+              <Button asChild className="w-full sm:w-auto">
+                <Link href={`/courses/${course.id}/assessments/new`}>Create assessment</Link>
+              </Button>
+            ) : null}
             <Button asChild variant="outline" className="w-full sm:w-auto">
                 <Link href="/courses">Back to main dashboard</Link>
               </Button>
@@ -97,13 +103,21 @@ export default async function CourseDashboardPage({
                 </CardHeader>
                 <CardContent className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                   <p className="text-sm text-muted-foreground">
-                    Submissions: <span className="font-medium text-foreground">{assignment.submissionCount}</span>
+                    {isInstructor ? (
+                      <>
+                        Submissions: <span className="font-medium text-foreground">{assignment.submissionCount}</span>
+                      </>
+                    ) : (
+                      <>Assigned coursework</>
+                    )}
                   </p>
-                  <Button asChild className="w-full sm:w-auto">
-                    <Link href={`/courses/${course.id}/assessments/${assignment.id}`}>
-                      Open assessment page
-                    </Link>
-                  </Button>
+                  {isInstructor ? (
+                    <Button asChild className="w-full sm:w-auto">
+                      <Link href={`/courses/${course.id}/assessments/${assignment.id}`}>
+                        Open assessment page
+                      </Link>
+                    </Button>
+                  ) : null}
                 </CardContent>
               </Card>
             ))}

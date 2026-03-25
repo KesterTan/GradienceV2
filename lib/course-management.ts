@@ -20,6 +20,7 @@ export type CourseDetail = {
   startDate: string
   endDate: string
   instructors: string[]
+  viewerRole: "Instructor" | "Student"
 }
 
 export type AssignmentSummary = {
@@ -64,7 +65,7 @@ export type SubmissionDetail = {
   assignmentId: number
 }
 
-export async function listCoursesForGrader(userId: number): Promise<CourseSummary[]> {
+export async function listCoursesForUser(userId: number): Promise<CourseSummary[]> {
   const member = alias(courseMemberships, "member")
   const myMembership = alias(courseMemberships, "my_membership")
   const memberUser = alias(users, "member_user")
@@ -87,7 +88,6 @@ export async function listCoursesForGrader(userId: number): Promise<CourseSummar
       and(
         eq(myMembership.courseId, courses.id),
         eq(myMembership.userId, userId),
-        eq(myMembership.role, "grader"),
         eq(myMembership.status, "active"),
       ),
     )
@@ -123,6 +123,7 @@ export async function getCourseForGrader(
       startDate: courses.startDate,
       endDate: courses.endDate,
       instructors: sql<string[]>`coalesce(array_agg(distinct trim(${memberUser.firstName} || ' ' || ${memberUser.lastName})) filter (where ${member.role} = 'grader' and ${member.status} = 'active'), ARRAY[]::text[])`,
+      viewerRole: sql<"Instructor" | "Student">`case when ${myMembership.role} = 'student' then 'Student' else 'Instructor' end`,
     })
     .from(courses)
     .innerJoin(
@@ -130,7 +131,6 @@ export async function getCourseForGrader(
       and(
         eq(myMembership.courseId, courses.id),
         eq(myMembership.userId, userId),
-        eq(myMembership.role, "grader"),
         eq(myMembership.status, "active"),
       ),
     )
@@ -149,6 +149,7 @@ export async function getCourseForGrader(
     startDate: String(row.startDate),
     endDate: String(row.endDate),
     instructors: (row.instructors as string[]) ?? [],
+    viewerRole: row.viewerRole === "Student" ? "Student" : "Instructor",
   }
 }
 
@@ -171,7 +172,6 @@ export async function listAssignmentsForCourse(
       and(
         eq(myMembership.courseId, assignments.courseId),
         eq(myMembership.userId, userId),
-        eq(myMembership.role, "grader"),
         eq(myMembership.status, "active"),
       ),
     )
