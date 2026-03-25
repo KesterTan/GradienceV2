@@ -5,9 +5,6 @@ SET search_path TO gradience, public;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'global_role') THEN
-        CREATE TYPE global_role AS ENUM ('grader', 'student');
-    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_status') THEN
         CREATE TYPE user_status AS ENUM ('active', 'inactive', 'invited');
     END IF;
@@ -42,7 +39,6 @@ CREATE TABLE IF NOT EXISTS users (
     email                 text NOT NULL UNIQUE,
     password_hash         text NOT NULL,
     auth_provider_id      text,
-    global_role           global_role NOT NULL DEFAULT 'student',
     created_at            timestamptz NOT NULL DEFAULT now(),
     status                user_status NOT NULL DEFAULT 'invited'
 );

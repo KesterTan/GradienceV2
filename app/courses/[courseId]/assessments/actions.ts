@@ -6,7 +6,7 @@ import { z } from "zod"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/db/orm"
 import { assignments, courseMemberships, courses } from "@/db/schema"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 type AssignmentFormState = {
   errors?: {
@@ -220,7 +220,7 @@ export async function createAssignmentAction(
   _prevState: AssignmentFormState,
   formData: FormData,
 ): Promise<AssignmentFormState> {
-  const grader = await requireGraderUser()
+  const user = await requireAppUser()
 
   const values = {
     courseId: readFormValue(formData, "courseId"),
@@ -251,7 +251,7 @@ export async function createAssignmentAction(
     return { errors: { courseId: ["Invalid course id"] }, values }
   }
 
-  const membership = await requireActiveGraderMembership(courseId, grader.id)
+  const membership = await requireActiveGraderMembership(courseId, user.id)
   if (!membership) {
     return { errors: { _form: ["You do not have permission to create assignments for this course."] }, values }
   }
@@ -318,7 +318,7 @@ export async function createAssignmentAction(
     allowResubmissions: false,
     maxAttemptResubmission: 0,
     isPublished: false,
-    createdByUserId: grader.id,
+    createdByUserId: user.id,
   })
 
   revalidatePath(`/courses/${courseId}`)
@@ -329,7 +329,7 @@ export async function updateAssignmentAction(
   _prevState: AssignmentFormState,
   formData: FormData,
 ): Promise<AssignmentFormState> {
-  const grader = await requireGraderUser()
+  const user = await requireAppUser()
 
   const values = {
     courseId: readFormValue(formData, "courseId"),
@@ -365,7 +365,7 @@ export async function updateAssignmentAction(
     return { errors: { assignmentId: ["Invalid assignment id"] }, values }
   }
 
-  const membership = await requireActiveGraderMembership(courseId, grader.id)
+  const membership = await requireActiveGraderMembership(courseId, user.id)
   if (!membership) {
     return { errors: { _form: ["You do not have permission to edit assignments for this course."] }, values }
   }

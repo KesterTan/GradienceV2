@@ -6,7 +6,6 @@ type UserSeed = {
   email: string;
   passwordHash: string;
   authProviderId: string;
-  globalRole: "grader" | "student";
   status: "active" | "inactive" | "invited";
 };
 
@@ -110,7 +109,6 @@ const users: UserSeed[] = [
     email: "irene@gradience.edu",
     passwordHash: "$2b$10$instructor",
     authProviderId: "auth0|irene",
-    globalRole: "grader",
     status: "active",
   },
   {
@@ -119,7 +117,6 @@ const users: UserSeed[] = [
     email: "gary@gradience.edu",
     passwordHash: "$2b$10$grader",
     authProviderId: "auth0|gary",
-    globalRole: "grader",
     status: "active",
   },
   {
@@ -128,7 +125,6 @@ const users: UserSeed[] = [
     email: "stu@gradience.edu",
     passwordHash: "$2b$10$student",
     authProviderId: "auth0|stu",
-    globalRole: "student",
     status: "active",
   },
 ];
@@ -299,8 +295,8 @@ async function seed() {
       const userIds = new Map<string, number>();
       for (const user of users) {
         const { rows } = await client.query<{ id: number }>(
-          `INSERT INTO users (first_name, last_name, email, password_hash, auth_provider_id, global_role, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `INSERT INTO users (first_name, last_name, email, password_hash, auth_provider_id, status)
+           VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id`,
           [
             user.firstName,
@@ -308,7 +304,6 @@ async function seed() {
             user.email,
             user.passwordHash,
             user.authProviderId,
-            user.globalRole,
             user.status,
           ],
         );

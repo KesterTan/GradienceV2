@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     throw new Error(`REDIRECT:${path}`)
   }),
   requireGraderUser: vi.fn(),
+  requireAppUser: vi.fn(),
   select: vi.fn(),
   selectLimit: vi.fn(),
   update: vi.fn(),
@@ -17,7 +18,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }))
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }))
-vi.mock("@/lib/current-user", () => ({ requireGraderUser: mocks.requireGraderUser }))
+vi.mock("@/lib/current-user", () => ({
+  requireGraderUser: mocks.requireGraderUser,
+  requireAppUser: mocks.requireAppUser,
+}))
 vi.mock("@/db/orm", () => ({
   db: {
     select: mocks.select,
@@ -55,7 +59,8 @@ describe("updateAssignmentAction", () => {
     vi.clearAllMocks()
     mocks.selectQueue.length = 0
 
-    mocks.requireGraderUser.mockResolvedValue({ id: 42, globalRole: "grader" })
+    mocks.requireGraderUser.mockResolvedValue({ id: 42 })
+    mocks.requireAppUser.mockResolvedValue({ id: 42 })
 
     mocks.selectLimit.mockImplementation(async () => (mocks.selectQueue.shift() ?? []) as unknown[])
     mocks.select.mockImplementation(() => ({

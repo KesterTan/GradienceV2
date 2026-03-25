@@ -19,7 +19,7 @@ import { createCourseAction } from "@/app/courses/actions"
 describe("createCourseAction", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.requireGraderUser.mockResolvedValue({ id: 42, globalRole: "grader" })
+    mocks.requireGraderUser.mockResolvedValue({ id: 42 })
   })
 
   it("returns validation errors when title is missing", async () => {

@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CreateAssignmentForm } from "../_components/create-assignment-form"
 import { getCourseForGrader } from "@/lib/course-management"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 export default async function CreateAssessmentPage({
   params,
 }: {
   params: Promise<{ courseId: string }>
 }) {
-  const user = await requireGraderUser()
+  const user = await requireAppUser()
   const { courseId } = await params
 
   const parsedCourseId = Number(courseId)

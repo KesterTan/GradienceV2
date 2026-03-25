@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { listCoursesForGrader } from "@/lib/course-management"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 function formatDate(value: string) {
   return format(parseISO(value), "MMM d, yyyy")
@@ -17,7 +17,7 @@ function pluralize(count: number, singular: string, plural: string) {
 }
 
 export default async function CoursesDashboardPage() {
-  const user = await requireGraderUser()
+  const user = await requireAppUser()
   const courses = await listCoursesForGrader(user.id)
 
   return (

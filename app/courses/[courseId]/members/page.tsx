@@ -1,14 +1,14 @@
 import MembersClient from "@/components/members-client";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { getCourseMembers } from "./actions";
-import { requireGraderUser } from "@/lib/current-user";
+import { requireAppUser } from "@/lib/current-user";
 import { notFound } from "next/navigation";
 
 
 // Server Component: fetch data
 export default async function MembersPage({ params }: { params: { courseId: string } } | { params: Promise<{ courseId: string }> }) {
   const resolvedParams = await Promise.resolve(params);
-  const user = await requireGraderUser();
+  const user = await requireAppUser();
   const parsedCourseId = Number(resolvedParams.courseId);
   if (!Number.isFinite(parsedCourseId)) notFound();
   const { instructors, students, creatorId, courseTitle, courseCode } = await getCourseMembers(parsedCourseId);

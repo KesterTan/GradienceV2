@@ -14,12 +14,15 @@ export type CourseSummary = {
   assignmentCount: number
 }
 
+export type CourseViewerRole = "Instructor" | "Student"
+
 export type CourseDetail = {
   id: number
   title: string
   startDate: string
   endDate: string
   instructors: string[]
+  viewerRole: CourseViewerRole
 }
 
 export type AssignmentSummary = {
@@ -38,6 +41,10 @@ export type AssessmentDetail = {
   description: string | null
   courseId: number
   courseTitle: string
+}
+
+export type AssessmentMemberDetail = AssessmentDetail & {
+  viewerRole: CourseViewerRole
 }
 
 export type SubmissionSummary = {
@@ -87,7 +94,6 @@ export async function listCoursesForGrader(userId: number): Promise<CourseSummar
       and(
         eq(myMembership.courseId, courses.id),
         eq(myMembership.userId, userId),
-        eq(myMembership.role, "grader"),
         eq(myMembership.status, "active"),
       ),
     )
@@ -123,6 +129,7 @@ export async function getCourseForGrader(
       startDate: courses.startDate,
       endDate: courses.endDate,
       instructors: sql<string[]>`coalesce(array_agg(distinct trim(${memberUser.firstName} || ' ' || ${memberUser.lastName})) filter (where ${member.role} = 'grader' and ${member.status} = 'active'), ARRAY[]::text[])`,
+      viewerRole: sql<CourseViewerRole>`case when ${myMembership.role} = 'student' then 'Student' else 'Instructor' end`,
     })
     .from(courses)
     .innerJoin(
@@ -130,14 +137,13 @@ export async function getCourseForGrader(
       and(
         eq(myMembership.courseId, courses.id),
         eq(myMembership.userId, userId),
-        eq(myMembership.role, "grader"),
         eq(myMembership.status, "active"),
       ),
     )
     .leftJoin(member, eq(member.courseId, courses.id))
     .leftJoin(memberUser, eq(memberUser.id, member.userId))
     .where(eq(courses.id, courseId))
-    .groupBy(courses.id)
+    .groupBy(courses.id, myMembership.role)
     .limit(1)
 
   const row = rows[0]
@@ -149,6 +155,7 @@ export async function getCourseForGrader(
     startDate: String(row.startDate),
     endDate: String(row.endDate),
     instructors: (row.instructors as string[]) ?? [],
+    viewerRole: row.viewerRole === "Student" ? "Student" : "Instructor",
   }
 }
 
@@ -171,7 +178,6 @@ export async function listAssignmentsForCourse(
       and(
         eq(myMembership.courseId, assignments.courseId),
         eq(myMembership.userId, userId),
-        eq(myMembership.role, "grader"),
         eq(myMembership.status, "active"),
       ),
     )
@@ -187,6 +193,51 @@ export async function listAssignmentsForCourse(
     dueAt: String(row.dueAt),
     submissionCount: Number(row.submissionCount),
   }))
+}
+
+export async function getAssessmentForCourseMember(
+  userId: number,
+  courseId: number,
+  assignmentId: number,
+): Promise<AssessmentMemberDetail | null> {
+  const myMembership = alias(courseMemberships, "my_membership")
+  const rows = await db
+    .select({
+      id: assignments.id,
+      title: assignments.title,
+      description: assignments.description,
+      releaseAt: assignments.releaseAt,
+      dueAt: assignments.dueAt,
+      courseId: courses.id,
+      courseTitle: courses.title,
+      viewerRole: sql<CourseViewerRole>`case when ${myMembership.role} = 'student' then 'Student' else 'Instructor' end`,
+    })
+    .from(assignments)
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.status, "active"),
+      ),
+    )
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return null
+
+  return {
+    id: Number(row.id),
+    title: String(row.title),
+    releaseAt: String(row.releaseAt),
+    dueAt: String(row.dueAt),
+    description: row.description ? String(row.description) : null,
+    courseId: Number(row.courseId),
+    courseTitle: String(row.courseTitle),
+    viewerRole: row.viewerRole === "Student" ? "Student" : "Instructor",
+  }
 }
 
 export async function getAssessmentForGrader(
