@@ -48,7 +48,6 @@ export const users = gradience.table("users", {
   email: text("email").notNull(),
   passwordHash: text("password_hash").notNull(),
   authProviderId: text("auth_provider_id"),
-  globalRole: text("global_role").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   status: text("status").notNull(),
 })

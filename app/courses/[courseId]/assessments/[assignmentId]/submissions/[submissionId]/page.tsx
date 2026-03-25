@@ -5,14 +5,14 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getSubmissionForGrader } from "@/lib/course-management"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 export default async function SubmissionPage({
   params,
 }: {
   params: Promise<{ courseId: string; assignmentId: string; submissionId: string }>
 }) {
-  const user = await requireGraderUser()
+  const user = await requireAppUser()
   const { courseId, assignmentId, submissionId } = await params
 
   const parsedCourseId = Number(courseId)

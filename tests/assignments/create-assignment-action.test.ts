@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     throw new Error(`REDIRECT:${path}`)
   }),
   requireGraderUser: vi.fn(),
+  requireAppUser: vi.fn(),
   select: vi.fn(),
   selectLimit: vi.fn(),
   insert: vi.fn(),
@@ -16,7 +17,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }))
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }))
-vi.mock("@/lib/current-user", () => ({ requireGraderUser: mocks.requireGraderUser }))
+vi.mock("@/lib/current-user", () => ({
+  requireGraderUser: mocks.requireGraderUser,
+  requireAppUser: mocks.requireAppUser,
+}))
 vi.mock("@/db/orm", () => ({
   db: {
     select: mocks.select,
@@ -31,7 +35,8 @@ describe("createAssignmentAction", () => {
     vi.clearAllMocks()
     mocks.selectQueue.length = 0
 
-    mocks.requireGraderUser.mockResolvedValue({ id: 42, globalRole: "grader" })
+    mocks.requireGraderUser.mockResolvedValue({ id: 42 })
+    mocks.requireAppUser.mockResolvedValue({ id: 42 })
 
     mocks.selectLimit.mockImplementation(async () => (mocks.selectQueue.shift() ?? []) as unknown[])
     mocks.select.mockImplementation(() => ({
@@ -186,8 +191,8 @@ describe("createAssignmentAction", () => {
     expect(mocks.insert).not.toHaveBeenCalled()
   })
 
-  it("rejects users who are not graders (requireGraderUser redirect)", async () => {
-    mocks.requireGraderUser.mockImplementation(() => {
+  it("rejects users when authentication guard redirects", async () => {
+    mocks.requireAppUser.mockImplementation(() => {
       throw new Error("REDIRECT:/login?error=unauthorized")
     })
 
