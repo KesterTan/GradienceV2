@@ -137,7 +137,7 @@ export async function getCourseForGrader(
     .leftJoin(member, eq(member.courseId, courses.id))
     .leftJoin(memberUser, eq(memberUser.id, member.userId))
     .where(eq(courses.id, courseId))
-    .groupBy(courses.id)
+    .groupBy(courses.id, myMembership.role)
     .limit(1)
 
   const row = rows[0]
