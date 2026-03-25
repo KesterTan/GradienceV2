@@ -1,10 +1,6 @@
 import { redirect } from "next/navigation"
 import { auth0 } from "@/lib/auth0"
-<<<<<<< HEAD
 import { and, eq, sql } from "drizzle-orm"
-=======
-import { eq, sql } from "drizzle-orm"
->>>>>>> main
 import { db } from "@/db/orm"
 import { courseMemberships, users } from "@/db/schema"
 

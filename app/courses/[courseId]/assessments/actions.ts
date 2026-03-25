@@ -367,13 +367,8 @@ export async function createAssignmentAction(
     submissionType: "file_upload",
     allowResubmissions: true,
     maxAttemptResubmission: 0,
-<<<<<<< HEAD
     isPublished: true,
-    createdByUserId: grader.id,
-=======
-    isPublished: false,
     createdByUserId: user.id,
->>>>>>> main
   })
 
   revalidatePath(`/courses/${courseId}`)

@@ -22,6 +22,7 @@ type AssignmentFormState = {
     _form?: string[]
   }
   values?: {
+    courseId: string
     title: string
     description: string
     startDate: string

@@ -22,7 +22,18 @@ type AssignmentFormState = {
     assignmentId?: string[]
     _form?: string[]
   }
-  values?: Record<string, string>
+  values?: {
+    courseId: string
+    assignmentId?: string
+    title: string
+    description: string
+    startDate: string
+    startTime: string
+    endDate: string
+    endTime: string
+    lateUntilDate: string
+    lateUntilTime: string
+  }
 }
 
 const initialState: AssignmentFormState = {}
@@ -45,7 +56,7 @@ export function EditAssignmentForm(props: {
   const [state, formAction, pending] = useActionState(updateAssignmentAction, initialState)
 
   const dateError = useMemo(() => state.errors?.endDate?.[0], [state.errors?.endDate])
-  const values = state.values ?? {}
+  const values = state.values ?? initialValues
 
   return (
     <form action={formAction} className="space-y-5">
