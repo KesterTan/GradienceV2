@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation"
 import { auth0 } from "@/lib/auth0"
+<<<<<<< HEAD
 import { and, eq, sql } from "drizzle-orm"
+=======
+import { eq, sql } from "drizzle-orm"
+>>>>>>> main
 import { db } from "@/db/orm"
 import { courseMemberships, users } from "@/db/schema"
 
@@ -9,7 +13,6 @@ export type AppUser = {
   firstName: string
   lastName: string
   email: string
-  globalRole: "grader" | "student"
 }
 
 function splitName(name?: string | null, email?: string | null) {
@@ -36,7 +39,6 @@ async function findUser(authProviderId?: string | null, email?: string | null) {
         firstName: users.firstName,
         lastName: users.lastName,
         email: users.email,
-        globalRole: users.globalRole,
         authProviderId: users.authProviderId,
       })
       .from(users)
@@ -55,7 +57,6 @@ async function findUser(authProviderId?: string | null, email?: string | null) {
         firstName: users.firstName,
         lastName: users.lastName,
         email: users.email,
-        globalRole: users.globalRole,
         authProviderId: users.authProviderId,
       })
       .from(users)
@@ -103,7 +104,6 @@ async function ensureUserRecord(params: {
       email: normalizedEmail,
       passwordHash: "auth0-managed",
       authProviderId: authProviderId ?? null,
-      globalRole: "grader",
       status: "active",
     })
     .returning({
@@ -111,7 +111,6 @@ async function ensureUserRecord(params: {
       firstName: users.firstName,
       lastName: users.lastName,
       email: users.email,
-      globalRole: users.globalRole,
       authProviderId: users.authProviderId,
     })
 
@@ -135,16 +134,11 @@ export async function requireAppUser(): Promise<AppUser> {
     firstName: String(user.firstName),
     lastName: String(user.lastName),
     email: String(user.email),
-    globalRole: user.globalRole as "grader" | "student",
   }
 }
 
 export async function requireGraderUser(): Promise<AppUser> {
-  const user = await requireAppUser()
-  if (user.globalRole !== "grader") {
-    redirect("/login?error=unauthorized")
-  }
-  return user
+  return requireAppUser()
 }
 
 export type StudentMembership = {

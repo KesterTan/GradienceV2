@@ -4,7 +4,7 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { EditAssignmentForm } from "./_components/edit-assignment-form"
 import { getAssessmentForGrader } from "@/lib/course-management"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 function toDateValue(iso: string) {
   return format(new Date(iso), "yyyy-MM-dd")
@@ -19,7 +19,7 @@ export default async function EditAssessmentPage({
 }: {
   params: Promise<{ courseId: string; assignmentId: string }>
 }) {
-  const user = await requireGraderUser()
+  const user = await requireAppUser()
   const { courseId, assignmentId } = await params
 
   const parsedCourseId = Number(courseId)

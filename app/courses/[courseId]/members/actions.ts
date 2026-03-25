@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireGraderUser } from "@/lib/current-user";
+import { requireAppUser } from "@/lib/current-user";
 // POST /courses/[courseId]/members/add
 export async function POST(req: NextRequest, { params }: { params: { courseId: string } }) {
-  const user = await requireGraderUser();
+  const user = await requireAppUser();
   const { courseId } = params;
   const parsedCourseId = Number(courseId);
   if (!Number.isFinite(parsedCourseId)) {

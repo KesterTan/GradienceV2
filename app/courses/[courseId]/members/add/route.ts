@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/orm";
 import { eq, and } from "drizzle-orm";
 import { courses, courseMemberships, users } from "@/db/schema";
-import { requireGraderUser } from "@/lib/current-user";
+import { requireAppUser } from "@/lib/current-user";
 
 export async function POST(req: NextRequest, { params }: { params: { courseId: string } }) {
   try {
-    const user = await requireGraderUser();
+    const user = await requireAppUser();
     const { courseId } = params;
     const parsedCourseId = Number(courseId);
     console.log('AddMember API: courseId', courseId, 'parsedCourseId', parsedCourseId);
