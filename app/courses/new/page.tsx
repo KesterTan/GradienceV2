@@ -1,9 +1,9 @@
 import { DashboardHeader } from "@/components/dashboard-header"
 import { CreateCourseForm } from "@/components/create-course-form"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 export default async function CreateCoursePage() {
-  const user = await requireGraderUser()
+  const user = await requireAppUser()
 
   return (
     <main className="min-h-screen bg-muted/30">

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { renderToStaticMarkup } from "react-dom/server"
 
 const mocks = vi.hoisted(() => ({
-  requireGraderUser: vi.fn(),
+  requireAppUser: vi.fn(),
   getCourseForGrader: vi.fn(),
   listAssignmentsForCourse: vi.fn(),
   notFound: vi.fn(() => {
@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }))
-vi.mock("@/lib/current-user", () => ({ requireGraderUser: mocks.requireGraderUser }))
+vi.mock("@/lib/current-user", () => ({ requireAppUser: mocks.requireAppUser }))
 vi.mock("@/lib/course-management", () => ({
   getCourseForGrader: mocks.getCourseForGrader,
   listAssignmentsForCourse: mocks.listAssignmentsForCourse,
@@ -21,7 +21,7 @@ import CourseDashboardPage from "@/app/courses/[courseId]/page"
 
 describe("Course dashboard assignments UI", () => {
   it("shows the create assessment link and renders assignments returned for that course", async () => {
-    mocks.requireGraderUser.mockResolvedValue({
+    mocks.requireAppUser.mockResolvedValue({
       id: 42,
       firstName: "Irene",
       lastName: "Instructor",
@@ -35,6 +35,7 @@ describe("Course dashboard assignments UI", () => {
       startDate: "2026-03-01",
       endDate: "2026-05-01",
       instructors: ["Irene Instructor"],
+      viewerRole: "Instructor",
     })
 
     mocks.listAssignmentsForCourse.mockResolvedValue([
@@ -60,4 +61,3 @@ describe("Course dashboard assignments UI", () => {
     expect(html).toContain("/courses/34/assessments/7")
   })
 })
-

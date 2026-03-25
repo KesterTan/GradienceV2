@@ -39,8 +39,7 @@ describe('Manage Members - Add Member', () => {
     // Act: add student to course
     const req = { json: async () => ({ email: 'student@test.com', role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    // Mock requireGraderUser to return instructor
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0] as any);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -68,7 +67,7 @@ describe('Manage Members - Add Member', () => {
     // Act: try to add student again
     const req = { json: async () => ({ email: 'student2@test.com', role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0] as any);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -95,7 +94,7 @@ describe('Manage Members - Add Member', () => {
     // Act: try to add another member as a student (not instructor)
     const req = { json: async () => ({ email: 'someone@test.com', role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(student[0]);
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(student[0] as any);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -118,7 +117,7 @@ describe('Manage Members - Add Member', () => {
     // Act: missing email
     const req = { json: async () => ({ role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0] as any);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -140,7 +139,7 @@ describe('Manage Members - Add Member', () => {
     // Act: try to add a user that doesn't exist
     const req = { json: async () => ({ email: 'notfound@test.com', role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0] as any);
     const res = await addMember(req, context);
     const data = await res.json();
 

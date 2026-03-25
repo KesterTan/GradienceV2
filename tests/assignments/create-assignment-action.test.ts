@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`)
   }),
-  requireGraderUser: vi.fn(),
+  requireAppUser: vi.fn(),
   select: vi.fn(),
   selectLimit: vi.fn(),
   insert: vi.fn(),
@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }))
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }))
-vi.mock("@/lib/current-user", () => ({ requireGraderUser: mocks.requireGraderUser }))
+vi.mock("@/lib/current-user", () => ({ requireAppUser: mocks.requireAppUser }))
 vi.mock("@/db/orm", () => ({
   db: {
     select: mocks.select,
@@ -31,7 +31,7 @@ describe("createAssignmentAction", () => {
     vi.clearAllMocks()
     mocks.selectQueue.length = 0
 
-    mocks.requireGraderUser.mockResolvedValue({ id: 42, globalRole: "grader" })
+    mocks.requireAppUser.mockResolvedValue({ id: 42, globalRole: "grader" })
 
     mocks.selectLimit.mockImplementation(async () => (mocks.selectQueue.shift() ?? []) as unknown[])
     mocks.select.mockImplementation(() => ({
@@ -51,7 +51,7 @@ describe("createAssignmentAction", () => {
     vi.setSystemTime(new Date("2026-03-05T12:00:00.000Z"))
 
     mocks.selectQueue.push(
-      [{ id: 999 }],
+      [{ id: 999, role: "grader" }],
       [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
     )
 
@@ -75,7 +75,7 @@ describe("createAssignmentAction", () => {
 
   it("defaults end to course end when only start is provided", async () => {
     mocks.selectQueue.push(
-      [{ id: 999 }],
+      [{ id: 999, role: "grader" }],
       [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
     )
 
@@ -101,7 +101,7 @@ describe("createAssignmentAction", () => {
     vi.setSystemTime(new Date("2026-03-05T12:00:00.000Z"))
 
     mocks.selectQueue.push(
-      [{ id: 999 }],
+      [{ id: 999, role: "grader" }],
       [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
     )
 
@@ -129,7 +129,7 @@ describe("createAssignmentAction", () => {
     vi.setSystemTime(new Date("2026-03-20T12:00:00.000Z"))
 
     mocks.selectQueue.push(
-      [{ id: 999 }],
+      [{ id: 999, role: "grader" }],
       [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
     )
 
@@ -186,8 +186,8 @@ describe("createAssignmentAction", () => {
     expect(mocks.insert).not.toHaveBeenCalled()
   })
 
-  it("rejects users who are not graders (requireGraderUser redirect)", async () => {
-    mocks.requireGraderUser.mockImplementation(() => {
+  it("surfaces login redirects from the current-user guard", async () => {
+    mocks.requireAppUser.mockImplementation(() => {
       throw new Error("REDIRECT:/login?error=unauthorized")
     })
 
@@ -217,7 +217,7 @@ describe("createAssignmentAction", () => {
 
   it("returns values on course not found", async () => {
     mocks.selectQueue.push(
-      [{ id: 999 }], // membership exists
+      [{ id: 999, role: "grader" }], // membership exists
       [], // course lookup empty
     )
 
@@ -244,7 +244,7 @@ describe("createAssignmentAction", () => {
 
   it("creates an assignment associated to the given course and redirects back to that course", async () => {
     mocks.selectQueue.push(
-      [{ id: 999 }], // membership exists
+      [{ id: 999, role: "grader" }], // membership exists
       [{ startDate: "2026-03-01", endDate: "2026-05-01" }], // course range
     )
 
@@ -322,7 +322,7 @@ describe("createAssignmentAction", () => {
 
   it("rejects when assignment start is before course start", async () => {
     mocks.selectQueue.push(
-      [{ id: 999 }],
+      [{ id: 999, role: "grader" }],
       [{ startDate: "2026-03-05", endDate: "2026-05-01" }],
     )
 
@@ -343,7 +343,7 @@ describe("createAssignmentAction", () => {
 
   it("rejects when assignment end is after course end", async () => {
     mocks.selectQueue.push(
-      [{ id: 999 }],
+      [{ id: 999, role: "grader" }],
       [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
     )
 
@@ -366,7 +366,7 @@ describe("createAssignmentAction", () => {
 
   it("allows assignment start/end exactly on the course boundaries (inclusive)", async () => {
     mocks.selectQueue.push(
-      [{ id: 999 }],
+      [{ id: 999, role: "grader" }],
       [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
     )
 
@@ -383,4 +383,3 @@ describe("createAssignmentAction", () => {
     expect(mocks.insert).toHaveBeenCalledTimes(1)
   })
 })
-

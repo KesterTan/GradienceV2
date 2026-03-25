@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/orm";
 import { eq, and } from "drizzle-orm";
 import { courses, courseMemberships, users } from "@/db/schema";
-import { requireGraderUser } from "@/lib/current-user";
+import { requireAppUser } from "@/lib/current-user";
+import { getActiveCourseMembership } from "@/lib/course-access";
 
 
 export async function POST(
@@ -13,7 +14,7 @@ export async function POST(
     // Await params if it's a Promise (Next.js dynamic API routes sometimes pass a Promise)
     const params = 'then' in context.params ? await context.params : context.params;
     const { courseId } = params;
-    const user = await requireGraderUser();
+    const user = await requireAppUser();
     const parsedCourseId = Number(courseId);
     if (!Number.isFinite(parsedCourseId)) {
       return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
@@ -31,13 +32,8 @@ export async function POST(
       return NextResponse.json({ error: "Only instructors can add members" }, { status: 403 });
     }
 
-    // Get instructors (including creator)
-    const instructorMemberships = await db
-      .select({ courseMemberships, users })
-      .from(courseMemberships)
-      .innerJoin(users, eq(courseMemberships.userId, users.id))
-      .where(and(eq(courseMemberships.courseId, parsedCourseId), eq(courseMemberships.role, "grader")));
-    const isInstructor = instructorMemberships.some(row => row.users.id === user.id) || course.creatorId === user.id;
+    const membership = await getActiveCourseMembership(parsedCourseId, user.id)
+    const isInstructor = membership?.role === "grader" || course.creatorId === user.id;
     if (!isInstructor) {
       return NextResponse.json({ error: "Only instructors can add members" }, { status: 403 });
     }

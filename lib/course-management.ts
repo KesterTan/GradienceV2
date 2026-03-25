@@ -39,6 +39,7 @@ export type AssessmentDetail = {
   description: string | null
   courseId: number
   courseTitle: string
+  viewerRole: "Instructor" | "Student"
 }
 
 export type SubmissionSummary = {
@@ -202,6 +203,7 @@ export async function getAssessmentForGrader(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      viewerRole: sql<"Instructor" | "Student">`case when ${myMembership.role} = 'student' then 'Student' else 'Instructor' end`,
       courseId: courses.id,
       courseTitle: courses.title,
     })
@@ -212,7 +214,6 @@ export async function getAssessmentForGrader(
       and(
         eq(myMembership.courseId, courses.id),
         eq(myMembership.userId, userId),
-        eq(myMembership.role, "grader"),
         eq(myMembership.status, "active"),
       ),
     )
@@ -230,6 +231,7 @@ export async function getAssessmentForGrader(
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
     courseTitle: String(row.courseTitle),
+    viewerRole: row.viewerRole === "Student" ? "Student" : "Instructor",
   }
 }
 

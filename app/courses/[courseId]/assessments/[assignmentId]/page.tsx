@@ -5,14 +5,14 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getAssessmentForGrader, listSubmissionsForAssessment } from "@/lib/course-management"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 export default async function AssessmentPage({
   params,
 }: {
   params: Promise<{ courseId: string; assignmentId: string }>
 }) {
-  const user = await requireGraderUser()
+  const user = await requireAppUser()
   const { courseId, assignmentId } = await params
 
   const parsedCourseId = Number(courseId)
@@ -22,14 +22,18 @@ export default async function AssessmentPage({
     notFound()
   }
 
-  const [assessment, submissions] = await Promise.all([
-    getAssessmentForGrader(user.id, parsedCourseId, parsedAssignmentId),
-    listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId),
-  ])
+  const assessment = await getAssessmentForGrader(user.id, parsedCourseId, parsedAssignmentId)
 
   if (!assessment) {
     notFound()
   }
+
+  const isInstructor = assessment.viewerRole === "Instructor"
+  if (!isInstructor) {
+    notFound()
+  }
+
+  const instructorSubmissions = await listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId)
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -60,16 +64,18 @@ export default async function AssessmentPage({
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-            <Button asChild className="w-full sm:w-auto" variant="outline">
-              <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/edit`}>Edit assignment</Link>
-            </Button>
+            {isInstructor ? (
+              <Button asChild className="w-full sm:w-auto" variant="outline">
+                <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/edit`}>Edit assignment</Link>
+              </Button>
+            ) : null}
             <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link href={`/courses/${assessment.courseId}`}>Back to course dashboard</Link>
             </Button>
           </div>
         </div>
 
-        {submissions.length === 0 ? (
+        {instructorSubmissions.length === 0 ? (
           <Card>
             <CardHeader>
               <CardTitle>No submissions yet</CardTitle>
@@ -78,7 +84,7 @@ export default async function AssessmentPage({
           </Card>
         ) : (
           <div className="grid gap-4">
-            {submissions.map((submission) => (
+            {instructorSubmissions.map((submission) => (
               <Card key={submission.id}>
                 <CardHeader>
                   <CardTitle>{submission.studentName}</CardTitle>

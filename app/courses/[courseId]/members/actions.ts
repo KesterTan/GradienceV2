@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireGraderUser } from "@/lib/current-user";
+import { requireAppUser } from "@/lib/current-user";
+import { getActiveCourseMembership } from "@/lib/course-access";
 // POST /courses/[courseId]/members/add
 export async function POST(req: NextRequest, { params }: { params: { courseId: string } }) {
-  const user = await requireGraderUser();
+  const user = await requireAppUser();
   const { courseId } = params;
   const parsedCourseId = Number(courseId);
   if (!Number.isFinite(parsedCourseId)) {
@@ -18,13 +19,8 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
   const course = courseArr[0];
   if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
 
-  // Get instructors (including creator)
-  const instructorMemberships = await db
-    .select({ courseMemberships, users })
-    .from(courseMemberships)
-    .innerJoin(users, eq(courseMemberships.userId, users.id))
-    .where(and(eq(courseMemberships.courseId, parsedCourseId), eq(courseMemberships.role, "grader")));
-  const isInstructor = instructorMemberships.some(row => row.users.id === user.id) || course.creatorId === user.id;
+  const membership = await getActiveCourseMembership(parsedCourseId, user.id)
+  const isInstructor = membership?.role === "grader" || course.creatorId === user.id;
   if (!isInstructor) {
     return NextResponse.json({ error: "Only instructors can add members" }, { status: 403 });
   }

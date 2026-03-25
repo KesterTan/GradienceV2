@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CreateAssignmentForm } from "../_components/create-assignment-form"
 import { getCourseForGrader } from "@/lib/course-management"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 export default async function CreateAssessmentPage({
   params,
 }: {
   params: Promise<{ courseId: string }>
 }) {
-  const user = await requireGraderUser()
+  const user = await requireAppUser()
   const { courseId } = await params
 
   const parsedCourseId = Number(courseId)
@@ -81,6 +81,36 @@ export default async function CreateAssessmentPage({
     )
   }
 
+  if (course.viewerRole !== "Instructor") {
+    return (
+      <main className="min-h-screen bg-muted/30">
+        <DashboardHeader
+          title="Create assignment"
+          subtitle={course.title}
+          breadcrumbs={[
+            { label: "Home", href: "/" },
+            { label: course.title, href: `/courses/${course.id}` },
+            { label: "Create assignment", current: true },
+          ]}
+          user={{ name: `${user.firstName} ${user.lastName}`, email: user.email }}
+        />
+        <section className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Unauthorized</CardTitle>
+              <CardDescription>Only instructors can create assignments for this course.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link href={`/courses/${course.id}`}>Back to course</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-muted/30">
       <DashboardHeader
@@ -106,4 +136,3 @@ export default async function CreateAssessmentPage({
     </main>
   )
 }
-

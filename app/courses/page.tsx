@@ -19,7 +19,6 @@ function pluralize(count: number, singular: string, plural: string) {
 export default async function CoursesDashboardPage() {
   const user = await requireAppUser()
   const courses = await listCoursesForUser(user.id)
-  const canCreateCourses = user.globalRole === "grader"
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -42,39 +41,27 @@ export default async function CoursesDashboardPage() {
               </div>
               <h2 className="text-xl font-semibold text-foreground">Course Dashboard</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {canCreateCourses
-                ? "Manage your courses, assignments, and student submissions."
-                : "View the courses you are enrolled in."}
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">Open your enrolled courses or create a new one.</p>
           </div>
-          {canCreateCourses ? (
-            <Button asChild className="w-full sm:w-auto">
-              <Link href="/courses/new" className="gap-2">
-                <Plus className="size-4" />
-                Create Course
-              </Link>
-            </Button>
-          ) : null}
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/courses/new" className="gap-2">
+              <Plus className="size-4" />
+              Create Course
+            </Link>
+          </Button>
         </div>
 
         {courses.length === 0 ? (
           <Card>
             <CardHeader>
               <CardTitle>No courses yet</CardTitle>
-              <CardDescription>
-                {canCreateCourses
-                  ? "Create your first course to start managing assessments and submissions."
-                  : "You have not been added to any courses yet."}
-              </CardDescription>
+              <CardDescription>Create your first course or wait to be added to one.</CardDescription>
             </CardHeader>
-            {canCreateCourses ? (
-              <CardContent>
-                <Button asChild>
-                  <Link href="/courses/new">Create first course</Link>
-                </Button>
-              </CardContent>
-            ) : null}
+            <CardContent>
+              <Button asChild>
+                <Link href="/courses/new">Create first course</Link>
+              </Button>
+            </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4">

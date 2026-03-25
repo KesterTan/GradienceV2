@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`)
   }),
-  requireGraderUser: vi.fn(),
+  requireAppUser: vi.fn(),
   select: vi.fn(),
   selectLimit: vi.fn(),
   update: vi.fn(),
@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }))
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }))
-vi.mock("@/lib/current-user", () => ({ requireGraderUser: mocks.requireGraderUser }))
+vi.mock("@/lib/current-user", () => ({ requireAppUser: mocks.requireAppUser }))
 vi.mock("@/db/orm", () => ({
   db: {
     select: mocks.select,
@@ -55,7 +55,7 @@ describe("updateAssignmentAction", () => {
     vi.clearAllMocks()
     mocks.selectQueue.length = 0
 
-    mocks.requireGraderUser.mockResolvedValue({ id: 42, globalRole: "grader" })
+    mocks.requireAppUser.mockResolvedValue({ id: 42, globalRole: "grader" })
 
     mocks.selectLimit.mockImplementation(async () => (mocks.selectQueue.shift() ?? []) as unknown[])
     mocks.select.mockImplementation(() => ({
@@ -93,7 +93,7 @@ describe("updateAssignmentAction", () => {
 
   it("rejects when assignment is not found for the course", async () => {
     mocks.selectQueue.push(
-      [{ id: 999 }], // membership ok
+      [{ id: 999, role: "grader" }], // membership ok
       [], // assignment lookup empty
     )
 
@@ -106,7 +106,7 @@ describe("updateAssignmentAction", () => {
 
   it("updates assignment fields and redirects back to assessment page", async () => {
     mocks.selectQueue.push(
-      [{ id: 999 }], // membership ok
+      [{ id: 999, role: "grader" }], // membership ok
       [{ id: 7, releaseAt: "2026-03-02T09:00:00.000Z", dueAt: "2026-03-10T23:59:59.999Z" }], // existing assignment
       [{ startDate: "2026-03-01", endDate: "2026-05-01" }], // course range
     )
@@ -139,7 +139,7 @@ describe("updateAssignmentAction", () => {
 
   it("enforces course range when explicit end is after course end", async () => {
     mocks.selectQueue.push(
-      [{ id: 999 }],
+      [{ id: 999, role: "grader" }],
       [{ id: 7, releaseAt: "2026-03-02T09:00:00.000Z", dueAt: "2026-03-10T23:59:59.999Z" }],
       [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
     )
@@ -161,4 +161,3 @@ describe("updateAssignmentAction", () => {
     expect(mocks.update).not.toHaveBeenCalled()
   })
 })
-

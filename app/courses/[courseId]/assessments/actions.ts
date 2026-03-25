@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/db/orm"
-import { assignments, courseMemberships, courses } from "@/db/schema"
-import { requireGraderUser } from "@/lib/current-user"
+import { assignments, courses } from "@/db/schema"
+import { requireAppUser } from "@/lib/current-user"
+import { getActiveCourseMembership } from "@/lib/course-access"
 
 type AssignmentFormState = {
   errors?: {
@@ -114,21 +115,13 @@ function isoFromDateTime(date: string, time: string, endOfDayFallback = false) {
   return new Date(`${date}T${endOfDayFallback ? "23:59:59.999Z" : "00:00:00.000Z"}`).toISOString()
 }
 
-async function requireActiveGraderMembership(courseId: number, userId: number) {
-  const membership = await db
-    .select({ id: courseMemberships.id })
-    .from(courseMemberships)
-    .where(
-      and(
-        eq(courseMemberships.courseId, courseId),
-        eq(courseMemberships.userId, userId),
-        eq(courseMemberships.role, "grader"),
-        eq(courseMemberships.status, "active"),
-      ),
-    )
-    .limit(1)
+async function requireActiveInstructorMembership(courseId: number, userId: number) {
+  const membership = await getActiveCourseMembership(courseId, userId)
+  if (!membership || membership.role !== "grader") {
+    return null
+  }
 
-  return membership[0] ?? null
+  return membership
 }
 
 async function getCourseDateRange(courseId: number) {
@@ -220,7 +213,7 @@ export async function createAssignmentAction(
   _prevState: AssignmentFormState,
   formData: FormData,
 ): Promise<AssignmentFormState> {
-  const grader = await requireGraderUser()
+  const user = await requireAppUser()
 
   const values = {
     courseId: readFormValue(formData, "courseId"),
@@ -251,7 +244,7 @@ export async function createAssignmentAction(
     return { errors: { courseId: ["Invalid course id"] }, values }
   }
 
-  const membership = await requireActiveGraderMembership(courseId, grader.id)
+  const membership = await requireActiveInstructorMembership(courseId, user.id)
   if (!membership) {
     return { errors: { _form: ["You do not have permission to create assignments for this course."] }, values }
   }
@@ -318,7 +311,7 @@ export async function createAssignmentAction(
     allowResubmissions: false,
     maxAttemptResubmission: 0,
     isPublished: false,
-    createdByUserId: grader.id,
+    createdByUserId: user.id,
   })
 
   revalidatePath(`/courses/${courseId}`)
@@ -329,7 +322,7 @@ export async function updateAssignmentAction(
   _prevState: AssignmentFormState,
   formData: FormData,
 ): Promise<AssignmentFormState> {
-  const grader = await requireGraderUser()
+  const user = await requireAppUser()
 
   const values = {
     courseId: readFormValue(formData, "courseId"),
@@ -365,7 +358,7 @@ export async function updateAssignmentAction(
     return { errors: { assignmentId: ["Invalid assignment id"] }, values }
   }
 
-  const membership = await requireActiveGraderMembership(courseId, grader.id)
+  const membership = await requireActiveInstructorMembership(courseId, user.id)
   if (!membership) {
     return { errors: { _form: ["You do not have permission to edit assignments for this course."] }, values }
   }

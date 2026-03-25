@@ -5,13 +5,13 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`)
   }),
-  requireGraderUser: vi.fn(),
+  requireAppUser: vi.fn(),
   transaction: vi.fn(),
 }))
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }))
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }))
-vi.mock("@/lib/current-user", () => ({ requireGraderUser: mocks.requireGraderUser }))
+vi.mock("@/lib/current-user", () => ({ requireAppUser: mocks.requireAppUser }))
 vi.mock("@/db/orm", () => ({ db: { transaction: mocks.transaction } }))
 
 import { createCourseAction } from "@/app/courses/actions"
@@ -19,7 +19,7 @@ import { createCourseAction } from "@/app/courses/actions"
 describe("createCourseAction", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.requireGraderUser.mockResolvedValue({ id: 42, globalRole: "grader" })
+    mocks.requireAppUser.mockResolvedValue({ id: 42, globalRole: "grader" })
   })
 
   it("returns validation errors when title is missing", async () => {
