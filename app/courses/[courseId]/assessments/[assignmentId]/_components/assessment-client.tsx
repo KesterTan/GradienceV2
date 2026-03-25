@@ -64,42 +64,24 @@ function StudentRow({
   student,
   courseId,
   assignmentId,
+  history,
+  onExpand,
   onRestore,
 }: {
   student: StudentSubmissionRow
   courseId: number
   assignmentId: number
+  history: { versions: SubmissionVersion[] | null; loading: boolean; error: string | null }
+  onExpand: (studentMembershipId: number) => void
   onRestore: (studentMembershipId: number, submission: SubmissionVersion) => void
 }) {
   const [expanded, setExpanded] = useState(false)
-  const [history, setHistory] = useState<SubmissionVersion[] | null>(null)
-  const [loadingHistory, setLoadingHistory] = useState(false)
-  const [historyError, setHistoryError] = useState<string | null>(null)
 
-  async function handleExpand() {
-    if (expanded) {
-      setExpanded(false)
-      return
-    }
-    setExpanded(true)
-    if (history !== null) return // already loaded
-
-    setLoadingHistory(true)
-    setHistoryError(null)
-    try {
-      const res = await fetch(
-        `/api/courses/${courseId}/assignments/${assignmentId}/student/${student.studentMembershipId}/history`,
-      )
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? "Failed to load history")
-      }
-      const data = await res.json()
-      setHistory(data.history as SubmissionVersion[])
-    } catch (err) {
-      setHistoryError(err instanceof Error ? err.message : "Unknown error")
-    } finally {
-      setLoadingHistory(false)
+  function handleExpand() {
+    const next = !expanded
+    setExpanded(next)
+    if (next && history.versions === null) {
+      onExpand(student.studentMembershipId)
     }
   }
 
@@ -162,14 +144,14 @@ function StudentRow({
 
             {expanded && (
               <div className="mt-2 space-y-1.5 rounded-md border bg-muted/40 p-3">
-                {loadingHistory && (
+                {history.loading && (
                   <p className="text-xs text-muted-foreground">Loading history…</p>
                 )}
-                {historyError && (
-                  <p className="text-xs text-destructive">{historyError}</p>
+                {history.error && (
+                  <p className="text-xs text-destructive">{history.error}</p>
                 )}
-                {history &&
-                  [...history].reverse().map((ver) => {
+                {history.versions &&
+                  [...history.versions].reverse().map((ver) => {
                     const isCurrent = ver.id === latest.id
                     return (
                       <div
@@ -209,6 +191,8 @@ function StudentRow({
   )
 }
 
+type HistoryEntry = { versions: SubmissionVersion[] | null; loading: boolean; error: string | null }
+
 export function AssessmentClient({ courseId, assignmentId, students }: Props) {
   const [restoreTarget, setRestoreTarget] = useState<{
     studentMembershipId: number
@@ -218,6 +202,34 @@ export function AssessmentClient({ courseId, assignmentId, students }: Props) {
   const [restoreError, setRestoreError] = useState<string | null>(null)
   // Map from studentMembershipId → updated latest submission after restore
   const [overrides, setOverrides] = useState<Record<number, SubmissionVersion>>({})
+  // Map from studentMembershipId → fetched history
+  const [historyMap, setHistoryMap] = useState<Record<number, HistoryEntry>>({})
+
+  async function handleExpand(studentMembershipId: number) {
+    setHistoryMap((prev) => ({
+      ...prev,
+      [studentMembershipId]: { versions: null, loading: true, error: null },
+    }))
+    try {
+      const res = await fetch(
+        `/api/courses/${courseId}/assignments/${assignmentId}/student/${studentMembershipId}/history`,
+      )
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? "Failed to load history")
+      }
+      const data = await res.json()
+      setHistoryMap((prev) => ({
+        ...prev,
+        [studentMembershipId]: { versions: data.history as SubmissionVersion[], loading: false, error: null },
+      }))
+    } catch (err) {
+      setHistoryMap((prev) => ({
+        ...prev,
+        [studentMembershipId]: { versions: null, loading: false, error: err instanceof Error ? err.message : "Unknown error" },
+      }))
+    }
+  }
 
   function handleRestoreRequest(studentMembershipId: number, submission: SubmissionVersion) {
     setRestoreTarget({ studentMembershipId, submission })
@@ -252,7 +264,17 @@ export function AssessmentClient({ courseId, assignmentId, students }: Props) {
         submittedAt: new Date().toISOString(),
         fileUrl: data.fileUrl,
       }
-      setOverrides((prev) => ({ ...prev, [restoreTarget.studentMembershipId]: newVersion }))
+      const mid = restoreTarget.studentMembershipId
+      setOverrides((prev) => ({ ...prev, [mid]: newVersion }))
+      // Append to history if it was already loaded
+      setHistoryMap((prev) => {
+        const existing = prev[mid]
+        if (!existing?.versions) return prev
+        return {
+          ...prev,
+          [mid]: { ...existing, versions: [...existing.versions, newVersion] },
+        }
+      })
       setRestoreTarget(null)
     } catch (err) {
       setRestoreError(err instanceof Error ? err.message : "Unknown error")
@@ -283,6 +305,8 @@ export function AssessmentClient({ courseId, assignmentId, students }: Props) {
     )
   }
 
+  const emptyHistory: HistoryEntry = { versions: null, loading: false, error: null }
+
   return (
     <>
       <div className="grid gap-4">
@@ -292,6 +316,8 @@ export function AssessmentClient({ courseId, assignmentId, students }: Props) {
             student={student}
             courseId={courseId}
             assignmentId={assignmentId}
+            history={historyMap[student.studentMembershipId] ?? emptyHistory}
+            onExpand={handleExpand}
             onRestore={handleRestoreRequest}
           />
         ))}
