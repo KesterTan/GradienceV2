@@ -3,9 +3,38 @@ import { notFound } from "next/navigation"
 import { format } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getAssessmentForGrader, listSubmissionsForAssessment } from "@/lib/course-management"
+import { getAssessmentForGrader, listStudentsWithLatestSubmission } from "@/lib/course-management"
 import { requireGraderUser } from "@/lib/current-user"
+import { AssessmentClient } from "./_components/assessment-client"
+
+function SubmissionWindowBadge({ dueAt, lateUntil }: { dueAt: string; lateUntil: string | null }) {
+  const now = new Date()
+  const due = new Date(dueAt)
+  const late = lateUntil ? new Date(lateUntil) : null
+
+  if (now <= due) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
+        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+        Open
+      </span>
+    )
+  }
+  if (late && now <= late) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        Late window
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+      <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
+      Closed
+    </span>
+  )
+}
 
 export default async function AssessmentPage({
   params,
@@ -22,9 +51,9 @@ export default async function AssessmentPage({
     notFound()
   }
 
-  const [assessment, submissions] = await Promise.all([
+  const [assessment, students] = await Promise.all([
     getAssessmentForGrader(user.id, parsedCourseId, parsedAssignmentId),
-    listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId),
+    listStudentsWithLatestSubmission(user.id, parsedCourseId, parsedAssignmentId),
   ])
 
   if (!assessment) {
@@ -55,9 +84,17 @@ export default async function AssessmentPage({
                 {assessment.description}
               </p>
             )}
-            <p className="mt-1 text-sm text-muted-foreground">
-              Due {format(new Date(assessment.dueAt), "MMM d, yyyy h:mm a")}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <p className="text-sm text-muted-foreground">
+                Due {format(new Date(assessment.dueAt), "MMM d, yyyy h:mm a")}
+              </p>
+              {assessment.lateUntil && (
+                <p className="text-sm text-muted-foreground">
+                  · Late until {format(new Date(assessment.lateUntil), "MMM d, yyyy h:mm a")}
+                </p>
+              )}
+              <SubmissionWindowBadge dueAt={assessment.dueAt} lateUntil={assessment.lateUntil} />
+            </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             <Button asChild className="w-full sm:w-auto" variant="outline">
@@ -69,37 +106,11 @@ export default async function AssessmentPage({
           </div>
         </div>
 
-        {submissions.length === 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>No submissions yet</CardTitle>
-              <CardDescription>Student submissions for this assessment will appear here.</CardDescription>
-            </CardHeader>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {submissions.map((submission) => (
-              <Card key={submission.id}>
-                <CardHeader>
-                  <CardTitle>{submission.studentName}</CardTitle>
-                  <CardDescription>{submission.studentEmail}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status: <span className="font-medium text-foreground">{submission.status}</span></p>
-                    <p className="text-sm text-muted-foreground">Attempt: <span className="font-medium text-foreground">{submission.attemptNumber}</span></p>
-                    <p className="text-sm text-muted-foreground">Submitted: <span className="font-medium text-foreground">{format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}</span></p>
-                  </div>
-                  <Button asChild className="w-full sm:w-auto">
-                    <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/submissions/${submission.id}`}>
-                      Open submission
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <AssessmentClient
+          courseId={assessment.courseId}
+          assignmentId={assessment.id}
+          students={students}
+        />
       </section>
     </main>
   )

@@ -284,6 +284,93 @@ export async function listSubmissionsForAssessment(
   }))
 }
 
+export type StudentSubmissionRow = {
+  studentMembershipId: number
+  studentName: string
+  studentEmail: string
+  totalAttempts: number
+  latestSubmission: {
+    id: number
+    attemptNumber: number
+    status: string
+    submittedAt: string
+    fileUrl: string | null
+  }
+}
+
+/**
+ * Returns one row per student who has submitted for the given assignment.
+ * Each row contains the student's latest submission and total attempt count.
+ * Used by the instructor assignment page — replaces the flat all-submissions list.
+ */
+export async function listStudentsWithLatestSubmission(
+  userId: number,
+  courseId: number,
+  assignmentId: number,
+): Promise<StudentSubmissionRow[]> {
+  const myMembership = alias(courseMemberships, "my_membership")
+  const studentMembership = alias(courseMemberships, "student_membership")
+  const studentUser = alias(users, "student_user")
+  const latestSub = alias(submissions, "latest_sub")
+
+  const rows = await db
+    .select({
+      studentMembershipId: studentMembership.id,
+      studentName: sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`,
+      studentEmail: studentUser.email,
+      totalAttempts: sql<number>`(
+        select count(*) from gradience.submissions s2
+        where s2.assignment_id = ${latestSub.assignmentId}
+          and s2.student_membership_id = ${latestSub.studentMembershipId}
+      )`,
+      latestId: latestSub.id,
+      latestAttemptNumber: latestSub.attemptNumber,
+      latestStatus: latestSub.status,
+      latestSubmittedAt: latestSub.submittedAt,
+      latestFileUrl: latestSub.fileUrl,
+    })
+    .from(latestSub)
+    .innerJoin(assignments, eq(assignments.id, latestSub.assignmentId))
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "grader"),
+        eq(myMembership.status, "active"),
+      ),
+    )
+    .innerJoin(studentMembership, eq(studentMembership.id, latestSub.studentMembershipId))
+    .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
+    .where(
+      and(
+        eq(courses.id, courseId),
+        eq(assignments.id, assignmentId),
+        sql`${latestSub.attemptNumber} = (
+          select max(s2.attempt_number) from gradience.submissions s2
+          where s2.assignment_id = ${latestSub.assignmentId}
+            and s2.student_membership_id = ${latestSub.studentMembershipId}
+        )`,
+      ),
+    )
+    .orderBy(sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`)
+
+  return rows.map((row) => ({
+    studentMembershipId: Number(row.studentMembershipId),
+    studentName: String(row.studentName),
+    studentEmail: String(row.studentEmail),
+    totalAttempts: Number(row.totalAttempts),
+    latestSubmission: {
+      id: Number(row.latestId),
+      attemptNumber: Number(row.latestAttemptNumber),
+      status: String(row.latestStatus),
+      submittedAt: String(row.latestSubmittedAt),
+      fileUrl: row.latestFileUrl ? String(row.latestFileUrl) : null,
+    },
+  }))
+}
+
 export async function getSubmissionForGrader(
   userId: number,
   courseId: number,
