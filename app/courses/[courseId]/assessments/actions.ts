@@ -92,12 +92,32 @@ const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) =>
     })
   }
 
-  if (data.lateUntilDate && data.endDate && data.lateUntilDate < data.endDate) {
-    ctx.addIssue({
-      path: ["lateUntilDate"],
-      code: z.ZodIssueCode.custom,
-      message: "Late until date must be on or after the end date",
-    })
+  if (data.lateUntilDate && data.endDate) {
+    if (data.lateUntilDate < data.endDate) {
+      ctx.addIssue({
+        path: ["lateUntilDate"],
+        code: z.ZodIssueCode.custom,
+        message: "Late until date must be on or after the end date",
+      })
+    } else if (data.lateUntilDate === data.endDate) {
+      // Same day — compare times
+      const parseMinutes = (value: string | undefined) => {
+        if (!value?.trim()) return null
+        const parts = value.trim().split(":")
+        const h = Number(parts[0])
+        const m = Number(parts[1] ?? 0)
+        return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null
+      }
+      const endMinutes = parseMinutes(data.endTime)
+      const lateMinutes = parseMinutes(data.lateUntilTime)
+      if (endMinutes !== null && lateMinutes !== null && lateMinutes <= endMinutes) {
+        ctx.addIssue({
+          path: ["lateUntilTime"],
+          code: z.ZodIssueCode.custom,
+          message: "Late until time must be after the end time when on the same day",
+        })
+      }
+    }
   }
 
   const startDate = data.startDate
