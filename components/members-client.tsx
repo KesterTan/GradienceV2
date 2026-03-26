@@ -1,7 +1,17 @@
 "use client";
 import { useState, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
-import { GraduationCap, Users } from "lucide-react";
+import { GraduationCap, Users, Trash } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,11 +59,16 @@ export default function MembersClient({ instructors, students, userId, courseTit
         throw new Error("Unexpected server response. Please try again.");
       }
       if (!res.ok) throw new Error(data.error || "Failed to add member");
+      const addedMember = {
+        id: data.userId ?? data.member?.id ?? data.id ?? Date.now(),
+        name: data.member?.name ?? addEmail,
+        email: data.member?.email ?? addEmail,
+      };
       // Add the new member to local state for immediate UI update
       if (role === "grader") {
-        setLocalInstructors((prev: any[]) => [...prev, { email: addEmail, id: data.id || Date.now(), name: addEmail }]);
+        setLocalInstructors((prev: any[]) => [...prev, addedMember]);
       } else {
-        setLocalStudents((prev: any[]) => [...prev, { email: addEmail, id: data.id || Date.now(), name: addEmail }]);
+        setLocalStudents((prev: any[]) => [...prev, addedMember]);
       }
       setAddEmail("");
       setAddRole("student");
@@ -68,6 +83,42 @@ export default function MembersClient({ instructors, students, userId, courseTit
     } finally {
       setAddLoading(false);
     }
+  }
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<any>(null);
+  const [removalSuccess, setRemovalSuccess] = useState(false);
+  const [removalError, setRemovalError] = useState("");
+
+  // Remove handler
+  async function handleRemoveMember(member: any) {
+    try {
+      setRemovalError("");
+      const res = await fetch(`/api/courses/${courseId}/members/remove`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId: member.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to remove member");
+      if (member.role === "instructor") {
+        setLocalInstructors((prev: any[]) => prev.filter((m: any) => m.id !== member.id));
+      } else {
+        setLocalStudents((prev: any[]) => prev.filter((m: any) => m.id !== member.id));
+      }
+      setRemovalSuccess(true);
+    } catch (err: any) {
+      setRemovalError(err.message || "Failed to remove member");
+    }
+  }
+
+  function formatMemberDisplay(member: any) {
+    if (!member) return "member";
+    if (member.name && member.email && member.name !== member.email) {
+      return `${member.name} (${member.email})`;
+    }
+    return member.email || member.name || "member";
   }
 
   return (
@@ -166,19 +217,100 @@ export default function MembersClient({ instructors, students, userId, courseTit
           <ul className="flex flex-col gap-2 sm:gap-2.5">
             {getMembers(activeTab).map((member: any) => (
               <li key={member.id} className="list-none">
-                <Card className="w-full p-0 shadow-sm border bg-background rounded-lg sm:rounded-xl transition-all">
-                  <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-4 py-2 sm:py-2.5">
-                    <div className="flex items-center gap-2 w-full">
+                <Card className="w-[94%] sm:w-full mx-auto p-0 shadow-sm border bg-background rounded-lg sm:rounded-xl transition-all">
+                  <CardContent className="flex flex-row items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-2.5">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       {activeTab === "instructors" ? <GraduationCap className="size-4 text-muted-foreground" /> : <Users className="size-4 text-muted-foreground" />}
-                      <span className="font-medium break-words text-base sm:text-sm">{member.name}</span>
+                      <span className="font-medium text-sm sm:text-sm truncate">{member.name}</span>
                     </div>
-                    {member.id === userId && <Badge variant="secondary" className="mt-1 sm:mt-0">You</Badge>}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {member.id === userId && <Badge variant="secondary">You</Badge>}
+                      {isInstructor && member.id !== userId && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Remove member"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setPendingRemove(member);
+                            setRemovalSuccess(false);
+                            setRemovalError("");
+                            setModalOpen(true);
+                          }}
+                        >
+                          <Trash className="size-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </li>
             ))}
           </ul>
         )}
+        <AlertDialog
+          open={modalOpen}
+          onOpenChange={open => {
+            setModalOpen(open);
+            if (!open) {
+              setPendingRemove(null);
+              setRemovalSuccess(false);
+              setRemovalError("");
+            }
+          }}
+        >
+          <AlertDialogContent>
+            {!removalSuccess ? (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Remove {pendingRemove?.role === "instructor" ? "Instructor" : "Student"}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Remove <span className="font-semibold">{formatMemberDisplay(pendingRemove)}</span> from this course?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {removalError && (
+                  <div className="text-destructive text-sm">{removalError}</div>
+                )}
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setModalOpen(false)}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-white hover:bg-destructive/90"
+                    onClick={event => {
+                      event.preventDefault();
+                      if (pendingRemove) handleRemoveMember(pendingRemove);
+                    }}
+                  >
+                    Remove
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            ) : (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Member Removed</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    <span className="font-semibold">{formatMemberDisplay(pendingRemove)}</span> has been removed from this course.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogAction
+                    autoFocus
+                    onClick={() => {
+                      setModalOpen(false);
+                      setPendingRemove(null);
+                      setRemovalSuccess(false);
+                      setRemovalError("");
+                    }}
+                  >
+                    OK
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            )}
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </main>
   );

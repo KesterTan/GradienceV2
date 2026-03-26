@@ -14,7 +14,7 @@ export async function POST(
     // Await params if it's a Promise (Next.js dynamic API routes sometimes pass a Promise)
     const params = 'then' in context.params ? await context.params : context.params;
     const { courseId } = params;
-    const user = await requireAppUser();
+    const user = await requireGraderUser();
     const parsedCourseId = Number(courseId);
     if (!Number.isFinite(parsedCourseId)) {
       return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
@@ -33,7 +33,10 @@ export async function POST(
     }
 
     // Find user by email
-    const userArr = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+    const userArr = await db
+      .select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email })
+      .from(users)
+      .where(eq(users.email, email));
     const memberUser = userArr[0];
     if (!memberUser) {
       return NextResponse.json({ error: "User with this email does not exist" }, { status: 404 });
@@ -56,7 +59,16 @@ export async function POST(
       status: "active",
     }).returning({ id: courseMemberships.id });
 
-    return NextResponse.json({ success: true, id: inserted[0]?.id });
+    return NextResponse.json({
+      success: true,
+      id: inserted[0]?.id,
+      userId: memberUser.id,
+      member: {
+        id: memberUser.id,
+        name: `${memberUser.firstName} ${memberUser.lastName}`,
+        email: memberUser.email,
+      },
+    });
   } catch (err) {
     return NextResponse.json({ error: "Unexpected server error" }, { status: 500 });
   }
