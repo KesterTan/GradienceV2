@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useActionState, useMemo } from "react"
+import { useActionState, useMemo, useState } from "react"
 import { updateAssignmentAction } from "../../../actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,9 @@ type AssignmentFormState = {
     startTime?: string[]
     endDate?: string[]
     endTime?: string[]
+    lateUntilDate?: string[]
+    lateUntilTime?: string[]
+    maxAttemptResubmission?: string[]
     courseId?: string[]
     assignmentId?: string[]
     _form?: string[]
@@ -35,10 +38,15 @@ export function EditAssignmentForm(props: {
     startTime: string
     endDate: string
     endTime: string
+    allowResubmissions: boolean
+    maxAttemptResubmission: number
   }
 }) {
   const { courseId, assignmentId, initialValues } = props
   const [state, formAction, pending] = useActionState(updateAssignmentAction, initialState)
+  const [allowResubmissions, setAllowResubmissions] = useState(
+    state.values?.allowResubmissions === "on" ? true : initialValues.allowResubmissions
+  )
 
   const dateError = useMemo(() => state.errors?.endDate?.[0], [state.errors?.endDate])
   const values = state.values ?? {}
@@ -131,6 +139,41 @@ export function EditAssignmentForm(props: {
             <p className="text-sm text-destructive">{state.errors.endTime[0]}</p>
           )}
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <input
+            id="allowResubmissions"
+            name="allowResubmissions"
+            type="checkbox"
+            className="size-4 rounded border-input"
+            checked={allowResubmissions}
+            onChange={(e) => setAllowResubmissions(e.target.checked)}
+          />
+          <Label htmlFor="allowResubmissions">Allow resubmissions</Label>
+        </div>
+
+        {allowResubmissions && (
+          <div className="space-y-2">
+            <Label htmlFor="maxAttemptResubmission">Maximum resubmissions</Label>
+            <Input
+              id="maxAttemptResubmission"
+              name="maxAttemptResubmission"
+              type="number"
+              min={1}
+              placeholder="e.g. 2"
+              defaultValue={values.maxAttemptResubmission ?? String(initialValues.maxAttemptResubmission || 1)}
+              aria-invalid={!!state.errors?.maxAttemptResubmission}
+            />
+            <p className="text-xs text-muted-foreground">
+              Total number of submissions allowed (e.g. 3 = initial submission + 2 resubmissions).
+            </p>
+            {state.errors?.maxAttemptResubmission?.[0] && (
+              <p className="text-sm text-destructive">{state.errors.maxAttemptResubmission[0]}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {state.errors?.assignmentId?.[0] && <p className="text-sm text-destructive">{state.errors.assignmentId[0]}</p>}

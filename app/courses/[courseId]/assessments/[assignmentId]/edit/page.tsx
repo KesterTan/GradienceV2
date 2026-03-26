@@ -14,6 +14,7 @@ function toTimeValue(iso: string) {
   return format(new Date(iso), "HH:mm")
 }
 
+
 export default async function EditAssessmentPage({
   params,
 }: {
@@ -65,6 +66,8 @@ export default async function EditAssessmentPage({
                 startTime: toTimeValue(assessment.releaseAt),
                 endDate: toDateValue(assessment.dueAt),
                 endTime: toTimeValue(assessment.dueAt),
+                allowResubmissions: assessment.allowResubmissions,
+                maxAttemptResubmission: assessment.maxAttemptResubmission,
               }}
             />
           </CardContent>

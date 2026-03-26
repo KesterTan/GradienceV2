@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useActionState, useMemo } from "react"
+import { useActionState, useMemo, useState } from "react"
 import { createAssignmentAction } from "../actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,9 @@ type AssignmentFormState = {
     startTime?: string[]
     endDate?: string[]
     endTime?: string[]
+    lateUntilDate?: string[]
+    lateUntilTime?: string[]
+    maxAttemptResubmission?: string[]
     courseId?: string[]
     _form?: string[]
   }
@@ -26,6 +29,10 @@ type AssignmentFormState = {
     startTime: string
     endDate: string
     endTime: string
+    lateUntilDate: string
+    lateUntilTime: string
+    allowResubmissions: string
+    maxAttemptResubmission: string
   }
 }
 
@@ -33,6 +40,9 @@ const initialState: AssignmentFormState = {}
 
 export function CreateAssignmentForm({ courseId }: { courseId: number }) {
   const [state, formAction, pending] = useActionState(createAssignmentAction, initialState)
+  const [allowResubmissions, setAllowResubmissions] = useState(
+    state.values?.allowResubmissions === "on"
+  )
 
   const dateError = useMemo(() => state.errors?.endDate?.[0], [state.errors?.endDate])
 
@@ -123,6 +133,41 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
             <p className="text-sm text-destructive">{state.errors.endTime[0]}</p>
           )}
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <input
+            id="allowResubmissions"
+            name="allowResubmissions"
+            type="checkbox"
+            className="size-4 rounded border-input"
+            checked={allowResubmissions}
+            onChange={(e) => setAllowResubmissions(e.target.checked)}
+          />
+          <Label htmlFor="allowResubmissions">Allow resubmissions</Label>
+        </div>
+
+        {allowResubmissions && (
+          <div className="space-y-2">
+            <Label htmlFor="maxAttemptResubmission">Maximum resubmissions</Label>
+            <Input
+              id="maxAttemptResubmission"
+              name="maxAttemptResubmission"
+              type="number"
+              min={1}
+              placeholder="e.g. 2"
+              defaultValue={state.values?.maxAttemptResubmission ?? "1"}
+              aria-invalid={!!state.errors?.maxAttemptResubmission}
+            />
+            <p className="text-xs text-muted-foreground">
+              Total number of submissions allowed (e.g. 3 = initial submission + 2 resubmissions).
+            </p>
+            {state.errors?.maxAttemptResubmission?.[0] && (
+              <p className="text-sm text-destructive">{state.errors.maxAttemptResubmission[0]}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {state.errors?.courseId?.[0] && <p className="text-sm text-destructive">{state.errors.courseId[0]}</p>}

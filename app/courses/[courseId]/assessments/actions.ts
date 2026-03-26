@@ -16,6 +16,7 @@ type AssignmentFormState = {
     startTime?: string[]
     endDate?: string[]
     endTime?: string[]
+    maxAttemptResubmission?: string[]
     courseId?: string[]
     assignmentId?: string[]
     _form?: string[]
@@ -29,6 +30,8 @@ type AssignmentFormState = {
     startTime: string
     endDate: string
     endTime: string
+    allowResubmissions: string
+    maxAttemptResubmission: string
   }
 }
 
@@ -230,6 +233,15 @@ export async function createAssignmentAction(
     startTime: readFormValue(formData, "startTime"),
     endDate: readFormValue(formData, "endDate"),
     endTime: readFormValue(formData, "endTime"),
+    allowResubmissions: readFormValue(formData, "allowResubmissions"),
+    maxAttemptResubmission: readFormValue(formData, "maxAttemptResubmission"),
+  }
+
+  const allowResubmissions = values.allowResubmissions === "on"
+  const maxAttemptResubmission = allowResubmissions ? Math.max(1, Number(values.maxAttemptResubmission) || 1) : 0
+
+  if (allowResubmissions && (!Number.isFinite(maxAttemptResubmission) || maxAttemptResubmission < 1)) {
+    return { errors: { maxAttemptResubmission: ["Maximum resubmissions must be at least 1."] }, values }
   }
 
   const parsed = createAssignmentSchema.safeParse({
@@ -315,8 +327,8 @@ export async function createAssignmentAction(
     dueAt,
     lateUntil: null,
     submissionType: "text",
-    allowResubmissions: false,
-    maxAttemptResubmission: 0,
+    allowResubmissions,
+    maxAttemptResubmission,
     isPublished: false,
     createdByUserId: user.id,
   })
@@ -340,6 +352,15 @@ export async function updateAssignmentAction(
     startTime: readFormValue(formData, "startTime"),
     endDate: readFormValue(formData, "endDate"),
     endTime: readFormValue(formData, "endTime"),
+    allowResubmissions: readFormValue(formData, "allowResubmissions"),
+    maxAttemptResubmission: readFormValue(formData, "maxAttemptResubmission"),
+  }
+
+  const allowResubmissions = values.allowResubmissions === "on"
+  const maxAttemptResubmission = allowResubmissions ? Math.max(1, Number(values.maxAttemptResubmission) || 1) : 0
+
+  if (allowResubmissions && (!Number.isFinite(maxAttemptResubmission) || maxAttemptResubmission < 1)) {
+    return { errors: { maxAttemptResubmission: ["Maximum resubmissions must be at least 1."] }, values }
   }
 
   const parsed = createAssignmentSchema.safeParse({
@@ -434,6 +455,9 @@ export async function updateAssignmentAction(
       description: parsed.data.description ?? null,
       releaseAt,
       dueAt,
+      lateUntil: null,
+      allowResubmissions,
+      maxAttemptResubmission,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(assignments.id, assignmentId))
