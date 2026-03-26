@@ -3,8 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST as addMember } from '@/app/api/courses/[courseId]/members/add/route';
 import { db } from '@/db/orm';
 import { users, courses, courseMemberships, grades, rubricScores, feedbackComments } from '@/db/schema';
-// Import dependent tables for cleanup
-import { grades } from '@/db/schema';
 // If you have rubricScores and submissions tables, import them as well
 // import { rubricScores, submissions } from '@/db/schema';
 import * as currentUser from '../../../lib/current-user';
@@ -26,10 +24,10 @@ describe('Manage Members - Add Member', () => {
   it('should add member with valid input', async () => {
     // Arrange: create instructor and student user, and a course
     const instructor = await db.insert(users).values({
-      firstName: 'Inst', lastName: 'Ructor', email: 'instructor@test.com', passwordHash: 'x', globalRole: 'grader', status: 'active'
+      firstName: 'Inst', lastName: 'Ructor', email: 'instructor@test.com', passwordHash: 'x', status: 'active'
     }).returning();
     const student = await db.insert(users).values({
-      firstName: 'Stu', lastName: 'Dent', email: 'student@test.com', passwordHash: 'x', globalRole: 'student', status: 'active'
+      firstName: 'Stu', lastName: 'Dent', email: 'student@test.com', passwordHash: 'x', status: 'active'
     }).returning();
     const course = await db.insert(courses).values({
       title: 'Test Course', courseCode: 'TST101', term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
@@ -39,8 +37,8 @@ describe('Manage Members - Add Member', () => {
     // Act: add student to course
     const req = { json: async () => ({ email: 'student@test.com', role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    // Mock requireGraderUser to return instructor
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
+    // Mock requireAppUser to return instructor
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -54,10 +52,10 @@ describe('Manage Members - Add Member', () => {
   it('should prevent duplicate users', async () => {
     // Arrange: create instructor, student, course, and add student once
     const instructor = await db.insert(users).values({
-      firstName: 'Inst', lastName: 'Ructor', email: 'instructor2@test.com', passwordHash: 'x', globalRole: 'grader', status: 'active'
+      firstName: 'Inst', lastName: 'Ructor', email: 'instructor2@test.com', passwordHash: 'x', status: 'active'
     }).returning();
     const student = await db.insert(users).values({
-      firstName: 'Stu', lastName: 'Dent', email: 'student2@test.com', passwordHash: 'x', globalRole: 'student', status: 'active'
+      firstName: 'Stu', lastName: 'Dent', email: 'student2@test.com', passwordHash: 'x', status: 'active'
     }).returning();
     const course = await db.insert(courses).values({
       title: 'Test Course', courseCode: 'TST102', term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
@@ -68,7 +66,7 @@ describe('Manage Members - Add Member', () => {
     // Act: try to add student again
     const req = { json: async () => ({ email: 'student2@test.com', role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -81,10 +79,10 @@ describe('Manage Members - Add Member', () => {
   it('should restrict non-instructors from adding members', async () => {
     // Arrange: create instructor (as course creator) and student
     const instructor = await db.insert(users).values({
-      firstName: 'Inst', lastName: 'Ructor', email: 'instructor3@test.com', passwordHash: 'x', globalRole: 'grader', status: 'active'
+      firstName: 'Inst', lastName: 'Ructor', email: 'instructor3@test.com', passwordHash: 'x', status: 'active'
     }).returning();
     const student = await db.insert(users).values({
-      firstName: 'Stu', lastName: 'Dent', email: 'student3@test.com', passwordHash: 'x', globalRole: 'student', status: 'active'
+      firstName: 'Stu', lastName: 'Dent', email: 'student3@test.com', passwordHash: 'x', status: 'active'
     }).returning();
     const course = await db.insert(courses).values({
       title: 'Test Course', courseCode: 'TST103', term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
@@ -95,7 +93,7 @@ describe('Manage Members - Add Member', () => {
     // Act: try to add another member as a student (not instructor)
     const req = { json: async () => ({ email: 'someone@test.com', role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(student[0]);
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(student[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -108,7 +106,7 @@ describe('Manage Members - Add Member', () => {
   it('should handle invalid input', async () => {
     // Arrange: create instructor and course
     const instructor = await db.insert(users).values({
-      firstName: 'Inst', lastName: 'Ructor', email: 'instructor4@test.com', passwordHash: 'x', globalRole: 'grader', status: 'active'
+      firstName: 'Inst', lastName: 'Ructor', email: 'instructor4@test.com', passwordHash: 'x', status: 'active'
     }).returning();
     const course = await db.insert(courses).values({
       title: 'Test Course', courseCode: 'TST104', term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
@@ -118,7 +116,7 @@ describe('Manage Members - Add Member', () => {
     // Act: missing email
     const req = { json: async () => ({ role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -130,7 +128,7 @@ describe('Manage Members - Add Member', () => {
   it('should handle non-existent user', async () => {
     // Arrange: create instructor and course
     const instructor = await db.insert(users).values({
-      firstName: 'Inst', lastName: 'Ructor', email: 'instructor5@test.com', passwordHash: 'x', globalRole: 'grader', status: 'active'
+      firstName: 'Inst', lastName: 'Ructor', email: 'instructor5@test.com', passwordHash: 'x', status: 'active'
     }).returning();
     const course = await db.insert(courses).values({
       title: 'Test Course', courseCode: 'TST105', term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
@@ -140,7 +138,7 @@ describe('Manage Members - Add Member', () => {
     // Act: try to add a user that doesn't exist
     const req = { json: async () => ({ email: 'notfound@test.com', role: 'student' }) };
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 

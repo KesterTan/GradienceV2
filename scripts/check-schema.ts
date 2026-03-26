@@ -30,11 +30,7 @@ const expectedSeedCounts: Record<string, number> = {
   feedback_comments: 2,
 };
 
-const seedUsers = [
-  { email: "irene@gradience.edu", role: "grader" },
-  { email: "gary@gradience.edu", role: "grader" },
-  { email: "stu@gradience.edu", role: "student" },
-];
+const seedUsers = ["irene@gradience.edu", "gary@gradience.edu", "stu@gradience.edu"];
 
 async function ensureTables(client: ClientBase) {
   for (const table of requiredTables) {
@@ -62,18 +58,13 @@ async function ensureCounts(client: ClientBase) {
 }
 
 async function ensureSeedUsers(client: ClientBase) {
-  for (const user of seedUsers) {
-    const { rows } = await client.query<{ email: string; global_role: string }>(
-      "SELECT email, global_role FROM users WHERE email = $1",
-      [user.email],
+  for (const email of seedUsers) {
+    const { rows } = await client.query<{ email: string }>(
+      "SELECT email FROM users WHERE email = $1",
+      [email],
     );
     if (!rows[0]) {
-      throw new Error(`Missing seed user ${user.email}`);
-    }
-    if (rows[0].global_role !== user.role) {
-      throw new Error(
-        `Seed user ${user.email} role mismatch: expected ${user.role}, got ${rows[0].global_role}`,
-      );
+      throw new Error(`Missing seed user ${email}`);
     }
   }
 }

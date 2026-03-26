@@ -74,7 +74,6 @@ describe("current-user helpers", () => {
           firstName: "Irene",
           lastName: "Instructor",
           email: "irene@gradience.edu",
-          globalRole: "grader",
           authProviderId: null,
         },
       ],
@@ -88,7 +87,6 @@ describe("current-user helpers", () => {
       firstName: "Irene",
       lastName: "Instructor",
       email: "irene@gradience.edu",
-      globalRole: "grader",
     })
   })
 
@@ -104,7 +102,6 @@ describe("current-user helpers", () => {
         firstName: "New",
         lastName: "User",
         email: "new@gradience.edu",
-        globalRole: "grader",
         authProviderId: "auth0|new",
       },
     ])
@@ -123,7 +120,7 @@ describe("current-user helpers", () => {
     expect(user.id).toBe(9)
   })
 
-  it("rejects non-grader users", async () => {
+  it("requireGraderUser returns the authenticated user", async () => {
     mocks.getSession.mockResolvedValueOnce({
       user: { sub: "auth0|stu", email: "stu@gradience.edu", name: "Stu Student" },
     })
@@ -134,12 +131,15 @@ describe("current-user helpers", () => {
         firstName: "Stu",
         lastName: "Student",
         email: "stu@gradience.edu",
-        globalRole: "student",
         authProviderId: "auth0|stu",
       },
     ])
 
-    await expect(requireGraderUser()).rejects.toThrow("REDIRECT:/login?error=unauthorized")
-    expect(mocks.redirect).toHaveBeenCalledWith("/login?error=unauthorized")
+    await expect(requireGraderUser()).resolves.toEqual({
+      id: 2,
+      firstName: "Stu",
+      lastName: "Student",
+      email: "stu@gradience.edu",
+    })
   })
 })
