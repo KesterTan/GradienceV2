@@ -83,11 +83,11 @@ export function PdfUploadForm({ courseId, assignmentId, onSuccess }: PdfUploadFo
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Drop zone / file selector */}
       <div
-        className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 px-6 py-10 text-center cursor-pointer hover:bg-indigo-50 transition-colors"
+        className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary/20 bg-primary/5 px-6 py-10 text-center cursor-pointer hover:bg-primary/10 transition-colors"
         onClick={() => inputRef.current?.click()}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100">
-          <UploadCloud className="h-6 w-6 text-indigo-500" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+          <UploadCloud className="h-6 w-6 text-primary" />
         </div>
         <div>
           <p className="text-sm font-medium text-gray-700">
@@ -107,8 +107,8 @@ export function PdfUploadForm({ courseId, assignmentId, onSuccess }: PdfUploadFo
       {/* Selected file display */}
       {selectedFile && (
         <div className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-white px-4 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
-            <FileText className="h-5 w-5 text-indigo-500" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <FileText className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-gray-800">{selectedFile.name}</p>
@@ -136,7 +136,7 @@ export function PdfUploadForm({ courseId, assignmentId, onSuccess }: PdfUploadFo
       <Button
         type="submit"
         disabled={!selectedFile || loading}
-        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+        className="w-full"
       >
         {loading ? "Uploading…" : "Submit Assignment"}
       </Button>
