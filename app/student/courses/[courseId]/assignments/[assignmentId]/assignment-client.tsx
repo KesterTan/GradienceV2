@@ -14,6 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface AssignmentClientProps {
   assignment: StudentAssignmentDetail
@@ -104,7 +106,7 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
           <DialogFooter className="sm:justify-center">
             <Button
               onClick={() => setShowSuccess(false)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
+              className=" w-full sm:w-auto"
             >
               Done
             </Button>
@@ -149,7 +151,7 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
             <Button
               onClick={handleRestore}
               disabled={restoreLoading}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              className=""
             >
               {restoreLoading ? "Restoring…" : "Yes, restore"}
             </Button>
@@ -158,74 +160,80 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
       </Dialog>
 
       {/* Assignment details card */}
-      <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
-        <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100">
-            <FileText className="h-5 w-5 text-indigo-500" />
+      <Card className="border-border/90">
+        <CardContent className="flex items-start gap-4 p-6">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <FileText className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900">{assignment.title}</h2>
+            <CardTitle className="text-lg">{assignment.title}</CardTitle>
             {assignment.description && (
-              <p className="mt-1 text-sm text-gray-500">{assignment.description}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{assignment.description}</p>
             )}
-            <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-500">
+            <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5" />
                 Due {format(dueDate, "MMM d, yyyy 'at' h:mm a")}
                 {isOverdue && (
-                  <span className="ml-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  <Badge variant="outline" className="ml-1 text-amber-700 border-amber-200 bg-amber-50">
                     Past due
-                  </span>
+                  </Badge>
                 )}
               </span>
               <span>{assignment.totalPoints} points</span>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Upload form / deadline closed */}
       {isDeadlinePassed ? (
-        <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-              <Lock className="h-5 w-5 text-gray-400" />
+        <Card className="border-border/90">
+          <CardContent className="flex items-start gap-4 p-6">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+              <Lock className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-800">Submissions closed</p>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="text-sm font-semibold text-foreground">Submissions closed</p>
+              <p className="mt-1 text-sm text-muted-foreground">
                 The deadline for this assignment has passed. No further submissions are accepted.
               </p>
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Closed {format(lateUntilDate ?? dueDate, "MMM d, yyyy 'at' h:mm a")}
               </p>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">
-            {submissions.length === 0 ? "Submit your work" : "Submit a new version"}
-          </h3>
-          {lateUntilDate && isOverdue && (
-            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-700">
-              The deadline has passed but late submissions are accepted until{" "}
-              <span className="font-medium">{format(lateUntilDate, "MMM d, yyyy 'at' h:mm a")}</span>.
-            </p>
-          )}
-          <PdfUploadForm
-            courseId={assignment.courseId}
-            assignmentId={assignment.id}
-            onSuccess={handleUploadSuccess}
-          />
-        </div>
+        <Card className="border-border/90">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              {submissions.length === 0 ? "Submit your work" : "Submit a new version"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {lateUntilDate && isOverdue && (
+              <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-700">
+                The deadline has passed but late submissions are accepted until{" "}
+                <span className="font-medium">{format(lateUntilDate, "MMM d, yyyy 'at' h:mm a")}</span>.
+              </p>
+            )}
+            <PdfUploadForm
+              courseId={assignment.courseId}
+              assignmentId={assignment.id}
+              onSuccess={handleUploadSuccess}
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* Submission history */}
       {submissions.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white px-6 py-5">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">Submission history</h3>
-          <div className="space-y-3">
+        <Card className="border-border/90">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Submission history</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-3">
             {[...submissions].reverse().map((submission, index) => {
               const isCurrent = index === 0
               return (
@@ -233,33 +241,31 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
                   key={submission.id}
                   className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-3 ${
                     isCurrent
-                      ? "border-indigo-200 bg-white border-l-4 border-l-indigo-500"
-                      : "border-gray-100 bg-gray-50"
+                      ? "border-primary/20 bg-card border-l-4 border-l-primary"
+                      : "border-border/50 bg-muted/30"
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${isCurrent ? "bg-indigo-100" : "bg-gray-200"}`}>
-                      <FileText className={`h-4 w-4 ${isCurrent ? "text-indigo-500" : "text-gray-400"}`} />
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${isCurrent ? "bg-primary/10" : "bg-muted"}`}>
+                      <FileText className={`h-4 w-4 ${isCurrent ? "text-primary" : "text-muted-foreground"}`} />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-800">
+                        <p className="text-sm font-medium text-foreground">
                           Version {submission.attemptNumber}
                         </p>
                         {isCurrent && (
-                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                            Current
-                          </span>
+                          <Badge className="rounded-full px-2 py-0.5 text-xs">Current</Badge>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-muted-foreground">
                         {format(new Date(submission.submittedAt), "MMM d, yyyy 'at' h:mm a")}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span
-                      className={`hidden sm:inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[submission.status] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}
+                      className={`hidden sm:inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[submission.status] ?? "bg-muted text-muted-foreground border-border"}`}
                     >
                       {submission.status}
                     </span>
@@ -268,7 +274,7 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
                         href={submission.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700 whitespace-nowrap"
+                        className="text-xs font-medium text-primary hover:text-primary/80 whitespace-nowrap"
                       >
                         View PDF ↗
                       </a>
@@ -277,7 +283,7 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
                       <button
                         type="button"
                         onClick={() => setRestoreTarget(submission)}
-                        className="text-xs font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap"
+                        className="text-xs font-medium text-muted-foreground hover:text-foreground whitespace-nowrap"
                       >
                         Restore
                       </button>
@@ -286,8 +292,8 @@ export function AssignmentClient({ assignment, initialSubmissions }: AssignmentC
                 </div>
               )
             })}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

@@ -1,20 +1,28 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Calendar, FileText } from "lucide-react"
+import { ArrowRight, Calendar } from "lucide-react"
 import { format } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireStudentMembership } from "@/lib/current-user"
 import { getCourseForStudent, listAssignmentsForStudent, StudentAssignmentSummary } from "@/lib/student-queries"
 
-const STATUS_BADGE: Record<
-  StudentAssignmentSummary["submissionStatus"],
-  { label: string; className: string }
-> = {
-  not_submitted: { label: "Not submitted",  className: "bg-gray-100 text-gray-500 border-gray-200" },
-  submitted:     { label: "Submitted",       className: "bg-green-50 text-green-700 border-green-200" },
-  late:          { label: "Late",            className: "bg-amber-50 text-amber-700 border-amber-200" },
-  resubmitted:   { label: "Resubmitted",     className: "bg-blue-50 text-blue-700 border-blue-200" },
-  graded:        { label: "Graded",          className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+const STATUS_VARIANT: Record<StudentAssignmentSummary["submissionStatus"], "default" | "secondary" | "destructive" | "outline"> = {
+  not_submitted: "secondary",
+  submitted: "default",
+  late: "outline",
+  resubmitted: "default",
+  graded: "default",
+}
+
+const STATUS_LABEL: Record<StudentAssignmentSummary["submissionStatus"], string> = {
+  not_submitted: "Not submitted",
+  submitted: "Submitted",
+  late: "Late",
+  resubmitted: "Resubmitted",
+  graded: "Graded",
 }
 
 export default async function StudentCoursePage({
@@ -37,7 +45,7 @@ export default async function StudentCoursePage({
   if (!course) notFound()
 
   return (
-    <main className="min-h-screen bg-[#F0F0F8]">
+    <main className="min-h-screen bg-muted/30">
       <DashboardHeader
         title={course.title}
         breadcrumbs={[
@@ -48,58 +56,47 @@ export default async function StudentCoursePage({
         showCoursesLink={false}
       />
 
-      <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
-        {/* Course header */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {course.courseCode} · {course.term}
+          <h2 className="text-xl font-semibold text-foreground">{course.title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {course.courseCode}{course.term ? ` · ${course.term}` : ""}
             {course.instructors.length > 0 && (
               <> · Instructor{course.instructors.length > 1 ? "s" : ""}: {course.instructors.join(", ")}</>
             )}
           </p>
-          {course.description && (
-            <p className="mt-2 text-sm text-gray-500">{course.description}</p>
-          )}
-        </div>
-
-        {/* Assignments */}
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-gray-900">Assignments</h2>
-          <span className="text-sm text-gray-400">{assignments.length} total</span>
         </div>
 
         {assignments.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white px-6 py-10 text-center">
-            <p className="text-sm text-gray-400">No assignments have been published yet.</p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>No assignments yet</CardTitle>
+              <CardDescription>No assignments have been published yet.</CardDescription>
+            </CardHeader>
+          </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-4">
             {assignments.map((assignment) => {
-              const badge = STATUS_BADGE[assignment.submissionStatus]
               const isOverdue =
                 assignment.submissionStatus === "not_submitted" &&
                 new Date() > new Date(assignment.dueAt)
 
               return (
-                <div
-                  key={assignment.id}
-                  className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4"
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100">
-                      <FileText className="h-4 w-4 text-indigo-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-gray-900">
-                        {assignment.title}
-                      </p>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-400">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
+                <Card key={assignment.id} className="border-border/90 bg-card">
+                  <CardContent className="flex flex-col items-start justify-between gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
+                    <div className="min-w-0 space-y-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <CardTitle>{assignment.title}</CardTitle>
+                        <Badge variant={STATUS_VARIANT[assignment.submissionStatus]} className="rounded-full px-3 py-0.5 text-xs">
+                          {STATUS_LABEL[assignment.submissionStatus]}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                        <span className="inline-flex items-center gap-2">
+                          <Calendar className="size-4" />
                           Due {format(new Date(assignment.dueAt), "MMM d, yyyy")}
                           {isOverdue && (
-                            <span className="ml-1 text-amber-600 font-medium">· Past due</span>
+                            <span className="ml-1 font-medium text-amber-600">· Past due</span>
                           )}
                         </span>
                         <span>{assignment.totalPoints} pts</span>
@@ -108,22 +105,14 @@ export default async function StudentCoursePage({
                         )}
                       </div>
                     </div>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-3">
-                    <span
-                      className={`hidden sm:inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${badge.className}`}
-                    >
-                      {badge.label}
-                    </span>
-                    <Link
-                      href={`/student/courses/${parsedCourseId}/assignments/${assignment.id}`}
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700 whitespace-nowrap"
-                    >
-                      Open →
-                    </Link>
-                  </div>
-                </div>
+                    <Button asChild variant="ghost" className="h-auto px-2 text-sm font-medium text-primary hover:bg-transparent hover:text-primary/90 sm:self-auto">
+                      <Link href={`/student/courses/${parsedCourseId}/assignments/${assignment.id}`} className="inline-flex items-center gap-2">
+                        Open
+                        <ArrowRight className="size-4" />
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
               )
             })}
           </div>

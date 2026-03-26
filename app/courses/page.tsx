@@ -25,9 +25,7 @@ export default async function CoursesDashboardPage() {
       <DashboardHeader
         title="Courses"
         subtitle="Main dashboard with all courses you can manage"
-        breadcrumbs={[
-          { label: "Home", current: true },
-        ]}
+        breadcrumbs={[{ label: "Home", current: true }]}
         user={{ name: `${user.firstName} ${user.lastName}`, email: user.email }}
         showCoursesLink={false}
       />

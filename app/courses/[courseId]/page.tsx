@@ -107,11 +107,20 @@ export default async function CourseDashboardPage({
                   {isInstructor && <p className="text-sm text-muted-foreground">
                     Submissions: <span className="font-medium text-foreground">{assignment.submissionCount}</span>
                   </p>}
-                  <Button asChild className="w-full sm:w-auto">
-                    <Link href={`/courses/${course.id}/assessments/${assignment.id}`}>
-                      {isInstructor ? "Open assessment page" : "Open assignment"}
-                    </Link>
-                  </Button>
+                  <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                    {isInstructor && (
+                      <Button asChild variant="outline" className="w-full sm:w-auto">
+                        <Link href={`/courses/${course.id}/assessments/${assignment.id}/edit`}>
+                          Edit
+                        </Link>
+                      </Button>
+                    )}
+                    <Button asChild className="w-full sm:w-auto">
+                      <Link href={`/courses/${course.id}/assessments/${assignment.id}`}>
+                        {isInstructor ? "Open assessment page" : "Open assignment"}
+                      </Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}

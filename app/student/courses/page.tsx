@@ -1,79 +1,77 @@
 import Link from "next/link"
-import { BookOpen, Calendar } from "lucide-react"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
+import { ArrowRight, BookOpen, Calendar } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireAppUser } from "@/lib/current-user"
 import { listCoursesForStudent } from "@/lib/student-queries"
 
+function formatDate(value: string) {
+  return format(parseISO(value), "MMM d, yyyy")
+}
+
 export default async function StudentCoursesPage() {
   const user = await requireAppUser()
-
   const courses = await listCoursesForStudent(user.id)
 
   return (
-    <main className="min-h-screen bg-[#F0F0F8]">
+    <main className="min-h-screen bg-muted/30">
       <DashboardHeader
         title="My Courses"
+        breadcrumbs={[{ label: "Home", current: true }]}
         user={{ name: `${user.firstName} ${user.lastName}`, email: user.email }}
         showCoursesLink={false}
       />
 
-      <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
-        {/* Page header */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100">
-            <BookOpen className="h-5 w-5 text-indigo-500" />
+          <div className="rounded-2xl bg-primary/10 p-3">
+            <BookOpen className="size-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Courses</h1>
-            <p className="text-sm text-gray-500">View your enrolled courses and submit assignments.</p>
+            <h2 className="text-xl font-semibold text-foreground">My Courses</h2>
+            <p className="mt-1 text-sm text-muted-foreground">View your enrolled courses and submit assignments.</p>
           </div>
         </div>
 
         {courses.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white px-6 py-10 text-center">
-            <p className="text-sm text-gray-400">You are not enrolled in any courses yet.</p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>No courses yet</CardTitle>
+              <CardDescription>You are not enrolled in any courses yet.</CardDescription>
+            </CardHeader>
+          </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-4">
             {courses.map((course) => (
-              <div
-                key={course.id}
-                className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {course.courseCode} - {course.title}
-                    </span>
-                    <span className="rounded-full border border-indigo-200 bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
-                      Student
-                    </span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(course.startDate), "M/d/yyyy")} –{" "}
-                      {format(new Date(course.endDate), "M/d/yyyy")}
-                    </span>
-                    {course.instructors.length > 0 && (
-                      <span>
-                        {course.instructors.length} instructor{course.instructors.length !== 1 ? "s" : ""}
+              <Card key={course.id} className="border-border/90 bg-card">
+                <CardContent className="flex flex-col items-start justify-between gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
+                  <div className="min-w-0 space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <CardTitle>{course.courseCode ? `${course.courseCode} - ` : ""}{course.title}</CardTitle>
+                      <Badge className="rounded-full px-4 py-0.5 text-sm" variant="default">
+                        Student
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-2">
+                        <Calendar className="size-4" />
+                        <span>{formatDate(course.startDate)} - {formatDate(course.endDate)}</span>
                       </span>
-                    )}
-                    <span>
-                      {course.publishedAssignmentCount} assignment{course.publishedAssignmentCount !== 1 ? "s" : ""}
-                    </span>
+                      <span>{course.instructorCount} instructor{course.instructorCount !== 1 ? "s" : ""}</span>
+                      <span>{course.assignmentCount} assignment{course.assignmentCount !== 1 ? "s" : ""}</span>
+                    </div>
                   </div>
-                </div>
-
-                <Link
-                  href={`/student/courses/${course.id}`}
-                  className="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-700 whitespace-nowrap"
-                >
-                  Open →
-                </Link>
-              </div>
+                  <Button asChild variant="ghost" className="h-auto px-2 text-sm font-medium text-primary hover:bg-transparent hover:text-primary/90 sm:self-auto">
+                    <Link href={`/student/courses/${course.id}`} className="inline-flex items-center gap-2">
+                      Open
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
