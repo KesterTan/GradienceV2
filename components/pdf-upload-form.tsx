@@ -2,19 +2,23 @@
 
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 import { Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/hooks/use-toast"
 
 export function PdfUploadForm({
   courseId,
   assignmentId,
+  dueAt,
 }: {
   courseId: number
   assignmentId: number
+  dueAt: string
 }) {
+  const isPastDeadline = new Date() > new Date(dueAt)
   const router = useRouter()
+  const { toast } = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -22,7 +26,7 @@ export function PdfUploadForm({
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
     if (file && file.type !== "application/pdf") {
-      toast.error("Only PDF files are accepted")
+      toast({ title: "Invalid file type", description: "Only PDF files are accepted.", variant: "destructive" })
       e.target.value = ""
       setSelectedFile(null)
       return
@@ -33,7 +37,7 @@ export function PdfUploadForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedFile) {
-      toast.error("Please select a PDF file to upload")
+      toast({ title: "No file selected", description: "Please select a PDF file to upload.", variant: "destructive" })
       return
     }
 
@@ -49,19 +53,30 @@ export function PdfUploadForm({
       const data = await res.json()
 
       if (!res.ok) {
-        toast.error(data.error ?? "Upload failed. Please try again.")
+        toast({ title: "Upload failed", description: data.error ?? "Please try again.", variant: "destructive" })
         return
       }
 
-      toast.success("Submission uploaded successfully")
+      toast({ title: "Submission uploaded", description: "Your work has been submitted successfully." })
       setSelectedFile(null)
       if (inputRef.current) inputRef.current.value = ""
       router.refresh()
     } catch {
-      toast.error("Upload failed. Please try again.")
+      toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" })
     } finally {
       setUploading(false)
     }
+  }
+
+  if (isPastDeadline) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Submissions closed</CardTitle>
+          <CardDescription>The deadline for this assignment has passed. No new submissions are accepted.</CardDescription>
+        </CardHeader>
+      </Card>
+    )
   }
 
   return (

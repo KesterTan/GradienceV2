@@ -4,7 +4,9 @@ import { format } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { PdfUploadForm } from "@/components/pdf-upload-form"
+import { RestoreButton } from "@/components/restore-button"
 import {
   getAssessmentForCourseMember,
   listStudentSubmissionsForAssignment,
@@ -91,22 +93,31 @@ export default async function AssessmentPage({
         ) : (
           <div className="grid gap-4">
             {submissions.map((submission) => (
-              <Card key={submission.id}>
-                <CardHeader>
-                  <CardTitle>{submission.studentName}</CardTitle>
-                  <CardDescription>{submission.studentEmail}</CardDescription>
+              <Card key={submission.studentMembershipId}>
+                <CardHeader className="flex flex-row items-start justify-between pb-2">
+                  <div>
+                    <CardTitle>{submission.studentName}</CardTitle>
+                    <CardDescription>{submission.studentEmail}</CardDescription>
+                  </div>
+                  <Badge>Active — Version {submission.attemptNumber}</Badge>
                 </CardHeader>
                 <CardContent className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                   <div>
-                    <p className="text-sm text-muted-foreground">Status: <span className="font-medium text-foreground">{submission.status}</span></p>
-                    <p className="text-sm text-muted-foreground">Attempt: <span className="font-medium text-foreground">{submission.attemptNumber}</span></p>
                     <p className="text-sm text-muted-foreground">Submitted: <span className="font-medium text-foreground">{format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}</span></p>
+                    <p className="text-sm text-muted-foreground">Status: <span className="font-medium text-foreground">{submission.status}</span></p>
                   </div>
-                  <Button asChild className="w-full sm:w-auto">
-                    <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/submissions/${submission.id}`}>
-                      Open submission
-                    </Link>
-                  </Button>
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                    <Button asChild variant="outline" className="w-full sm:w-auto">
+                      <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/submissions/${submission.id}`}>
+                        Open active submission
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="w-full sm:w-auto">
+                      <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/students/${submission.studentMembershipId}`}>
+                        View all versions
+                      </Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -115,38 +126,50 @@ export default async function AssessmentPage({
 
         {!isInstructor && (
           <div className="grid gap-4">
-            <PdfUploadForm courseId={assessment.courseId} assignmentId={assessment.id} />
+            <PdfUploadForm courseId={assessment.courseId} assignmentId={assessment.id} dueAt={assessment.dueAt} />
 
             {studentSubmissions.length > 0 && (
               <>
                 <h3 className="text-sm font-medium text-muted-foreground">Your submissions</h3>
-                {studentSubmissions.map((sub) => (
-                  <Card key={sub.id}>
-                    <CardContent className="flex flex-col gap-2 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Attempt: <span className="font-medium text-foreground">{sub.attemptNumber}</span>
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Status: <span className="font-medium text-foreground">{sub.status}</span>
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Submitted:{" "}
-                          <span className="font-medium text-foreground">
-                            {format(new Date(sub.submittedAt), "MMM d, yyyy h:mm a")}
-                          </span>
-                        </p>
-                      </div>
-                      {sub.fileUrl && (
-                        <Button asChild variant="outline" className="w-full sm:w-auto">
-                          <a href={sub.fileUrl} target="_blank" rel="noreferrer">
-                            View submitted file
-                          </a>
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                {studentSubmissions.map((sub, index) => {
+                  const isActive = index === 0
+                  const isPastDeadline = new Date() > new Date(assessment.dueAt)
+                  return (
+                    <Card key={sub.id}>
+                      <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-base">Version {sub.attemptNumber}</CardTitle>
+                        {isActive && <Badge>Active</Badge>}
+                      </CardHeader>
+                      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Submitted:{" "}
+                            <span className="font-medium text-foreground">
+                              {format(new Date(sub.submittedAt), "MMM d, yyyy h:mm a")}
+                            </span>
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Status: <span className="font-medium text-foreground">{sub.status}</span>
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          {sub.fileUrl && (
+                            <Button asChild variant="outline" size="sm">
+                              <a href={sub.fileUrl} target="_blank" rel="noreferrer">View file</a>
+                            </Button>
+                          )}
+                          {!isActive && !isPastDeadline && (
+                            <RestoreButton
+                              courseId={assessment.courseId}
+                              assignmentId={assessment.id}
+                              submissionId={sub.id}
+                            />
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </>
             )}
           </div>

@@ -49,11 +49,27 @@ export type AssessmentMemberDetail = AssessmentDetail & {
 
 export type SubmissionSummary = {
   id: number
+  studentMembershipId: number
   studentName: string
   studentEmail: string
   status: string
   submittedAt: string
   attemptNumber: number
+  fileUrl: string | null
+}
+
+export type SubmissionVersion = {
+  id: number
+  attemptNumber: number
+  status: string
+  submittedAt: string
+  fileUrl: string | null
+}
+
+export type StudentVersionsResult = {
+  studentName: string
+  studentEmail: string
+  versions: SubmissionVersion[]
 }
 
 export type StudentSubmissionSummary = {
@@ -304,9 +320,11 @@ export async function listSubmissionsForAssessment(
   const rows = await db
     .select({
       id: submissions.id,
+      studentMembershipId: submissions.studentMembershipId,
       attemptNumber: submissions.attemptNumber,
       status: submissions.status,
       submittedAt: submissions.submittedAt,
+      fileUrl: submissions.fileUrl,
       studentEmail: studentUser.email,
       studentName: sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`,
     })
@@ -327,14 +345,27 @@ export async function listSubmissionsForAssessment(
       and(eq(studentMembership.id, submissions.studentMembershipId), eq(studentMembership.role, "student")),
     )
     .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
-    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
+    .where(
+      and(
+        eq(courses.id, courseId),
+        eq(assignments.id, assignmentId),
+        sql`${submissions.attemptNumber} = (
+          SELECT MAX(s2.attempt_number)
+          FROM gradience.submissions s2
+          WHERE s2.student_membership_id = ${submissions.studentMembershipId}
+          AND s2.assignment_id = ${assignments.id}
+        )`,
+      ),
+    )
     .orderBy(desc(submissions.submittedAt))
 
   return rows.map((row) => ({
     id: Number(row.id),
+    studentMembershipId: Number(row.studentMembershipId),
     attemptNumber: Number(row.attemptNumber),
     status: String(row.status),
     submittedAt: String(row.submittedAt),
+    fileUrl: row.fileUrl ? String(row.fileUrl) : null,
     studentName: String(row.studentName),
     studentEmail: String(row.studentEmail),
   }))
@@ -440,5 +471,64 @@ export async function getSubmissionForGrader(
     assignmentTitle: String(row.assignmentTitle),
     courseId: Number(row.courseId),
     courseTitle: String(row.courseTitle),
+  }
+}
+
+export async function listAllSubmissionsForStudent(
+  userId: number,
+  courseId: number,
+  assignmentId: number,
+  studentMembershipId: number,
+): Promise<StudentVersionsResult | null> {
+  const myMembership = alias(courseMemberships, "my_membership")
+  const studentMembership = alias(courseMemberships, "student_membership")
+  const studentUser = alias(users, "student_user")
+
+  const rows = await db
+    .select({
+      id: submissions.id,
+      attemptNumber: submissions.attemptNumber,
+      status: submissions.status,
+      submittedAt: submissions.submittedAt,
+      fileUrl: submissions.fileUrl,
+      studentName: sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`,
+      studentEmail: studentUser.email,
+    })
+    .from(submissions)
+    .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "grader"),
+        eq(myMembership.status, "active"),
+      ),
+    )
+    .innerJoin(
+      studentMembership,
+      and(
+        eq(studentMembership.id, submissions.studentMembershipId),
+        eq(studentMembership.id, studentMembershipId),
+        eq(studentMembership.role, "student"),
+      ),
+    )
+    .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
+    .orderBy(desc(submissions.attemptNumber))
+
+  if (rows.length === 0) return null
+
+  return {
+    studentName: String(rows[0].studentName),
+    studentEmail: String(rows[0].studentEmail),
+    versions: rows.map((row) => ({
+      id: Number(row.id),
+      attemptNumber: Number(row.attemptNumber),
+      status: String(row.status),
+      submittedAt: String(row.submittedAt),
+      fileUrl: row.fileUrl ? String(row.fileUrl) : null,
+    })),
   }
 }

@@ -46,15 +46,19 @@ export async function POST(
       )
     }
 
-    // Confirm assignment belongs to this course
+    // Confirm assignment belongs to this course and check deadline
     const assignmentRows = await db
-      .select({ id: assignments.id })
+      .select({ id: assignments.id, dueAt: assignments.dueAt })
       .from(assignments)
       .where(and(eq(assignments.id, parsedAssignmentId), eq(assignments.courseId, parsedCourseId)))
       .limit(1)
 
     if (!assignmentRows[0]) {
       return NextResponse.json({ error: "Assignment not found" }, { status: 404 })
+    }
+
+    if (new Date() > new Date(assignmentRows[0].dueAt)) {
+      return NextResponse.json({ error: "The submission deadline has passed" }, { status: 403 })
     }
 
     // Parse file from form data
