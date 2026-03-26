@@ -35,10 +35,9 @@ describe('Manage Members - Add Member', () => {
     await db.insert(courseMemberships).values({ courseId: course[0].id, userId: instructor[0].id, role: 'grader', status: 'active' });
 
     // Act: add student to course
-    const req = { json: async () => ({ email: 'student@test.com', role: 'student' }) };
+    const req = { json: async () => ({ email: 'student@test.com', role: 'student' }) } as any;
     const context = { params: { courseId: String(course[0].id) } };
-    // Mock requireAppUser to return instructor
-    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -46,6 +45,12 @@ describe('Manage Members - Add Member', () => {
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.id).toBeDefined();
+    expect(data.userId).toBe(student[0].id);
+    expect(data.member).toEqual({
+      id: student[0].id,
+      name: 'Stu Dent',
+      email: 'student@test.com',
+    });
   });
 
 
@@ -64,9 +69,9 @@ describe('Manage Members - Add Member', () => {
     await db.insert(courseMemberships).values({ courseId: course[0].id, userId: student[0].id, role: 'student', status: 'active' });
 
     // Act: try to add student again
-    const req = { json: async () => ({ email: 'student2@test.com', role: 'student' }) };
+    const req = { json: async () => ({ email: 'student2@test.com', role: 'student' }) } as any;
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -91,9 +96,9 @@ describe('Manage Members - Add Member', () => {
     await db.insert(courseMemberships).values({ courseId: course[0].id, userId: student[0].id, role: 'student', status: 'active' });
 
     // Act: try to add another member as a student (not instructor)
-    const req = { json: async () => ({ email: 'someone@test.com', role: 'student' }) };
+    const req = { json: async () => ({ email: 'someone@test.com', role: 'student' }) } as any;
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(student[0]);
+    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(student[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -114,9 +119,9 @@ describe('Manage Members - Add Member', () => {
     await db.insert(courseMemberships).values({ courseId: course[0].id, userId: instructor[0].id, role: 'grader', status: 'active' });
 
     // Act: missing email
-    const req = { json: async () => ({ role: 'student' }) };
+    const req = { json: async () => ({ role: 'student' }) } as any;
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 
@@ -136,9 +141,9 @@ describe('Manage Members - Add Member', () => {
     await db.insert(courseMemberships).values({ courseId: course[0].id, userId: instructor[0].id, role: 'grader', status: 'active' });
 
     // Act: try to add a user that doesn't exist
-    const req = { json: async () => ({ email: 'notfound@test.com', role: 'student' }) };
+    const req = { json: async () => ({ email: 'notfound@test.com', role: 'student' }) } as any;
     const context = { params: { courseId: String(course[0].id) } };
-    vi.spyOn(currentUser, 'requireAppUser').mockResolvedValue(instructor[0]);
+    vi.spyOn(currentUser, 'requireGraderUser').mockResolvedValue(instructor[0]);
     const res = await addMember(req, context);
     const data = await res.json();
 
