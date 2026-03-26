@@ -98,7 +98,7 @@ export default async function CreateAssessmentPage({
         <div className="mb-5">
           <h2 className="text-xl font-semibold text-foreground">New assignment</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Title is required. If both dates are provided, end date must be on or after start date.
+            Title is required. You can optionally set a late-until window after the due date.
           </p>
         </div>
         <CreateAssignmentForm courseId={course.id} />

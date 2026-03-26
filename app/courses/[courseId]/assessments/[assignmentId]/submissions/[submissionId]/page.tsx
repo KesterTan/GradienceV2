@@ -80,7 +80,12 @@ export default async function SubmissionPage({
               {submission.fileUrl && (
                 <p>
                   <span className="text-muted-foreground">File:</span>{" "}
-                  <a href={submission.fileUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-4 hover:underline">
+                  <a
+                    href={`/api/courses/${submission.courseId}/assessments/${submission.assignmentId}/submissions/${submission.id}/file`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
                     Open submitted file
                   </a>
                 </p>

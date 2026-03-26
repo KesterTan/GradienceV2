@@ -369,6 +369,52 @@ describe("createAssignmentAction", () => {
     expect(mocks.insert).not.toHaveBeenCalled()
   })
 
+  it("persists late-until when provided", async () => {
+    mocks.selectQueue.push(
+      [{ id: 999 }],
+      [{ startDate: "2026-03-01", endDate: "2026-03-31" }],
+    )
+
+    const formData = createAssignmentFormData({
+      courseId: 34,
+      title: "HW1",
+      startDate: "2026-03-01",
+      startTime: "09:00",
+      endDate: "2026-03-10",
+      endTime: "17:00",
+      lateUntilDate: "2026-03-12",
+      lateUntilTime: "23:00",
+    })
+
+    await expect(createAssignmentAction({}, formData)).rejects.toThrow("REDIRECT:/courses/34")
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lateUntil: "2026-03-12T23:00:00.000Z",
+      }),
+    )
+  })
+
+  it("rejects when late-until is before due date/time", async () => {
+    const formData = createAssignmentFormData({
+      courseId: 34,
+      title: "HW1",
+      startDate: "2026-03-01",
+      startTime: "09:00",
+      endDate: "2026-03-10",
+      endTime: "18:00",
+      lateUntilDate: "2026-03-10",
+      lateUntilTime: "17:00",
+    })
+
+    const state = await createAssignmentAction({}, formData)
+
+    expect(state.errors?.lateUntilTime?.[0]).toBe(
+      "Late-until time must be on or after due time when due and late-until date are the same",
+    )
+    expect(mocks.insert).not.toHaveBeenCalled()
+  })
+
   it("allows assignment start/end exactly on the course boundaries (inclusive)", async () => {
     mocks.selectQueue.push(
       [{ id: 999 }],

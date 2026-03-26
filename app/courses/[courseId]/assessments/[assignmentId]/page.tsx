@@ -1,10 +1,15 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { format } from "date-fns"
+import { AssessmentSubmissionPanel } from "@/components/assessment-submission-panel"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getAssessmentForCourseMember, listSubmissionsForAssessment } from "@/lib/course-management"
+import {
+  getAssessmentForCourseMember,
+  listMemberSubmissionHistory,
+  listSubmissionsForAssessment,
+} from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
 
 export default async function AssessmentPage({
@@ -29,6 +34,7 @@ export default async function AssessmentPage({
   }
 
   const isInstructor = assessment.viewerRole === "Instructor"
+  const memberHistory = await listMemberSubmissionHistory(user.id, parsedCourseId, parsedAssignmentId)
   const submissions = isInstructor
     ? await listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId)
     : []
@@ -71,15 +77,28 @@ export default async function AssessmentPage({
           </div>
         </div>
 
+        <div className="mb-6">
+          <AssessmentSubmissionPanel
+            courseId={assessment.courseId}
+            assignmentId={assessment.id}
+            assignmentTitle={assessment.title}
+            dueAt={assessment.dueAt}
+            lateUntil={assessment.lateUntil}
+            totalPoints={assessment.totalPoints}
+            history={memberHistory}
+          />
+        </div>
+
         {isInstructor && (submissions.length === 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle>No submissions yet</CardTitle>
+              <CardTitle>No student submissions yet</CardTitle>
               <CardDescription>Student submissions for this assessment will appear here.</CardDescription>
             </CardHeader>
           </Card>
         ) : (
           <div className="grid gap-4">
+            <h3 className="text-base font-semibold text-foreground">Student submissions</h3>
             {submissions.map((submission) => (
               <Card key={submission.id}>
                 <CardHeader>

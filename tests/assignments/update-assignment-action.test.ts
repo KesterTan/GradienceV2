@@ -40,6 +40,8 @@ function createUpdateFormData(params: {
   startTime?: string
   endDate?: string
   endTime?: string
+  lateUntilDate?: string
+  lateUntilTime?: string
 }) {
   const formData = createAssignmentFormData({
     courseId: params.courseId,
@@ -49,6 +51,8 @@ function createUpdateFormData(params: {
     startTime: params.startTime,
     endDate: params.endDate,
     endTime: params.endTime,
+    lateUntilDate: params.lateUntilDate,
+    lateUntilTime: params.lateUntilTime,
   })
   formData.set("assignmentId", String(params.assignmentId))
   return formData
@@ -162,6 +166,61 @@ describe("updateAssignmentAction", () => {
     const state = await updateAssignmentAction({}, formData)
     expect(state.errors?.endDate?.[0]).toBe(
       "Assignment must end on or before the course end date. Valid course date range is 2026-03-01 to 2026-03-10.",
+    )
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it("updates late-until when provided", async () => {
+    mocks.selectQueue.push(
+      [{ id: 999 }],
+      [{ id: 7, releaseAt: "2026-03-02T09:00:00.000Z", dueAt: "2026-03-10T23:59:59.999Z" }],
+      [{ startDate: "2026-03-01", endDate: "2026-03-31" }],
+    )
+
+    const formData = createUpdateFormData({
+      courseId: 34,
+      assignmentId: 7,
+      title: "HW1",
+      startDate: "2026-03-01",
+      startTime: "09:00",
+      endDate: "2026-03-10",
+      endTime: "18:00",
+      lateUntilDate: "2026-03-12",
+      lateUntilTime: "23:00",
+    })
+
+    await expect(updateAssignmentAction({}, formData)).rejects.toThrow("REDIRECT:/courses/34/assessments/7")
+
+    expect(mocks.updateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lateUntil: "2026-03-12T23:00:00.000Z",
+      }),
+    )
+  })
+
+  it("rejects when late-until is after course end", async () => {
+    mocks.selectQueue.push(
+      [{ id: 999 }],
+      [{ id: 7, releaseAt: "2026-03-02T09:00:00.000Z", dueAt: "2026-03-10T23:59:59.999Z" }],
+      [{ startDate: "2026-03-01", endDate: "2026-03-10" }],
+    )
+
+    const formData = createUpdateFormData({
+      courseId: 34,
+      assignmentId: 7,
+      title: "HW1",
+      startDate: "2026-03-01",
+      startTime: "09:00",
+      endDate: "2026-03-05",
+      endTime: "10:00",
+      lateUntilDate: "2026-03-12",
+      lateUntilTime: "00:00",
+    })
+
+    const state = await updateAssignmentAction({}, formData)
+
+    expect(state.errors?.lateUntilDate?.[0]).toBe(
+      "Late-until must be on or before the course end date. Valid course date range is 2026-03-01 to 2026-03-10.",
     )
     expect(mocks.update).not.toHaveBeenCalled()
   })

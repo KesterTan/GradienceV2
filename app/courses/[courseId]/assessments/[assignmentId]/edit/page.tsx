@@ -14,6 +14,16 @@ function toTimeValue(iso: string) {
   return format(new Date(iso), "HH:mm")
 }
 
+function toOptionalDateValue(iso: string | null) {
+  if (!iso) return ""
+  return format(new Date(iso), "yyyy-MM-dd")
+}
+
+function toOptionalTimeValue(iso: string | null) {
+  if (!iso) return ""
+  return format(new Date(iso), "HH:mm")
+}
+
 export default async function EditAssessmentPage({
   params,
 }: {
@@ -65,6 +75,8 @@ export default async function EditAssessmentPage({
                 startTime: toTimeValue(assessment.releaseAt),
                 endDate: toDateValue(assessment.dueAt),
                 endTime: toTimeValue(assessment.dueAt),
+                lateUntilDate: toOptionalDateValue(assessment.lateUntil),
+                lateUntilTime: toOptionalTimeValue(assessment.lateUntil),
               }}
             />
           </CardContent>

@@ -6,6 +6,8 @@ export function createAssignmentFormData(params: {
   startTime?: string
   endDate?: string
   endTime?: string
+  lateUntilDate?: string
+  lateUntilTime?: string
 }) {
   const formData = new FormData()
   formData.set("courseId", String(params.courseId))
@@ -15,6 +17,8 @@ export function createAssignmentFormData(params: {
   if (params.startTime !== undefined) formData.set("startTime", params.startTime)
   if (params.endDate !== undefined) formData.set("endDate", params.endDate)
   if (params.endTime !== undefined) formData.set("endTime", params.endTime)
+  if (params.lateUntilDate !== undefined) formData.set("lateUntilDate", params.lateUntilDate)
+  if (params.lateUntilTime !== undefined) formData.set("lateUntilTime", params.lateUntilTime)
   return formData
 }
 

@@ -16,6 +16,8 @@ type AssignmentFormState = {
     startTime?: string[]
     endDate?: string[]
     endTime?: string[]
+    lateUntilDate?: string[]
+    lateUntilTime?: string[]
     courseId?: string[]
     assignmentId?: string[]
     _form?: string[]
@@ -29,6 +31,8 @@ type AssignmentFormState = {
     startTime: string
     endDate: string
     endTime: string
+    lateUntilDate: string
+    lateUntilTime: string
   }
 }
 
@@ -51,6 +55,8 @@ const assignmentFieldsSchema = z.object({
   startTime: z.preprocess(emptyToUndefined, z.string().optional()),
   endDate: z.preprocess(emptyToUndefined, z.string().optional()),
   endTime: z.preprocess(emptyToUndefined, z.string().optional()),
+  lateUntilDate: z.preprocess(emptyToUndefined, z.string().optional()),
+  lateUntilTime: z.preprocess(emptyToUndefined, z.string().optional()),
 })
 
 const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) => {
@@ -67,6 +73,14 @@ const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) =>
       path: ["endTime"],
       code: z.ZodIssueCode.custom,
       message: "End date is required when an end time is provided",
+    })
+  }
+
+  if (data.lateUntilTime && !data.lateUntilDate) {
+    ctx.addIssue({
+      path: ["lateUntilTime"],
+      code: z.ZodIssueCode.custom,
+      message: "Late-until date is required when a late-until time is provided",
     })
   }
 
@@ -98,6 +112,37 @@ const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) =>
         path: ["endTime"],
         code: z.ZodIssueCode.custom,
         message: "End time must be on or after start time when start and end date are the same",
+      })
+    }
+  }
+
+  const lateUntilDate = data.lateUntilDate
+  const lateUntilTime = data.lateUntilTime
+
+  if (endDate && lateUntilDate && lateUntilDate < endDate) {
+    ctx.addIssue({
+      path: ["lateUntilDate"],
+      code: z.ZodIssueCode.custom,
+      message: "Late-until date must be on or after the due date",
+    })
+  }
+
+  if (endDate && lateUntilDate && endDate === lateUntilDate && endTime && lateUntilTime) {
+    const parseMinutes = (value: string) => {
+      const parts = value.trim().split(":")
+      const h = Number(parts[0])
+      const m = Number(parts[1] ?? 0)
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return NaN
+      return h * 60 + m
+    }
+
+    const endMinutes = parseMinutes(endTime)
+    const lateMinutes = parseMinutes(lateUntilTime)
+    if (Number.isFinite(endMinutes) && Number.isFinite(lateMinutes) && lateMinutes < endMinutes) {
+      ctx.addIssue({
+        path: ["lateUntilTime"],
+        code: z.ZodIssueCode.custom,
+        message: "Late-until time must be on or after due time when due and late-until date are the same",
       })
     }
   }
@@ -230,6 +275,8 @@ export async function createAssignmentAction(
     startTime: readFormValue(formData, "startTime"),
     endDate: readFormValue(formData, "endDate"),
     endTime: readFormValue(formData, "endTime"),
+    lateUntilDate: readFormValue(formData, "lateUntilDate"),
+    lateUntilTime: readFormValue(formData, "lateUntilTime"),
   }
 
   const parsed = createAssignmentSchema.safeParse({
@@ -240,6 +287,8 @@ export async function createAssignmentAction(
     startTime: values.startTime,
     endDate: values.endDate,
     endTime: values.endTime,
+    lateUntilDate: values.lateUntilDate,
+    lateUntilTime: values.lateUntilTime,
   })
 
   if (!parsed.success) {
@@ -273,8 +322,13 @@ export async function createAssignmentAction(
     ? isoFromDateTime(parsed.data.endDate, parsed.data.endTime ?? "", true)
     : new Date(courseEndAt).toISOString()
 
+  const lateUntil = parsed.data.lateUntilDate
+    ? isoFromDateTime(parsed.data.lateUntilDate, parsed.data.lateUntilTime ?? "", true)
+    : null
+
   const releaseAtMs = new Date(releaseAt).getTime()
   const dueAtMs = new Date(dueAt).getTime()
+  const lateUntilMs = lateUntil ? new Date(lateUntil).getTime() : null
 
   // Even when users omit dates, the derived start/end must still be feasible.
   // If the course already ended, we cannot default an assignment start to "now".
@@ -305,6 +359,21 @@ export async function createAssignmentAction(
     return { errors: rangeErrors, values }
   }
 
+  if (lateUntilMs !== null && lateUntilMs < dueAtMs) {
+    return {
+      errors: { lateUntilDate: ["Late-until must be on or after the due date/time"] },
+      values,
+    }
+  }
+
+  if (lateUntilMs !== null && lateUntilMs > courseEndAt) {
+    const courseRangeSuffix = `Valid course date range is ${course.startDate} to ${course.endDate}.`
+    return {
+      errors: { lateUntilDate: [`Late-until must be on or before the course end date. ${courseRangeSuffix}`] },
+      values,
+    }
+  }
+
   await db.insert(assignments).values({
     courseId,
     title: parsed.data.title,
@@ -313,7 +382,7 @@ export async function createAssignmentAction(
     totalPoints: 100,
     releaseAt,
     dueAt,
-    lateUntil: null,
+    lateUntil,
     submissionType: "text",
     allowResubmissions: false,
     maxAttemptResubmission: 0,
@@ -340,6 +409,8 @@ export async function updateAssignmentAction(
     startTime: readFormValue(formData, "startTime"),
     endDate: readFormValue(formData, "endDate"),
     endTime: readFormValue(formData, "endTime"),
+    lateUntilDate: readFormValue(formData, "lateUntilDate"),
+    lateUntilTime: readFormValue(formData, "lateUntilTime"),
   }
 
   const parsed = createAssignmentSchema.safeParse({
@@ -350,6 +421,8 @@ export async function updateAssignmentAction(
     startTime: values.startTime,
     endDate: values.endDate,
     endTime: values.endTime,
+    lateUntilDate: values.lateUntilDate,
+    lateUntilTime: values.lateUntilTime,
   })
 
   if (!parsed.success) {
@@ -397,8 +470,13 @@ export async function updateAssignmentAction(
     ? isoFromDateTime(parsed.data.endDate, parsed.data.endTime ?? "", true)
     : new Date(courseEndAt).toISOString()
 
+  const lateUntil = parsed.data.lateUntilDate
+    ? isoFromDateTime(parsed.data.lateUntilDate, parsed.data.lateUntilTime ?? "", true)
+    : null
+
   const releaseAtMs = new Date(releaseAt).getTime()
   const dueAtMs = new Date(dueAt).getTime()
+  const lateUntilMs = lateUntil ? new Date(lateUntil).getTime() : null
 
   if (!parsed.data.startDate && !parsed.data.endDate && releaseAtMs > courseEndAt) {
     return {
@@ -427,6 +505,21 @@ export async function updateAssignmentAction(
     return { errors: rangeErrors, values }
   }
 
+  if (lateUntilMs !== null && lateUntilMs < dueAtMs) {
+    return {
+      errors: { lateUntilDate: ["Late-until must be on or after the due date/time"] },
+      values,
+    }
+  }
+
+  if (lateUntilMs !== null && lateUntilMs > courseEndAt) {
+    const courseRangeSuffix = `Valid course date range is ${course.startDate} to ${course.endDate}.`
+    return {
+      errors: { lateUntilDate: [`Late-until must be on or before the course end date. ${courseRangeSuffix}`] },
+      values,
+    }
+  }
+
   await db
     .update(assignments)
     .set({
@@ -434,6 +527,7 @@ export async function updateAssignmentAction(
       description: parsed.data.description ?? null,
       releaseAt,
       dueAt,
+      lateUntil,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(assignments.id, assignmentId))

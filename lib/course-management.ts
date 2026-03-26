@@ -38,6 +38,8 @@ export type AssessmentDetail = {
   title: string
   dueAt: string
   releaseAt: string
+  lateUntil: string | null
+  totalPoints: number
   description: string | null
   courseId: number
   courseTitle: string
@@ -54,6 +56,15 @@ export type SubmissionSummary = {
   status: string
   submittedAt: string
   attemptNumber: number
+}
+
+export type MemberSubmissionHistoryItem = {
+  id: number
+  attemptNumber: number
+  status: string
+  submittedAt: string
+  fileUrl: string | null
+  isCurrent: boolean
 }
 
 export type SubmissionDetail = {
@@ -208,6 +219,8 @@ export async function getAssessmentForCourseMember(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      lateUntil: assignments.lateUntil,
+      totalPoints: assignments.totalPoints,
       courseId: courses.id,
       courseTitle: courses.title,
       viewerRole: sql<CourseViewerRole>`case when ${myMembership.role} = 'student' then 'Student' else 'Instructor' end`,
@@ -233,6 +246,8 @@ export async function getAssessmentForCourseMember(
     title: String(row.title),
     releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
+    lateUntil: row.lateUntil ? String(row.lateUntil) : null,
+    totalPoints: Number(row.totalPoints),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
     courseTitle: String(row.courseTitle),
@@ -253,6 +268,8 @@ export async function getAssessmentForGrader(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      lateUntil: assignments.lateUntil,
+      totalPoints: assignments.totalPoints,
       courseId: courses.id,
       courseTitle: courses.title,
     })
@@ -278,6 +295,8 @@ export async function getAssessmentForGrader(
     title: String(row.title),
     releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
+    lateUntil: row.lateUntil ? String(row.lateUntil) : null,
+    totalPoints: Number(row.totalPoints),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
     courseTitle: String(row.courseTitle),
@@ -394,4 +413,44 @@ export async function getSubmissionForGrader(
     courseId: Number(row.courseId),
     courseTitle: String(row.courseTitle),
   }
+}
+
+export async function listMemberSubmissionHistory(
+  userId: number,
+  courseId: number,
+  assignmentId: number,
+): Promise<MemberSubmissionHistoryItem[]> {
+  const myMembership = alias(courseMemberships, "my_membership")
+
+  const rows = await db
+    .select({
+      id: submissions.id,
+      attemptNumber: submissions.attemptNumber,
+      status: submissions.status,
+      submittedAt: submissions.submittedAt,
+      fileUrl: submissions.fileUrl,
+    })
+    .from(submissions)
+    .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.status, "active"),
+        eq(submissions.studentMembershipId, myMembership.id),
+      ),
+    )
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
+    .orderBy(desc(submissions.attemptNumber), desc(submissions.submittedAt))
+
+  return rows.map((row, index) => ({
+    id: Number(row.id),
+    attemptNumber: Number(row.attemptNumber),
+    status: String(row.status),
+    submittedAt: String(row.submittedAt),
+    fileUrl: row.fileUrl ? String(row.fileUrl) : null,
+    isCurrent: index === 0,
+  }))
 }
