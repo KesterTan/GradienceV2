@@ -10,6 +10,7 @@ import { requireAppUser } from "@/lib/current-user"
 export type RubricFormState = {
   errors?: {
     rubricPayload?: string[]
+    fieldErrors?: Record<string, string[]>
     _form?: string[]
   }
 }
@@ -81,7 +82,13 @@ export async function updateRubricAction(
 
   const parsed = rubricPayloadSchema.safeParse(parsedPayload)
   if (!parsed.success) {
-    return { errors: { rubricPayload: ["Rubric payload is invalid."] } }
+    const fieldErrors: Record<string, string[]> = {}
+    for (const issue of parsed.error.issues) {
+      if (!issue.path.length) continue
+      const key = issue.path.join(".")
+      fieldErrors[key] = [...(fieldErrors[key] ?? []), issue.message]
+    }
+    return { errors: { fieldErrors } }
   }
 
   const itemCount = parsed.data.questions.reduce((sum, question) => sum + question.rubric_items.length, 0)

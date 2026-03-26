@@ -49,6 +49,11 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
   const [questions, setQuestions] = useState<RubricQuestion[]>(
     initialRubric?.questions?.length ? initialRubric.questions : [emptyQuestion(0)],
   )
+  const fieldErrors = state.errors?.fieldErrors ?? {}
+
+  const hasError = (path: string) => Boolean(fieldErrors[path]?.length)
+  const errorClass = (path: string) =>
+    hasError(path) ? "border-destructive focus-visible:ring-destructive" : undefined
 
   const itemCount = useMemo(
     () => questions.reduce((sum, q) => sum + q.rubric_items.length, 0),
@@ -211,6 +216,8 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
                     <Input
                       id={`question-id-${index}`}
                       value={question.question_id}
+                      className={errorClass(`questions.${index}.question_id`)}
+                      aria-invalid={hasError(`questions.${index}.question_id`) || undefined}
                       onChange={(event) => updateQuestion(index, { question_id: event.target.value })}
                       placeholder={`Q${index + 1}`}
                     />
@@ -220,6 +227,8 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
                     <Input
                       id={`question-name-${index}`}
                       value={question.question_name}
+                      className={errorClass(`questions.${index}.question_name`)}
+                      aria-invalid={hasError(`questions.${index}.question_name`) || undefined}
                       onChange={(event) => updateQuestion(index, { question_name: event.target.value })}
                       placeholder="Question name"
                     />
@@ -245,6 +254,12 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
                         <Input
                           id={`criterion-${index}-${itemIndex}`}
                           value={item.criterion}
+                          className={errorClass(
+                            `questions.${index}.rubric_items.${itemIndex}.criterion`,
+                          )}
+                          aria-invalid={
+                            hasError(`questions.${index}.rubric_items.${itemIndex}.criterion`) || undefined
+                          }
                           onChange={(event) =>
                             updateItem(index, itemIndex, { criterion: event.target.value })
                           }
@@ -256,6 +271,12 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
                         <Input
                           id={`rubric-name-${index}-${itemIndex}`}
                           value={item.rubric_name}
+                          className={errorClass(
+                            `questions.${index}.rubric_items.${itemIndex}.rubric_name`,
+                          )}
+                          aria-invalid={
+                            hasError(`questions.${index}.rubric_items.${itemIndex}.rubric_name`) || undefined
+                          }
                           onChange={(event) =>
                             updateItem(index, itemIndex, { rubric_name: event.target.value })
                           }
@@ -269,6 +290,12 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
                           type="number"
                           min={0}
                           value={item.max_score}
+                          className={errorClass(
+                            `questions.${index}.rubric_items.${itemIndex}.max_score`,
+                          )}
+                          aria-invalid={
+                            hasError(`questions.${index}.rubric_items.${itemIndex}.max_score`) || undefined
+                          }
                           onChange={(event) =>
                             updateItem(index, itemIndex, { max_score: Number(event.target.value) })
                           }
