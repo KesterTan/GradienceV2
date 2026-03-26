@@ -5,8 +5,8 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { RestoreButton } from "@/components/restore-button"
-import { getAssessmentForCourseMember, listAllSubmissionsForStudent } from "@/lib/course-management"
+import { InstructorRestoreButton } from "@/components/instructor-restore-button"
+import { getAssessmentForCourseMember, listSubmissionsForAssessment } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
 
 export default async function StudentVersionsPage({
@@ -29,13 +29,27 @@ export default async function StudentVersionsPage({
     notFound()
   }
 
-  const [assessment, result] = await Promise.all([
+  const [assessment, allSubmissions] = await Promise.all([
     getAssessmentForCourseMember(user.id, parsedCourseId, parsedAssignmentId),
-    listAllSubmissionsForStudent(user.id, parsedCourseId, parsedAssignmentId, parsedStudentMembershipId),
+    listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId),
   ])
 
-  if (!assessment || assessment.viewerRole !== "Instructor" || !result) {
+  if (!assessment || assessment.viewerRole !== "Instructor") {
     notFound()
+  }
+
+  const versions = allSubmissions
+    .filter((s) => s.studentMembershipId === parsedStudentMembershipId)
+    .sort((a, b) => b.attemptNumber - a.attemptNumber)
+
+  if (versions.length === 0) {
+    notFound()
+  }
+
+  const result = {
+    studentName: versions[0].studentName,
+    studentEmail: versions[0].studentEmail,
+    versions,
   }
 
   return (
@@ -90,11 +104,17 @@ export default async function StudentVersionsPage({
                   <div className="flex gap-2">
                     {version.fileUrl && (
                       <Button asChild variant="outline" size="sm">
-                        <a href={version.fileUrl} target="_blank" rel="noreferrer">Open file</a>
+                        <Link
+                          href={`/api/courses/${assessment.courseId}/assessments/${assessment.id}/submissions/${version.id}/file`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View PDF
+                        </Link>
                       </Button>
                     )}
                     {!isActive && (
-                      <RestoreButton
+                      <InstructorRestoreButton
                         courseId={assessment.courseId}
                         assignmentId={assessment.id}
                         submissionId={version.id}
