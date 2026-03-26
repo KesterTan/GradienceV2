@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation"
+import { forbidden, notFound } from "next/navigation"
 import { format } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { EditAssignmentForm } from "./_components/edit-assignment-form"
-import { getAssessmentForGrader } from "@/lib/course-management"
+import { getAssessmentForGrader, getCourseViewerRole } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
 
 function toDateValue(iso: string) {
@@ -37,6 +37,14 @@ export default async function EditAssessmentPage({
 
   if (!Number.isFinite(parsedCourseId) || !Number.isFinite(parsedAssignmentId)) {
     notFound()
+  }
+
+  const viewerRole = await getCourseViewerRole(user.id, parsedCourseId)
+  if (!viewerRole) {
+    notFound()
+  }
+  if (viewerRole !== "Instructor") {
+    forbidden()
   }
 
   const assessment = await getAssessmentForGrader(user.id, parsedCourseId, parsedAssignmentId)
@@ -85,4 +93,3 @@ export default async function EditAssessmentPage({
     </main>
   )
 }
-

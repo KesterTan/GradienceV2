@@ -2,7 +2,8 @@ import MembersClient from "@/components/members-client";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { getCourseMembers } from "./actions";
 import { requireAppUser } from "@/lib/current-user";
-import { notFound } from "next/navigation";
+import { forbidden, notFound } from "next/navigation";
+import { getCourseViewerRole } from "@/lib/course-management";
 
 
 // Server Component: fetch data
@@ -11,9 +12,11 @@ export default async function MembersPage({ params }: { params: { courseId: stri
   const user = await requireAppUser();
   const parsedCourseId = Number(resolvedParams.courseId);
   if (!Number.isFinite(parsedCourseId)) notFound();
+  const viewerRole = await getCourseViewerRole(user.id, parsedCourseId);
+  if (!viewerRole) notFound();
+  if (viewerRole !== "Instructor") forbidden();
   const { instructors, students, creatorId, courseTitle, courseCode } = await getCourseMembers(parsedCourseId);
 
-  const isInstructor = instructors.some((i: any) => i.id === user.id) || creatorId === user.id;
   return (
     <main className="min-h-screen bg-muted/30">
       <DashboardHeader
@@ -32,14 +35,13 @@ export default async function MembersPage({ params }: { params: { courseId: stri
           students={students}
           userId={user.id}
           courseTitle={courseTitle}
-          isInstructor={isInstructor}
+          isInstructor
           courseId={parsedCourseId}
         />
       </section>
     </main>
   );
 }
-
 
 
 

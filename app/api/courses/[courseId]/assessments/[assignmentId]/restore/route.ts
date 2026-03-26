@@ -28,7 +28,7 @@ export async function POST(
     }
 
     const membershipRows = await db
-      .select({ id: courseMemberships.id })
+      .select({ id: courseMemberships.id, role: courseMemberships.role })
       .from(courseMemberships)
       .where(
         and(

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { db } from "@/db/orm"
 import { courseMemberships, courses } from "@/db/schema"
-import { requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 export type CourseFormState = {
   errors?: {
@@ -65,7 +65,7 @@ export async function createCourseAction(
   _prevState: CourseFormState,
   formData: FormData,
 ): Promise<CourseFormState> {
-  const grader = await requireGraderUser()
+  const user = await requireAppUser()
 
   const parsed = createSchema.safeParse({
     title: formData.get("title"),
@@ -87,7 +87,7 @@ export async function createCourseAction(
         courseCode: createCode(title),
         term: termFromDate(startDate),
         description: null,
-        createdByUserId: grader.id,
+        createdByUserId: user.id,
         startDate: startDate ?? new Date().toISOString().slice(0, 10),
         endDate: endDate ?? startDate ?? new Date().toISOString().slice(0, 10),
       })
@@ -99,7 +99,7 @@ export async function createCourseAction(
       .insert(courseMemberships)
       .values({
         courseId,
-        userId: grader.id,
+        userId: user.id,
         role: "grader",
         status: "active",
       })

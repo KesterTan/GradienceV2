@@ -27,7 +27,7 @@ vi.mock("@/db/orm", () => ({
   },
 }))
 
-import { requireAppUser, requireGraderUser } from "@/lib/current-user"
+import { requireAppUser } from "@/lib/current-user"
 
 describe("current-user helpers", () => {
   beforeEach(() => {
@@ -120,26 +120,4 @@ describe("current-user helpers", () => {
     expect(user.id).toBe(9)
   })
 
-  it("requireGraderUser returns the authenticated user", async () => {
-    mocks.getSession.mockResolvedValueOnce({
-      user: { sub: "auth0|stu", email: "stu@gradience.edu", name: "Stu Student" },
-    })
-
-    mocks.selectQueue.push([
-      {
-        id: 2,
-        firstName: "Stu",
-        lastName: "Student",
-        email: "stu@gradience.edu",
-        authProviderId: "auth0|stu",
-      },
-    ])
-
-    await expect(requireGraderUser()).resolves.toEqual({
-      id: 2,
-      firstName: "Stu",
-      lastName: "Student",
-      email: "stu@gradience.edu",
-    })
-  })
 })

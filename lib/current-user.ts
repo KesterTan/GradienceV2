@@ -132,7 +132,3 @@ export async function requireAppUser(): Promise<AppUser> {
     email: String(user.email),
   }
 }
-
-export async function requireGraderUser(): Promise<AppUser> {
-  return requireAppUser()
-}

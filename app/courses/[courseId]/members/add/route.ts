@@ -1,43 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/orm";
 import { eq, and } from "drizzle-orm";
-import { courses, courseMemberships, users } from "@/db/schema";
+import { courseMemberships, users } from "@/db/schema";
 import { requireAppUser } from "@/lib/current-user";
+import { getCourseViewerRole } from "@/lib/course-management";
 
-export async function POST(req: NextRequest, { params }: { params: { courseId: string } }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: { courseId: string } } | { params: Promise<{ courseId: string }> }
+) {
   try {
+    const params = "then" in context.params ? await context.params : context.params;
     const user = await requireAppUser();
     const { courseId } = params;
     const parsedCourseId = Number(courseId);
-    console.log('AddMember API: courseId', courseId, 'parsedCourseId', parsedCourseId);
     if (!Number.isFinite(parsedCourseId)) {
-      console.error('Invalid course ID:', courseId);
       return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
     }
     const { email, role } = await req.json();
-    console.log('AddMember API: email', email, 'role', role);
     if (!email || !role || !["student", "grader"].includes(role)) {
-      console.error('Invalid input:', { email, role });
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
-    // Check if user is an instructor or creator
-    const courseArr = await db.select({ creatorId: courses.createdByUserId }).from(courses).where(eq(courses.id, parsedCourseId));
-    const course = courseArr[0];
-    if (!course) {
-      console.error('Course not found:', parsedCourseId);
+    const viewerRole = await getCourseViewerRole(user.id, parsedCourseId);
+    if (!viewerRole) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
-
-    // Get instructors (including creator)
-    const instructorMemberships = await db
-      .select({ courseMemberships, users })
-      .from(courseMemberships)
-      .innerJoin(users, eq(courseMemberships.userId, users.id))
-      .where(and(eq(courseMemberships.courseId, parsedCourseId), eq(courseMemberships.role, "grader")));
-    const isInstructor = instructorMemberships.some(row => row.users.id === user.id) || course.creatorId === user.id;
-    if (!isInstructor) {
-      console.error('Permission denied for user:', user.id);
+    if (viewerRole !== "Instructor") {
       return NextResponse.json({ error: "Only instructors can add members" }, { status: 403 });
     }
 
@@ -45,7 +34,6 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
     const userArr = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
     const memberUser = userArr[0];
     if (!memberUser) {
-      console.error('User with email not found:', email);
       return NextResponse.json({ error: "User with this email does not exist" }, { status: 404 });
     }
 
@@ -55,7 +43,6 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
       .from(courseMemberships)
       .where(and(eq(courseMemberships.courseId, parsedCourseId), eq(courseMemberships.userId, memberUser.id)));
     if (existingMembership.length > 0) {
-      console.error('Duplicate membership:', memberUser.id, parsedCourseId);
       return NextResponse.json({ error: "User is already a member of this course" }, { status: 409 });
     }
 
@@ -66,11 +53,9 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
       role,
       status: "active",
     });
-    console.log('Membership added:', memberUser.id, parsedCourseId, role);
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error('AddMember API unexpected error:', err);
     return NextResponse.json({ error: "Unexpected server error" }, { status: 500 });
   }
 }

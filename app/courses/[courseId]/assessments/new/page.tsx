@@ -3,8 +3,9 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CreateAssignmentForm } from "../_components/create-assignment-form"
-import { getCourseForGrader } from "@/lib/course-management"
+import { getCourseForGrader, getCourseViewerRole } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
+import { forbidden } from "next/navigation"
 
 export default async function CreateAssessmentPage({
   params,
@@ -43,6 +44,43 @@ export default async function CreateAssessmentPage({
         </section>
       </main>
     )
+  }
+
+  const viewerRole = await getCourseViewerRole(user.id, parsedCourseId)
+  if (!viewerRole) {
+    return (
+      <main className="min-h-screen bg-muted/30">
+        <DashboardHeader
+          title="Create assignment"
+          subtitle="Course not found"
+          breadcrumbs={[
+            { label: "Home", href: "/" },
+            { label: "Courses", href: "/courses" },
+            { label: "Create assignment", current: true },
+          ]}
+          user={{ name: `${user.firstName} ${user.lastName}`, email: user.email }}
+        />
+        <section className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Course not found</CardTitle>
+              <CardDescription>
+                You may not have access to this course, or it may have been deleted.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2 sm:flex-row">
+              <Button asChild>
+                <Link href="/courses">Back to courses</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+      </main>
+    )
+  }
+
+  if (viewerRole !== "Instructor") {
+    forbidden()
   }
 
   const course = await getCourseForGrader(user.id, parsedCourseId)
@@ -106,4 +144,3 @@ export default async function CreateAssessmentPage({
     </main>
   )
 }
-

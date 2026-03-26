@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppUser } from "@/lib/current-user";
+import { getCourseViewerRole } from "@/lib/course-management";
 // POST /courses/[courseId]/members/add
 export async function POST(req: NextRequest, { params }: { params: { courseId: string } }) {
   const user = await requireAppUser();
@@ -13,19 +14,11 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  // Check if user is an instructor or creator
-  const courseArr = await db.select({ creatorId: courses.createdByUserId }).from(courses).where(eq(courses.id, parsedCourseId));
-  const course = courseArr[0];
-  if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
-
-  // Get instructors (including creator)
-  const instructorMemberships = await db
-    .select({ courseMemberships, users })
-    .from(courseMemberships)
-    .innerJoin(users, eq(courseMemberships.userId, users.id))
-    .where(and(eq(courseMemberships.courseId, parsedCourseId), eq(courseMemberships.role, "grader")));
-  const isInstructor = instructorMemberships.some(row => row.users.id === user.id) || course.creatorId === user.id;
-  if (!isInstructor) {
+  const viewerRole = await getCourseViewerRole(user.id, parsedCourseId);
+  if (!viewerRole) {
+    return NextResponse.json({ error: "Course not found" }, { status: 404 });
+  }
+  if (viewerRole !== "Instructor") {
     return NextResponse.json({ error: "Only instructors can add members" }, { status: 403 });
   }
 

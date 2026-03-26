@@ -16,6 +16,30 @@ export type CourseSummary = {
 
 export type CourseViewerRole = "Instructor" | "Student"
 
+export async function getCourseViewerRole(
+  userId: number,
+  courseId: number,
+): Promise<CourseViewerRole | null> {
+  const rows = await db
+    .select({
+      role: courseMemberships.role,
+    })
+    .from(courseMemberships)
+    .where(
+      and(
+        eq(courseMemberships.courseId, courseId),
+        eq(courseMemberships.userId, userId),
+        eq(courseMemberships.status, "active"),
+      ),
+    )
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return null
+
+  return row.role === "student" ? "Student" : "Instructor"
+}
+
 export type CourseDetail = {
   id: number
   title: string
