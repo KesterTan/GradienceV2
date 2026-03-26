@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, max, sql } from "drizzle-orm"
+import { and, asc, desc, eq, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { db } from "@/db/orm"
 import { assignments, courseMemberships, courses, submissions, users } from "@/db/schema"
@@ -38,9 +38,12 @@ export type AssessmentDetail = {
   title: string
   dueAt: string
   releaseAt: string
+  totalPoints: number
   description: string | null
   courseId: number
   courseTitle: string
+  allowResubmissions: boolean
+  maxAttemptResubmission: number
 }
 
 export type AssessmentMemberDetail = AssessmentDetail & {
@@ -58,26 +61,13 @@ export type SubmissionSummary = {
   fileUrl: string | null
 }
 
-export type SubmissionVersion = {
+export type MemberSubmissionHistoryItem = {
   id: number
   attemptNumber: number
   status: string
   submittedAt: string
   fileUrl: string | null
-}
-
-export type StudentVersionsResult = {
-  studentName: string
-  studentEmail: string
-  versions: SubmissionVersion[]
-}
-
-export type StudentSubmissionSummary = {
-  id: number
-  attemptNumber: number
-  status: string
-  submittedAt: string
-  fileUrl: string | null
+  isCurrent: boolean
 }
 
 export type SubmissionDetail = {
@@ -232,8 +222,11 @@ export async function getAssessmentForCourseMember(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      totalPoints: assignments.totalPoints,
       courseId: courses.id,
       courseTitle: courses.title,
+      allowResubmissions: assignments.allowResubmissions,
+      maxAttemptResubmission: assignments.maxAttemptResubmission,
       viewerRole: sql<CourseViewerRole>`case when ${myMembership.role} = 'student' then 'Student' else 'Instructor' end`,
     })
     .from(assignments)
@@ -257,9 +250,12 @@ export async function getAssessmentForCourseMember(
     title: String(row.title),
     releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
+    totalPoints: Number(row.totalPoints),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
     courseTitle: String(row.courseTitle),
+    allowResubmissions: Boolean(row.allowResubmissions),
+    maxAttemptResubmission: Number(row.maxAttemptResubmission ?? 0),
     viewerRole: row.viewerRole === "Student" ? "Student" : "Instructor",
   }
 }
@@ -277,8 +273,11 @@ export async function getAssessmentForGrader(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      totalPoints: assignments.totalPoints,
       courseId: courses.id,
       courseTitle: courses.title,
+      allowResubmissions: assignments.allowResubmissions,
+      maxAttemptResubmission: assignments.maxAttemptResubmission,
     })
     .from(assignments)
     .innerJoin(courses, eq(courses.id, assignments.courseId))
@@ -302,9 +301,12 @@ export async function getAssessmentForGrader(
     title: String(row.title),
     releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
+    totalPoints: Number(row.totalPoints),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
     courseTitle: String(row.courseTitle),
+    allowResubmissions: Boolean(row.allowResubmissions),
+    maxAttemptResubmission: Number(row.maxAttemptResubmission ?? 0),
   }
 }
 
@@ -345,19 +347,8 @@ export async function listSubmissionsForAssessment(
       and(eq(studentMembership.id, submissions.studentMembershipId), eq(studentMembership.role, "student")),
     )
     .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
-    .where(
-      and(
-        eq(courses.id, courseId),
-        eq(assignments.id, assignmentId),
-        sql`${submissions.attemptNumber} = (
-          SELECT MAX(s2.attempt_number)
-          FROM gradience.submissions s2
-          WHERE s2.student_membership_id = ${submissions.studentMembershipId}
-          AND s2.assignment_id = ${assignments.id}
-        )`,
-      ),
-    )
-    .orderBy(desc(submissions.submittedAt))
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
+    .orderBy(desc(submissions.attemptNumber))
 
   return rows.map((row) => ({
     id: Number(row.id),
@@ -368,45 +359,6 @@ export async function listSubmissionsForAssessment(
     fileUrl: row.fileUrl ? String(row.fileUrl) : null,
     studentName: String(row.studentName),
     studentEmail: String(row.studentEmail),
-  }))
-}
-
-export async function listStudentSubmissionsForAssignment(
-  userId: number,
-  courseId: number,
-  assignmentId: number,
-): Promise<StudentSubmissionSummary[]> {
-  const myMembership = alias(courseMemberships, "my_membership")
-
-  const rows = await db
-    .select({
-      id: submissions.id,
-      attemptNumber: submissions.attemptNumber,
-      status: submissions.status,
-      submittedAt: submissions.submittedAt,
-      fileUrl: submissions.fileUrl,
-    })
-    .from(submissions)
-    .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
-    .innerJoin(courses, eq(courses.id, assignments.courseId))
-    .innerJoin(
-      myMembership,
-      and(
-        eq(myMembership.id, submissions.studentMembershipId),
-        eq(myMembership.userId, userId),
-        eq(myMembership.role, "student"),
-        eq(myMembership.status, "active"),
-      ),
-    )
-    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
-    .orderBy(desc(submissions.submittedAt))
-
-  return rows.map((row) => ({
-    id: Number(row.id),
-    attemptNumber: Number(row.attemptNumber),
-    status: String(row.status),
-    submittedAt: String(row.submittedAt),
-    fileUrl: row.fileUrl ? String(row.fileUrl) : null,
   }))
 }
 
@@ -474,15 +426,12 @@ export async function getSubmissionForGrader(
   }
 }
 
-export async function listAllSubmissionsForStudent(
+export async function listMemberSubmissionHistory(
   userId: number,
   courseId: number,
   assignmentId: number,
-  studentMembershipId: number,
-): Promise<StudentVersionsResult | null> {
+): Promise<MemberSubmissionHistoryItem[]> {
   const myMembership = alias(courseMemberships, "my_membership")
-  const studentMembership = alias(courseMemberships, "student_membership")
-  const studentUser = alias(users, "student_user")
 
   const rows = await db
     .select({
@@ -491,8 +440,6 @@ export async function listAllSubmissionsForStudent(
       status: submissions.status,
       submittedAt: submissions.submittedAt,
       fileUrl: submissions.fileUrl,
-      studentName: sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`,
-      studentEmail: studentUser.email,
     })
     .from(submissions)
     .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
@@ -502,33 +449,19 @@ export async function listAllSubmissionsForStudent(
       and(
         eq(myMembership.courseId, courses.id),
         eq(myMembership.userId, userId),
-        eq(myMembership.role, "grader"),
         eq(myMembership.status, "active"),
+        eq(submissions.studentMembershipId, myMembership.id),
       ),
     )
-    .innerJoin(
-      studentMembership,
-      and(
-        eq(studentMembership.id, submissions.studentMembershipId),
-        eq(studentMembership.id, studentMembershipId),
-        eq(studentMembership.role, "student"),
-      ),
-    )
-    .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
     .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
-    .orderBy(desc(submissions.attemptNumber))
+    .orderBy(desc(submissions.attemptNumber), desc(submissions.submittedAt))
 
-  if (rows.length === 0) return null
-
-  return {
-    studentName: String(rows[0].studentName),
-    studentEmail: String(rows[0].studentEmail),
-    versions: rows.map((row) => ({
-      id: Number(row.id),
-      attemptNumber: Number(row.attemptNumber),
-      status: String(row.status),
-      submittedAt: String(row.submittedAt),
-      fileUrl: row.fileUrl ? String(row.fileUrl) : null,
-    })),
-  }
+  return rows.map((row, index) => ({
+    id: Number(row.id),
+    attemptNumber: Number(row.attemptNumber),
+    status: String(row.status),
+    submittedAt: String(row.submittedAt),
+    fileUrl: row.fileUrl ? String(row.fileUrl) : null,
+    isCurrent: index === 0,
+  }))
 }
