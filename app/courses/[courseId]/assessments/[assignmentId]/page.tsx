@@ -102,7 +102,9 @@ export default async function AssessmentPage({
             group.push(s)
             studentMap.set(s.studentMembershipId, group)
           }
-          const students = Array.from(studentMap.values())
+          const students = Array.from(studentMap.values()).sort((a, b) =>
+            a[0].studentName.localeCompare(b[0].studentName)
+          )
           const hasAny = students.length > 0 || nonSubmitters.length > 0
 
           return !hasAny ? (
