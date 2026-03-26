@@ -34,7 +34,7 @@ export default function MembersClient({ instructors, students, userId, courseTit
 
   // Add Member form state
   const [addEmail, setAddEmail] = useState("");
-  // Role is determined by activeTab: "grader" for instructors, "student" for students
+  // Role is determined by activeTab: "instructor" for instructors, "student" for students
   const [addRole, setAddRole] = useState("student");
   const [addError, setAddError] = useState("");
   const [addLoading, setAddLoading] = useState(false);
@@ -44,8 +44,8 @@ export default function MembersClient({ instructors, students, userId, courseTit
     e.preventDefault();
     setAddError("");
     setAddLoading(true);
-    // Set role based on activeTab
-    const role = activeTab === "instructors" ? "grader" : "student";
+  // Set role based on activeTab
+  const role = activeTab === "instructors" ? "instructor" : "student";
     try {
       const res = await fetch(`/api/courses/${courseId}/members/add`, {
         method: "POST",
@@ -65,7 +65,7 @@ export default function MembersClient({ instructors, students, userId, courseTit
         email: data.member?.email ?? addEmail,
       };
       // Add the new member to local state for immediate UI update
-      if (role === "grader") {
+      if (role === "instructor") {
         setLocalInstructors((prev: any[]) => [...prev, addedMember]);
       } else {
         setLocalStudents((prev: any[]) => [...prev, addedMember]);
@@ -74,7 +74,7 @@ export default function MembersClient({ instructors, students, userId, courseTit
       setAddRole("student");
       toast({
         title: "Member added",
-        description: `Successfully added ${addEmail} as ${role === "grader" ? "instructor" : "student"}.`,
+        description: `Successfully added ${addEmail} as ${role === "instructor" ? "instructor" : "student"}.`,
         duration: 4000,
       });
     } catch (err: any) {
