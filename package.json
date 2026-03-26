@@ -12,7 +12,8 @@
         "db:apply": "tsx scripts/apply-schema.ts",
         "db:check": "tsx scripts/check-schema.ts",
         "db:seed": "tsx db/seed.ts",
-        "db:test": "tsx scripts/test-relationships.ts"
+        "db:test": "tsx scripts/test-relationships.ts",
+        "db:migrate-rubrics": "tsx scripts/migrate-rubric-json.ts"
     },
     "dependencies": {
         "@auth0/nextjs-auth0": "^4.15.0",
@@ -77,6 +78,7 @@
         "@types/pg": "^8.11.6",
         "@types/react": "19.2.14",
         "@types/react-dom": "19.2.3",
+        "dotenv": "^16.4.7",
         "postcss": "^8.5",
         "tailwindcss": "^4.1.9",
         "tsx": "^4.7.2",

@@ -1,5 +1,5 @@
 
-import { bigint, bigserial, boolean, date, integer, pgSchema, text, timestamp, unique } from "drizzle-orm/pg-core"
+import { bigint, bigserial, boolean, date, integer, jsonb, pgSchema, text, timestamp, unique } from "drizzle-orm/pg-core"
 
 const gradience = pgSchema("gradience")
 
@@ -85,6 +85,7 @@ export const assignments = gradience.table("assignments", {
   courseId: bigint("course_id", { mode: "number" }).notNull(),
   title: text("title").notNull(),
   description: text("description"),
+  rubricJson: jsonb("rubric_json"),
   assignmentType: text("assignment_type").notNull(),
   totalPoints: integer("total_points").notNull(),
   releaseAt: timestamp("release_at", { withTimezone: true, mode: "string" }).notNull(),
