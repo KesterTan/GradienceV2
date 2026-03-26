@@ -4,7 +4,12 @@ import { format } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getAssessmentForCourseMember, listSubmissionsForAssessment } from "@/lib/course-management"
+import { PdfUploadForm } from "@/components/pdf-upload-form"
+import {
+  getAssessmentForCourseMember,
+  listStudentSubmissionsForAssignment,
+  listSubmissionsForAssessment,
+} from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
 
 export default async function AssessmentPage({
@@ -29,9 +34,14 @@ export default async function AssessmentPage({
   }
 
   const isInstructor = assessment.viewerRole === "Instructor"
-  const submissions = isInstructor
-    ? await listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId)
-    : []
+  const [submissions, studentSubmissions] = await Promise.all([
+    isInstructor
+      ? listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId)
+      : Promise.resolve([]),
+    !isInstructor
+      ? listStudentSubmissionsForAssignment(user.id, parsedCourseId, parsedAssignmentId)
+      : Promise.resolve([]),
+  ])
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -102,6 +112,45 @@ export default async function AssessmentPage({
             ))}
           </div>
         ))}
+
+        {!isInstructor && (
+          <div className="grid gap-4">
+            <PdfUploadForm courseId={assessment.courseId} assignmentId={assessment.id} />
+
+            {studentSubmissions.length > 0 && (
+              <>
+                <h3 className="text-sm font-medium text-muted-foreground">Your submissions</h3>
+                {studentSubmissions.map((sub) => (
+                  <Card key={sub.id}>
+                    <CardContent className="flex flex-col gap-2 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Attempt: <span className="font-medium text-foreground">{sub.attemptNumber}</span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Status: <span className="font-medium text-foreground">{sub.status}</span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Submitted:{" "}
+                          <span className="font-medium text-foreground">
+                            {format(new Date(sub.submittedAt), "MMM d, yyyy h:mm a")}
+                          </span>
+                        </p>
+                      </div>
+                      {sub.fileUrl && (
+                        <Button asChild variant="outline" className="w-full sm:w-auto">
+                          <a href={sub.fileUrl} target="_blank" rel="noreferrer">
+                            View submitted file
+                          </a>
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            )}
+          </div>
+        )}
       </section>
     </main>
   )

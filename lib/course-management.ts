@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm"
+import { and, asc, desc, eq, max, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { db } from "@/db/orm"
 import { assignments, courseMemberships, courses, submissions, users } from "@/db/schema"
@@ -54,6 +54,14 @@ export type SubmissionSummary = {
   status: string
   submittedAt: string
   attemptNumber: number
+}
+
+export type StudentSubmissionSummary = {
+  id: number
+  attemptNumber: number
+  status: string
+  submittedAt: string
+  fileUrl: string | null
 }
 
 export type SubmissionDetail = {
@@ -329,6 +337,45 @@ export async function listSubmissionsForAssessment(
     submittedAt: String(row.submittedAt),
     studentName: String(row.studentName),
     studentEmail: String(row.studentEmail),
+  }))
+}
+
+export async function listStudentSubmissionsForAssignment(
+  userId: number,
+  courseId: number,
+  assignmentId: number,
+): Promise<StudentSubmissionSummary[]> {
+  const myMembership = alias(courseMemberships, "my_membership")
+
+  const rows = await db
+    .select({
+      id: submissions.id,
+      attemptNumber: submissions.attemptNumber,
+      status: submissions.status,
+      submittedAt: submissions.submittedAt,
+      fileUrl: submissions.fileUrl,
+    })
+    .from(submissions)
+    .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.id, submissions.studentMembershipId),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "student"),
+        eq(myMembership.status, "active"),
+      ),
+    )
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
+    .orderBy(desc(submissions.submittedAt))
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    attemptNumber: Number(row.attemptNumber),
+    status: String(row.status),
+    submittedAt: String(row.submittedAt),
+    fileUrl: row.fileUrl ? String(row.fileUrl) : null,
   }))
 }
 
