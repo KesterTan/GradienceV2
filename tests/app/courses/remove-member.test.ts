@@ -1,29 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DELETE as removeMember } from '@/app/api/courses/[courseId]/members/remove/route';
 import { db } from '@/db/orm';
-import { users, courses, courseMemberships, grades, rubricScores, feedbackComments } from '@/db/schema';
+import { users, courses, courseMemberships } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import * as currentUser from '../../../lib/current-user';
 
+function uniq(label: string) {
+  return `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 describe('Manage Members - Remove Member', () => {
 	beforeEach(async () => {
-		await db.delete(rubricScores);
-		await db.delete(grades);
-		await db.delete(feedbackComments);
-		await db.delete(courseMemberships);
-		await db.delete(courses);
-		await db.delete(users);
+		vi.restoreAllMocks();
 	});
 
 	it('should remove member successfully (instructor)', async () => {
+		const seed = uniq('remove-success');
 		const instructor = await db.insert(users).values({
-			firstName: 'Inst', lastName: 'Ructor', email: 'instructor@test.com', passwordHash: 'x', status: 'active'
+			firstName: 'Inst', lastName: 'Ructor', email: `${seed}-instructor@test.com`, passwordHash: 'x', status: 'active'
 		}).returning();
 		const student = await db.insert(users).values({
-			firstName: 'Stu', lastName: 'Dent', email: 'student@test.com', passwordHash: 'x', status: 'active'
+			firstName: 'Stu', lastName: 'Dent', email: `${seed}-student@test.com`, passwordHash: 'x', status: 'active'
 		}).returning();
 		const course = await db.insert(courses).values({
-			title: 'Test Course', courseCode: 'TST101', term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
+			title: 'Test Course', courseCode: uniq('TST101'), term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
 		}).returning();
 		await db.insert(courseMemberships).values({ courseId: course[0].id, userId: instructor[0].id, role: 'grader', status: 'active' });
 		const membership = await db.insert(courseMemberships).values({ courseId: course[0].id, userId: student[0].id, role: 'student', status: 'active' }).returning();
@@ -40,14 +40,15 @@ describe('Manage Members - Remove Member', () => {
 	});
 
 	it('should restrict non-instructors from removing members', async () => {
+		const seed = uniq('remove-restrict');
 		const instructor = await db.insert(users).values({
-			firstName: 'Inst', lastName: 'Ructor', email: 'instructor2@test.com', passwordHash: 'x', status: 'active'
+			firstName: 'Inst', lastName: 'Ructor', email: `${seed}-instructor@test.com`, passwordHash: 'x', status: 'active'
 		}).returning();
 		const student = await db.insert(users).values({
-			firstName: 'Stu', lastName: 'Dent', email: 'student2@test.com', passwordHash: 'x', status: 'active'
+			firstName: 'Stu', lastName: 'Dent', email: `${seed}-student@test.com`, passwordHash: 'x', status: 'active'
 		}).returning();
 		const course = await db.insert(courses).values({
-			title: 'Test Course', courseCode: 'TST102', term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
+			title: 'Test Course', courseCode: uniq('TST102'), term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
 		}).returning();
 		await db.insert(courseMemberships).values({ courseId: course[0].id, userId: instructor[0].id, role: 'grader', status: 'active' });
 		await db.insert(courseMemberships).values({ courseId: course[0].id, userId: student[0].id, role: 'student', status: 'active' });
@@ -62,11 +63,12 @@ describe('Manage Members - Remove Member', () => {
 	});
 
 	it('should return error if member does not exist', async () => {
+		const seed = uniq('remove-missing');
 		const instructor = await db.insert(users).values({
-			firstName: 'Inst', lastName: 'Ructor', email: 'instructor3@test.com', passwordHash: 'x', status: 'active'
+			firstName: 'Inst', lastName: 'Ructor', email: `${seed}-instructor@test.com`, passwordHash: 'x', status: 'active'
 		}).returning();
 		const course = await db.insert(courses).values({
-			title: 'Test Course', courseCode: 'TST103', term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
+			title: 'Test Course', courseCode: uniq('TST103'), term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
 		}).returning();
 		await db.insert(courseMemberships).values({ courseId: course[0].id, userId: instructor[0].id, role: 'grader', status: 'active' });
 
@@ -80,14 +82,15 @@ describe('Manage Members - Remove Member', () => {
 	});
 
 	it('should remove member when params are provided as a Promise', async () => {
+		const seed = uniq('remove-promise');
 		const instructor = await db.insert(users).values({
-			firstName: 'Inst', lastName: 'Ructor', email: 'instructor4@test.com', passwordHash: 'x', status: 'active'
+			firstName: 'Inst', lastName: 'Ructor', email: `${seed}-instructor@test.com`, passwordHash: 'x', status: 'active'
 		}).returning();
 		const student = await db.insert(users).values({
-			firstName: 'Stu', lastName: 'Dent', email: 'student4@test.com', passwordHash: 'x', status: 'active'
+			firstName: 'Stu', lastName: 'Dent', email: `${seed}-student@test.com`, passwordHash: 'x', status: 'active'
 		}).returning();
 		const course = await db.insert(courses).values({
-			title: 'Test Course', courseCode: 'TST104', term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
+			title: 'Test Course', courseCode: uniq('TST104'), term: '2026', createdByUserId: instructor[0].id, startDate: '2026-01-01', endDate: '2026-12-31', isActive: true
 		}).returning();
 		await db.insert(courseMemberships).values({ courseId: course[0].id, userId: instructor[0].id, role: 'grader', status: 'active' });
 		await db.insert(courseMemberships).values({ courseId: course[0].id, userId: student[0].id, role: 'student', status: 'active' });
