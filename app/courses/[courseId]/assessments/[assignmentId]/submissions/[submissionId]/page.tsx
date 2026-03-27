@@ -4,8 +4,9 @@ import { format } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getSubmissionForGrader } from "@/lib/course-management"
+import { getSubmissionGradeForGrader } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
+import { SubmissionGradeForm } from "./_components/submission-grade-form"
 
 export default async function SubmissionPage({
   params,
@@ -27,7 +28,7 @@ export default async function SubmissionPage({
     notFound()
   }
 
-  const submission = await getSubmissionForGrader(
+  const submission = await getSubmissionGradeForGrader(
     user.id,
     parsedCourseId,
     parsedAssignmentId,
@@ -69,6 +70,26 @@ export default async function SubmissionPage({
         </div>
 
         <div className="grid gap-4">
+          {submission.rubricQuestions.length > 0 ? (
+            <SubmissionGradeForm
+              courseId={submission.courseId}
+              assignmentId={submission.assignmentId}
+              submissionId={submission.id}
+              totalPoints={submission.totalPoints}
+              rubricQuestions={submission.rubricQuestions}
+              initialGrade={submission.grade}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Grading unavailable</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                Save a rubric for this assessment before grading submissions.
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Submission details</CardTitle>
@@ -77,6 +98,11 @@ export default async function SubmissionPage({
               <p><span className="text-muted-foreground">Course:</span> {submission.courseTitle}</p>
               <p><span className="text-muted-foreground">Assessment:</span> {submission.assignmentTitle}</p>
               <p><span className="text-muted-foreground">Status:</span> {submission.status}</p>
+              {submission.grade && (
+                <p>
+                  <span className="text-muted-foreground">Saved grade:</span> {submission.grade.totalScore}/{submission.totalPoints}
+                </p>
+              )}
               {submission.fileUrl && (
                 <p>
                   <span className="text-muted-foreground">File:</span>{" "}

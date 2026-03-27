@@ -6,33 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RubricEditor } from "./_components/rubric-editor"
 import { getAssessmentRubricForMember } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
-
-type RubricPayload = {
-  questions: Array<{
-    question_id: string
-    question_name: string
-    rubric_items: Array<{
-      criterion: string
-      rubric_name: string
-      max_score: number
-    }>
-  }>
-}
-
-function parseRubricJson(raw: unknown): RubricPayload | null {
-  if (!raw) return null
-  if (typeof raw === "string") {
-    try {
-      return JSON.parse(raw) as RubricPayload
-    } catch {
-      return null
-    }
-  }
-  if (typeof raw === "object") {
-    return raw as RubricPayload
-  }
-  return null
-}
+import { parseRubricJson } from "@/lib/rubrics"
 
 export default async function AssessmentRubricPage({
   params,
