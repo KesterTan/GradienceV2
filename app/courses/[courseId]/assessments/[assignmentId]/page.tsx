@@ -88,10 +88,12 @@ export default async function AssessmentPage({
             assignmentId={assessment.id}
             assignmentTitle={assessment.title}
             dueAt={assessment.dueAt}
+            lateUntil={assessment.lateUntil}
             totalPoints={assessment.totalPoints}
             allowResubmissions={assessment.allowResubmissions}
             maxAttemptResubmission={assessment.maxAttemptResubmission}
             history={memberHistory}
+            isInstructor={isInstructor}
           />
         </div>
 

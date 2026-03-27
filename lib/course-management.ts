@@ -37,6 +37,7 @@ export type AssessmentDetail = {
   id: number
   title: string
   dueAt: string
+  lateUntil: string | null
   releaseAt: string
   totalPoints: number
   description: string | null
@@ -222,6 +223,7 @@ export async function getAssessmentForCourseMember(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      lateUntil: assignments.lateUntil,
       totalPoints: assignments.totalPoints,
       courseId: courses.id,
       courseTitle: courses.title,
@@ -250,6 +252,7 @@ export async function getAssessmentForCourseMember(
     title: String(row.title),
     releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
+    lateUntil: row.lateUntil ? String(row.lateUntil) : null,
     totalPoints: Number(row.totalPoints),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
@@ -273,6 +276,7 @@ export async function getAssessmentForGrader(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      lateUntil: assignments.lateUntil,
       totalPoints: assignments.totalPoints,
       courseId: courses.id,
       courseTitle: courses.title,
@@ -301,6 +305,7 @@ export async function getAssessmentForGrader(
     title: String(row.title),
     releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
+    lateUntil: row.lateUntil ? String(row.lateUntil) : null,
     totalPoints: Number(row.totalPoints),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
