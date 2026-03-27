@@ -3,6 +3,7 @@ import { db } from "@/db/orm";
 import { eq, and } from "drizzle-orm";
 import { courses, courseMemberships, users } from "@/db/schema";
 import { requireAppUser } from "@/lib/current-user";
+import { isUserCourseInstructor } from "@/lib/rbac";
 
 // DELETE /courses/[courseId]/members/remove
 export async function DELETE(
@@ -27,12 +28,7 @@ export async function DELETE(
   if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
 
   // Check if user is instructor or creator
-  const instructorMemberships = await db
-    .select({ courseMemberships, users })
-    .from(courseMemberships)
-    .innerJoin(users, eq(courseMemberships.userId, users.id))
-    .where(and(eq(courseMemberships.courseId, parsedCourseId), eq(courseMemberships.role, "grader")));
-  const isInstructor = instructorMemberships.some(row => row.users.id === user.id) || course.creatorId === user.id;
+  const isInstructor = await isUserCourseInstructor(user.id, parsedCourseId);
   if (!isInstructor) {
     return NextResponse.json({ error: "Only instructors can remove members" }, { status: 403 });
   }
