@@ -1,11 +1,17 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { z } from "zod"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/db/orm"
-import { assignments, courseMemberships } from "@/db/schema"
+import { assignmentRubricItems, assignments, courseMemberships } from "@/db/schema"
 import { requireAppUser } from "@/lib/current-user"
+import {
+  buildRubricFieldErrors,
+  flattenRubricItems,
+  getRubricItemCount,
+  getRubricTotalMaxScore,
+  rubricPayloadSchema,
+} from "@/lib/rubrics"
 
 export type RubricFormState = {
   errors?: {
@@ -14,22 +20,6 @@ export type RubricFormState = {
     _form?: string[]
   }
 }
-
-const rubricItemSchema = z.object({
-  criterion: z.string().trim().min(1, "Criterion is required"),
-  rubric_name: z.string().trim().min(1, "Rubric name is required"),
-  max_score: z.number().finite().min(0),
-})
-
-const rubricQuestionSchema = z.object({
-  question_id: z.string().trim().min(1, "Question id is required"),
-  question_name: z.string().trim().min(1, "Question name is required"),
-  rubric_items: z.array(rubricItemSchema),
-})
-
-const rubricPayloadSchema = z.object({
-  questions: z.array(rubricQuestionSchema),
-})
 
 async function requireInstructorMembership(courseId: number, userId: number) {
   const membership = await db
@@ -82,36 +72,55 @@ export async function updateRubricAction(
 
   const parsed = rubricPayloadSchema.safeParse(parsedPayload)
   if (!parsed.success) {
-    const fieldErrors: Record<string, string[]> = {}
-    for (const issue of parsed.error.issues) {
-      if (!issue.path.length) continue
-      const key = issue.path.join(".")
-      fieldErrors[key] = [...(fieldErrors[key] ?? []), issue.message]
-    }
-    return { errors: { fieldErrors } }
+    return { errors: { fieldErrors: buildRubricFieldErrors(parsed.error) } }
   }
 
-  const itemCount = parsed.data.questions.reduce((sum, question) => sum + question.rubric_items.length, 0)
+  const rubricJson = parsed.data
+  const itemCount = getRubricItemCount(rubricJson)
   if (itemCount > 1000) {
     return { errors: { rubricPayload: ["Rubrics can include at most 1000 items."] } }
   }
 
-  const rubricJson = parsed.data
-
   const existing = await db
-    .select({ id: assignments.id })
+    .select({ id: assignments.id, totalPoints: assignments.totalPoints })
     .from(assignments)
     .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
     .limit(1)
 
-  if (!existing[0]) {
+  const assignment = existing[0]
+  if (!assignment) {
     return { errors: { _form: ["Assessment not found."] } }
   }
 
-  await db
-    .update(assignments)
-    .set({ rubricJson })
-    .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
+  const totalMaxScore = getRubricTotalMaxScore(rubricJson)
+
+  const flattenedItems = flattenRubricItems(rubricJson)
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(assignments)
+      .set({ rubricJson, totalPoints: totalMaxScore, updatedAt: new Date().toISOString() })
+      .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
+
+    await tx.delete(assignmentRubricItems).where(eq(assignmentRubricItems.assignmentId, assignmentId))
+
+    await tx.insert(assignmentRubricItems).values(
+      flattenedItems.map((item, index) => ({
+        assignmentId,
+        title: item.rubric_name,
+        description: item.criterion,
+        maxPoints: item.max_score,
+        displayOrder: index + 1,
+        gradingGuidance: JSON.stringify({
+          question_id: item.question_id,
+          question_name: item.question_name,
+          criterion: item.criterion,
+          rubric_name: item.rubric_name,
+          max_score: item.max_score,
+        }),
+      })),
+    )
+  })
 
   revalidatePath(`/courses/${courseId}/assessments/${assignmentId}`)
   revalidatePath(`/courses/${courseId}/assessments/${assignmentId}/rubric`)

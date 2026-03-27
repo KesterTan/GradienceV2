@@ -99,9 +99,11 @@ describe("course-management data functions", () => {
     mocks.selectQueue.push([
       {
         id: 88,
+        studentMembershipId: 22,
         attemptNumber: 2,
         status: "submitted",
         submittedAt: "2026-03-02T08:30:00Z",
+        fileUrl: null,
         studentName: "Stu Student",
         studentEmail: "stu@gradience.edu",
       },
@@ -112,9 +114,11 @@ describe("course-management data functions", () => {
     expect(submissions).toEqual([
       {
         id: 88,
+        studentMembershipId: 22,
         attemptNumber: 2,
         status: "submitted",
         submittedAt: "2026-03-02T08:30:00Z",
+        fileUrl: null,
         studentName: "Stu Student",
         studentEmail: "stu@gradience.edu",
       },
