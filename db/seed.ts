@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { withConnection } from "./db";
 
 type UserSeed = {

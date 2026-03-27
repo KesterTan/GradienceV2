@@ -1,3 +1,4 @@
+import "dotenv/config";
 import type { ClientBase } from "pg";
 
 import { withConnection } from "../db/db";
