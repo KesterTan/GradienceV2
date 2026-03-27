@@ -71,6 +71,11 @@ export default async function CourseDashboardPage({
                 Members
               </Link>
             </Button>}
+            {isInstructor && (
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href={`/courses/${course.id}/manage`}>Manage course</Link>
+              </Button>
+            )}
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             {isInstructor && <Button asChild className="w-full sm:w-auto">
               <Link href={`/courses/${course.id}/assessments/new`}>Create assessment</Link>
