@@ -69,65 +69,96 @@ export default async function SubmissionPage({
           </Button>
         </div>
 
-        <div className="grid gap-4">
-          {submission.rubricQuestions.length > 0 ? (
-            <SubmissionGradeForm
-              courseId={submission.courseId}
-              assignmentId={submission.assignmentId}
-              submissionId={submission.id}
-              totalPoints={submission.totalPoints}
-              rubricQuestions={submission.rubricQuestions}
-              initialGrade={submission.grade}
-            />
-          ) : (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(380px,460px)] lg:gap-6">
+          <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Grading unavailable</CardTitle>
+                <CardTitle>Submitted PDF</CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                Save a rubric for this assessment before grading submissions.
+              <CardContent>
+                {submission.fileUrl ? (
+                  <div className="overflow-hidden rounded-md border bg-muted/20">
+                    <iframe
+                      src={`/api/courses/${submission.courseId}/assessments/${submission.assignmentId}/submissions/${submission.id}/file`}
+                      title="Submitted PDF"
+                      className="h-[70vh] w-full"
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-md border bg-muted/20 p-4">
+                    <p className="text-sm text-muted-foreground">
+                      No PDF file was submitted for this attempt.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Submission details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <p><span className="text-muted-foreground">Course:</span> {submission.courseTitle}</p>
-              <p><span className="text-muted-foreground">Assessment:</span> {submission.assignmentTitle}</p>
-              <p><span className="text-muted-foreground">Status:</span> {submission.status}</p>
-              {submission.grade && (
-                <p>
-                  <span className="text-muted-foreground">Saved grade:</span> {submission.grade.totalScore}/{submission.totalPoints}
-                </p>
-              )}
-              {submission.fileUrl && (
-                <p>
-                  <span className="text-muted-foreground">File:</span>{" "}
-                  <a href={submission.fileUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-4 hover:underline">
-                    Open submitted file
-                  </a>
-                </p>
-              )}
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Student answer</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-[320px] overflow-y-auto rounded-md border bg-muted/20 p-4">
+                  {submission.textContent ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                      {submission.textContent}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No inline text content was provided for this submission.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Student content</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="max-h-[420px] overflow-y-auto rounded-md border bg-muted/20 p-4">
-                {submission.textContent ? (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{submission.textContent}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No inline text content was provided for this submission.</p>
+            <Card>
+              <CardHeader>
+                <CardTitle>Submission details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <p><span className="text-muted-foreground">Course:</span> {submission.courseTitle}</p>
+                <p><span className="text-muted-foreground">Assessment:</span> {submission.assignmentTitle}</p>
+                <p><span className="text-muted-foreground">Status:</span> {submission.status}</p>
+                {submission.grade && (
+                  <p>
+                    <span className="text-muted-foreground">Saved grade:</span> {submission.grade.totalScore}/{submission.totalPoints}
+                  </p>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+                {submission.fileUrl && (
+                  <p>
+                    <span className="text-muted-foreground">File:</span>{" "}
+                    <a href={submission.fileUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-4 hover:underline">
+                      Open submitted file
+                    </a>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:sticky lg:top-4 lg:self-start">
+            {submission.rubricQuestions.length > 0 ? (
+              <SubmissionGradeForm
+                courseId={submission.courseId}
+                assignmentId={submission.assignmentId}
+                submissionId={submission.id}
+                totalPoints={submission.totalPoints}
+                rubricQuestions={submission.rubricQuestions}
+                initialGrade={submission.grade}
+              />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Grading unavailable</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  Save a rubric for this assessment before grading submissions.
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </section>
     </main>
