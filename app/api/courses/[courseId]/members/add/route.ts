@@ -3,6 +3,7 @@ import { db } from "@/db/orm";
 import { eq, and } from "drizzle-orm";
 import { courses, courseMemberships, users } from "@/db/schema";
 import { requireGraderUser } from "@/lib/current-user";
+import { normalizeIncomingRole, isUserCourseInstructor } from "@/lib/rbac";
 
 
 export async function POST(
@@ -18,27 +19,14 @@ export async function POST(
     if (!Number.isFinite(parsedCourseId)) {
       return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
     }
-    const { email, role } = await req.json();
-    if (!email || !role || !["student", "grader"].includes(role)) {
+    const { email, role: rawRole } = await req.json();
+    const role = normalizeIncomingRole(rawRole);
+    if (!email || !role) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
-
-    // Check if user is an instructor or creator
-    const courseArr = await db.select({ creatorId: courses.createdByUserId }).from(courses).where(eq(courses.id, parsedCourseId));
-    const course = courseArr[0];
-    if (!course) {
-      // If course doesn't exist, treat as permission denied for security
-      return NextResponse.json({ error: "Only instructors can add members" }, { status: 403 });
-    }
-
-    // Get instructors (including creator)
-    const instructorMemberships = await db
-      .select({ courseMemberships, users })
-      .from(courseMemberships)
-      .innerJoin(users, eq(courseMemberships.userId, users.id))
-      .where(and(eq(courseMemberships.courseId, parsedCourseId), eq(courseMemberships.role, "grader")));
-    const isInstructor = instructorMemberships.some(row => row.users.id === user.id) || course.creatorId === user.id;
-    if (!isInstructor) {
+    // Ensure course exists and user is an instructor (course creator OR grader membership)
+    const allowed = await isUserCourseInstructor(user.id, parsedCourseId);
+    if (!allowed) {
       return NextResponse.json({ error: "Only instructors can add members" }, { status: 403 });
     }
 
