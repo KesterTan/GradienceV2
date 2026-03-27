@@ -100,6 +100,18 @@ export const assignments = gradience.table("assignments", {
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 })
 
+export const assignmentRubricItems = gradience.table("assignment_rubric_items", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  assignmentId: bigint("assignment_id", { mode: "number" }).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  maxPoints: integer("max_points").notNull(),
+  displayOrder: integer("display_order").notNull(),
+  gradingGuidance: text("grading_guidance"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+})
+
 export const submissions = gradience.table("submissions", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   assignmentId: bigint("assignment_id", { mode: "number" }).notNull(),

@@ -134,6 +134,13 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
 
     return (
       <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Total points</CardTitle>
+            <CardDescription>{totalMax}</CardDescription>
+          </CardHeader>
+        </Card>
+
         {initialRubric.questions.map((question, index) => (
           <Card key={`${question.question_id}-${index}`}>
             <CardHeader>
@@ -157,7 +164,7 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
           <CardHeader>
             <CardTitle>Total</CardTitle>
             <CardDescription>
-              Max score: {totalMax}
+              Total points: {totalMax}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -179,8 +186,12 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
         <div>
           <p className="text-sm font-semibold text-foreground">Rubric items</p>
           <p className="text-xs text-muted-foreground">
-            {itemCount} / 1000 items · Max score {totalMaxScore}
+            {itemCount} / 1000 items
           </p>
+        </div>
+        <div className="rounded-lg border bg-muted/20 px-4 py-3 text-right">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total points</p>
+          <p className="text-lg font-semibold text-foreground">{totalMaxScore}</p>
         </div>
         <Button
           type="button"
@@ -335,9 +346,9 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
       </div>
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          Max score: {totalMaxScore}
-        </p>
+        <div className="rounded-md bg-muted/20 px-3 py-2 text-sm text-foreground">
+          Total points: <span className="font-semibold">{totalMaxScore}</span>
+        </div>
         <Button type="submit" disabled={pending}>
           {pending ? "Saving..." : "Save rubric"}
         </Button>

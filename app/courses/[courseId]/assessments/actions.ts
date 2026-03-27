@@ -352,7 +352,7 @@ export async function createAssignmentAction(
     title: parsed.data.title,
     description: parsed.data.description ?? null,
     assignmentType: "written",
-    totalPoints: 100,
+    totalPoints: 0,
     releaseAt,
     dueAt,
     lateUntil,

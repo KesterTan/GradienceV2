@@ -70,6 +70,7 @@ describe("createAssignmentAction", () => {
 
     expect(mocks.insertValues).toHaveBeenCalledWith(
       expect.objectContaining({
+        totalPoints: 0,
         releaseAt: "2026-03-05T12:00:00.000Z",
         dueAt: "2026-03-10T23:59:59.999Z",
       }),
@@ -388,4 +389,3 @@ describe("createAssignmentAction", () => {
     expect(mocks.insert).toHaveBeenCalledTimes(1)
   })
 })
-
