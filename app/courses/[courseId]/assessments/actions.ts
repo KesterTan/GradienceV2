@@ -343,7 +343,8 @@ export async function createAssignmentAction(
       return { errors: { lateUntilDate: ["Late deadline must be on or after the course start date."] }, values }
     }
     if (lateUntilMs > courseEndAt) {
-      return { errors: { lateUntilDate: ["Late deadline must be on or before the course end date."] }, values }
+      const courseEndFormatted = new Date(courseEndAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+      return { errors: { lateUntilDate: [`Late deadline must be on or before ${courseEndFormatted}.`] }, values }
     }
   }
 
@@ -499,7 +500,8 @@ export async function updateAssignmentAction(
       return { errors: { lateUntilDate: ["Late deadline must be on or after the course start date."] }, values }
     }
     if (lateUntilMs > courseEndAt) {
-      return { errors: { lateUntilDate: ["Late deadline must be on or before the course end date."] }, values }
+      const courseEndFormatted = new Date(courseEndAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+      return { errors: { lateUntilDate: [`Late deadline must be on or before ${courseEndFormatted}.`] }, values }
     }
   }
 
