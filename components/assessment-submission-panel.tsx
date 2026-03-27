@@ -303,6 +303,16 @@ export function AssessmentSubmissionPanel({
                     </Button>
                   )}
 
+                  {!isInstructor && (
+                    <Button asChild size="sm" variant="ghost">
+                      <Link
+                        href={`/courses/${courseId}/assessments/${assignmentId}/submissions/${item.id}/grade`}
+                      >
+                        View Grade
+                      </Link>
+                    </Button>
+                  )}
+
                   {!item.isCurrent && item.fileUrl && !submissionsClosed && (
                     <Button
                       type="button"
