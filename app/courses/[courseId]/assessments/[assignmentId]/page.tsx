@@ -5,10 +5,11 @@ import { AssessmentSubmissionPanel } from "@/components/assessment-submission-pa
 import { DashboardHeader } from "@/components/dashboard-header"
 import { StudentSubmissionsCard } from "@/components/student-submissions-card"
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   getAssessmentForCourseMember,
   listMemberSubmissionHistory,
+  listStudentsWithoutSubmission,
   listSubmissionsForAssessment,
 } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
@@ -38,6 +39,9 @@ export default async function AssessmentPage({
   const memberHistory = await listMemberSubmissionHistory(user.id, parsedCourseId, parsedAssignmentId)
   const submissions = isInstructor
     ? await listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId)
+    : []
+  const nonSubmitters = isInstructor
+    ? await listStudentsWithoutSubmission(user.id, parsedCourseId, parsedAssignmentId)
     : []
 
   return (
@@ -89,10 +93,12 @@ export default async function AssessmentPage({
             assignmentId={assessment.id}
             assignmentTitle={assessment.title}
             dueAt={assessment.dueAt}
+            lateUntil={assessment.lateUntil}
             totalPoints={assessment.totalPoints}
             allowResubmissions={assessment.allowResubmissions}
             maxAttemptResubmission={assessment.maxAttemptResubmission}
             history={memberHistory}
+            isInstructor={isInstructor}
           />
         </div>
 
@@ -103,9 +109,12 @@ export default async function AssessmentPage({
             group.push(s)
             studentMap.set(s.studentMembershipId, group)
           }
-          const students = Array.from(studentMap.values())
+          const students = Array.from(studentMap.values()).sort((a, b) =>
+            a[0].studentName.localeCompare(b[0].studentName)
+          )
+          const hasAny = students.length > 0 || nonSubmitters.length > 0
 
-          return students.length === 0 ? (
+          return !hasAny ? (
             <Card>
               <CardHeader>
                 <CardTitle>No student submissions yet</CardTitle>
@@ -122,6 +131,19 @@ export default async function AssessmentPage({
                   assignmentId={assessment.id}
                   versions={versions}
                 />
+              ))}
+              {nonSubmitters.map((student) => (
+                <Card key={student.studentMembershipId}>
+                  <CardHeader className="pb-3">
+                    <CardTitle>{student.studentName}</CardTitle>
+                    <CardDescription>{student.studentEmail}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-5 pb-5 sm:px-6">
+                    <div className="flex items-center gap-2 rounded-lg border bg-slate-50 px-3 py-3">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">No submission</span>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )

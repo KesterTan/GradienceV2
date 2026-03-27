@@ -29,12 +29,12 @@ export function StudentSubmissionsCard({ courseId, assignmentId, versions }: Pro
       </CardHeader>
       <CardContent className="space-y-2 px-5 pb-5 sm:px-6">
         {/* Active submission */}
-        <div className="flex flex-col gap-2 rounded-lg border bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`flex flex-col gap-2 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between ${current.status === "late" ? "border-amber-200 bg-amber-50" : "bg-slate-50"}`}>
           <div>
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-foreground">Version {current.attemptNumber}</p>
               <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">Current</span>
-              <span className="text-xs text-muted-foreground capitalize">{current.status}</span>
+              <span className={`text-xs font-medium capitalize ${current.status === "late" ? "text-amber-700" : "text-muted-foreground"}`}>{current.status}</span>
             </div>
             <p className="text-xs text-muted-foreground">
               {format(new Date(current.submittedAt), "MMM d, yyyy 'at' h:mm a")}
@@ -77,12 +77,12 @@ export function StudentSubmissionsCard({ courseId, assignmentId, versions }: Pro
                 {history.map((v) => (
                   <div
                     key={v.id}
-                    className="flex flex-col gap-2 rounded-lg border bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    className={`flex flex-col gap-2 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between ${v.status === "late" ? "border-amber-200 bg-amber-50" : "bg-slate-50"}`}
                   >
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-foreground">Version {v.attemptNumber}</p>
-                        <span className="text-xs text-muted-foreground capitalize">{v.status}</span>
+                        <span className={`text-xs font-medium capitalize ${v.status === "late" ? "text-amber-700" : "text-muted-foreground"}`}>{v.status}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(v.submittedAt), "MMM d, yyyy 'at' h:mm a")}

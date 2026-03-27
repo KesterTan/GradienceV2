@@ -38,6 +38,8 @@ export function EditAssignmentForm(props: {
     startTime: string
     endDate: string
     endTime: string
+    lateUntilDate: string
+    lateUntilTime: string
     allowResubmissions: boolean
     maxAttemptResubmission: number
   }
@@ -46,6 +48,9 @@ export function EditAssignmentForm(props: {
   const [state, formAction, pending] = useActionState(updateAssignmentAction, initialState)
   const [allowResubmissions, setAllowResubmissions] = useState(
     state.values?.allowResubmissions === "on" ? true : initialValues.allowResubmissions
+  )
+  const [enableLateDeadline, setEnableLateDeadline] = useState(
+    state.values?.enableLateDeadline === "on" ? true : Boolean(initialValues.lateUntilDate)
   )
 
   const dateError = useMemo(() => state.errors?.endDate?.[0], [state.errors?.endDate])
@@ -139,6 +144,51 @@ export function EditAssignmentForm(props: {
             <p className="text-sm text-destructive">{state.errors.endTime[0]}</p>
           )}
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <input
+            id="enableLateDeadline"
+            name="enableLateDeadline"
+            type="checkbox"
+            className="size-4 rounded border-input"
+            checked={enableLateDeadline}
+            onChange={(e) => setEnableLateDeadline(e.target.checked)}
+          />
+          <Label htmlFor="enableLateDeadline">Enable late deadline</Label>
+        </div>
+
+        {enableLateDeadline && (
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="lateUntilDate">Late deadline date</Label>
+              <Input
+                id="lateUntilDate"
+                name="lateUntilDate"
+                type="date"
+                defaultValue={values.lateUntilDate ?? initialValues.lateUntilDate}
+                aria-invalid={!!state.errors?.lateUntilDate}
+              />
+              {state.errors?.lateUntilDate?.[0] && (
+                <p className="text-sm text-destructive">{state.errors.lateUntilDate[0]}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lateUntilTime">Late deadline time</Label>
+              <Input
+                id="lateUntilTime"
+                name="lateUntilTime"
+                type="time"
+                defaultValue={values.lateUntilTime ?? initialValues.lateUntilTime}
+                aria-invalid={!!state.errors?.lateUntilTime}
+              />
+              {state.errors?.lateUntilTime?.[0] && (
+                <p className="text-sm text-destructive">{state.errors.lateUntilTime[0]}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">

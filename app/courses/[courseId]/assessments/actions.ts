@@ -16,6 +16,8 @@ type AssignmentFormState = {
     startTime?: string[]
     endDate?: string[]
     endTime?: string[]
+    lateUntilDate?: string[]
+    lateUntilTime?: string[]
     maxAttemptResubmission?: string[]
     courseId?: string[]
     assignmentId?: string[]
@@ -30,6 +32,9 @@ type AssignmentFormState = {
     startTime: string
     endDate: string
     endTime: string
+    enableLateDeadline: string
+    lateUntilDate: string
+    lateUntilTime: string
     allowResubmissions: string
     maxAttemptResubmission: string
   }
@@ -233,6 +238,9 @@ export async function createAssignmentAction(
     startTime: readFormValue(formData, "startTime"),
     endDate: readFormValue(formData, "endDate"),
     endTime: readFormValue(formData, "endTime"),
+    enableLateDeadline: readFormValue(formData, "enableLateDeadline"),
+    lateUntilDate: readFormValue(formData, "lateUntilDate"),
+    lateUntilTime: readFormValue(formData, "lateUntilTime"),
     allowResubmissions: readFormValue(formData, "allowResubmissions"),
     maxAttemptResubmission: readFormValue(formData, "maxAttemptResubmission"),
   }
@@ -317,6 +325,29 @@ export async function createAssignmentAction(
     return { errors: rangeErrors, values }
   }
 
+  let lateUntil: string | null = null
+  if (values.enableLateDeadline === "on") {
+    if (!values.lateUntilDate) {
+      return { errors: { lateUntilDate: ["Late deadline date is required when late deadline is enabled."] }, values }
+    }
+    lateUntil = isoFromDateTime(values.lateUntilDate, values.lateUntilTime, true)
+    const lateUntilMs = new Date(lateUntil).getTime()
+    if (lateUntilMs <= dueAtMs) {
+      const sameDayTimeConflict = Boolean(values.lateUntilDate === parsed.data.endDate && values.lateUntilTime?.trim() && parsed.data.endTime?.trim())
+      if (sameDayTimeConflict) {
+        return { errors: { lateUntilTime: ["Late deadline time must be after the normal deadline time when on the same date."] }, values }
+      }
+      return { errors: { lateUntilDate: ["Late deadline must be after the normal deadline."] }, values }
+    }
+    if (lateUntilMs < courseStartAt) {
+      return { errors: { lateUntilDate: ["Late deadline must be on or after the course start date."] }, values }
+    }
+    if (lateUntilMs > courseEndAt) {
+      const courseEndFormatted = new Date(courseEndAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+      return { errors: { lateUntilDate: [`Late deadline must be on or before ${courseEndFormatted}.`] }, values }
+    }
+  }
+
   await db.insert(assignments).values({
     courseId,
     title: parsed.data.title,
@@ -325,7 +356,7 @@ export async function createAssignmentAction(
     totalPoints: 0,
     releaseAt,
     dueAt,
-    lateUntil: null,
+    lateUntil,
     submissionType: "text",
     allowResubmissions,
     maxAttemptResubmission,
@@ -352,6 +383,9 @@ export async function updateAssignmentAction(
     startTime: readFormValue(formData, "startTime"),
     endDate: readFormValue(formData, "endDate"),
     endTime: readFormValue(formData, "endTime"),
+    enableLateDeadline: readFormValue(formData, "enableLateDeadline"),
+    lateUntilDate: readFormValue(formData, "lateUntilDate"),
+    lateUntilTime: readFormValue(formData, "lateUntilTime"),
     allowResubmissions: readFormValue(formData, "allowResubmissions"),
     maxAttemptResubmission: readFormValue(formData, "maxAttemptResubmission"),
   }
@@ -448,6 +482,29 @@ export async function updateAssignmentAction(
     return { errors: rangeErrors, values }
   }
 
+  let lateUntil: string | null = null
+  if (values.enableLateDeadline === "on") {
+    if (!values.lateUntilDate) {
+      return { errors: { lateUntilDate: ["Late deadline date is required when late deadline is enabled."] }, values }
+    }
+    lateUntil = isoFromDateTime(values.lateUntilDate, values.lateUntilTime, true)
+    const lateUntilMs = new Date(lateUntil).getTime()
+    if (lateUntilMs <= dueAtMs) {
+      const sameDayTimeConflict = Boolean(values.lateUntilDate === parsed.data.endDate && values.lateUntilTime?.trim() && parsed.data.endTime?.trim())
+      if (sameDayTimeConflict) {
+        return { errors: { lateUntilTime: ["Late deadline time must be after the normal deadline time when on the same date."] }, values }
+      }
+      return { errors: { lateUntilDate: ["Late deadline must be after the normal deadline."] }, values }
+    }
+    if (lateUntilMs < courseStartAt) {
+      return { errors: { lateUntilDate: ["Late deadline must be on or after the course start date."] }, values }
+    }
+    if (lateUntilMs > courseEndAt) {
+      const courseEndFormatted = new Date(courseEndAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+      return { errors: { lateUntilDate: [`Late deadline must be on or before ${courseEndFormatted}.`] }, values }
+    }
+  }
+
   await db
     .update(assignments)
     .set({
@@ -455,7 +512,7 @@ export async function updateAssignmentAction(
       description: parsed.data.description ?? null,
       releaseAt,
       dueAt,
-      lateUntil: null,
+      lateUntil,
       allowResubmissions,
       maxAttemptResubmission,
       updatedAt: new Date().toISOString(),

@@ -28,7 +28,7 @@ export async function POST(
     }
 
     const membershipRows = await db
-      .select({ id: courseMemberships.id })
+      .select({ id: courseMemberships.id, role: courseMemberships.role })
       .from(courseMemberships)
       .where(
         and(
@@ -44,10 +44,13 @@ export async function POST(
       return NextResponse.json({ error: "You are not an active member of this course." }, { status: 403 })
     }
 
+    const isGrader = membership.role === "grader"
+
     const assignmentRows = await db
       .select({
         id: assignments.id,
         dueAt: assignments.dueAt,
+        lateUntil: assignments.lateUntil,
         allowResubmissions: assignments.allowResubmissions,
         maxAttemptResubmission: assignments.maxAttemptResubmission,
       })
@@ -62,8 +65,13 @@ export async function POST(
 
     const now = new Date()
     const dueAt = new Date(String(assignment.dueAt))
+    const lateUntil = assignment.lateUntil ? new Date(String(assignment.lateUntil)) : null
 
-    if (now > dueAt) {
+    const isPastDue = now > dueAt
+    const inLateWindow = isPastDue && lateUntil !== null && now <= lateUntil
+    const submissionStatus = isGrader ? "submitted" : !isPastDue ? "submitted" : inLateWindow ? "late" : null
+
+    if (submissionStatus === null) {
       return NextResponse.json({ error: "The submission window for this assessment has closed." }, { status: 400 })
     }
 
@@ -119,7 +127,7 @@ export async function POST(
       studentMembershipId: Number(membership.id),
       attemptNumber: latestAttempt + 1,
       submittedAt: now.toISOString(),
-      status: "submitted",
+      status: submissionStatus,
       textContent: null,
       fileUrl: `/${relativePath.split(path.sep).join("/")}`,
       aiProcessedStatus: "awaiting",

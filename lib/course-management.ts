@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm"
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { db } from "@/db/orm"
 import {
@@ -47,6 +47,7 @@ export type AssessmentDetail = {
   id: number
   title: string
   dueAt: string
+  lateUntil: string | null
   releaseAt: string
   totalPoints: number
   description: string | null
@@ -266,6 +267,7 @@ export async function getAssessmentForCourseMember(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      lateUntil: assignments.lateUntil,
       totalPoints: assignments.totalPoints,
       courseId: courses.id,
       courseTitle: courses.title,
@@ -294,6 +296,7 @@ export async function getAssessmentForCourseMember(
     title: String(row.title),
     releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
+    lateUntil: row.lateUntil ? String(row.lateUntil) : null,
     totalPoints: Number(row.totalPoints),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
@@ -370,6 +373,7 @@ export async function getAssessmentForGrader(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      lateUntil: assignments.lateUntil,
       totalPoints: assignments.totalPoints,
       courseId: courses.id,
       courseTitle: courses.title,
@@ -398,6 +402,7 @@ export async function getAssessmentForGrader(
     title: String(row.title),
     releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
+    lateUntil: row.lateUntil ? String(row.lateUntil) : null,
     totalPoints: Number(row.totalPoints),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
@@ -454,6 +459,63 @@ export async function listSubmissionsForAssessment(
     status: String(row.status),
     submittedAt: String(row.submittedAt),
     fileUrl: row.fileUrl ? String(row.fileUrl) : null,
+    studentName: String(row.studentName),
+    studentEmail: String(row.studentEmail),
+  }))
+}
+
+export type StudentWithoutSubmission = {
+  studentMembershipId: number
+  studentName: string
+  studentEmail: string
+}
+
+export async function listStudentsWithoutSubmission(
+  userId: number,
+  courseId: number,
+  assignmentId: number,
+): Promise<StudentWithoutSubmission[]> {
+  const myMembership = alias(courseMemberships, "my_membership")
+  const studentMembership = alias(courseMemberships, "student_membership")
+  const studentUser = alias(users, "student_user")
+  const studentSubmission = alias(submissions, "student_submission")
+
+  const rows = await db
+    .select({
+      studentMembershipId: studentMembership.id,
+      studentName: sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`,
+      studentEmail: studentUser.email,
+    })
+    .from(studentMembership)
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, studentMembership.courseId),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "grader"),
+        eq(myMembership.status, "active"),
+      ),
+    )
+    .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
+    .leftJoin(
+      studentSubmission,
+      and(
+        eq(studentSubmission.studentMembershipId, studentMembership.id),
+        eq(studentSubmission.assignmentId, assignmentId),
+      ),
+    )
+    .where(
+      and(
+        eq(studentMembership.courseId, courseId),
+        eq(studentMembership.role, "student"),
+        eq(studentMembership.status, "active"),
+        isNull(studentSubmission.id),
+      ),
+    )
+    .orderBy(asc(studentUser.lastName), asc(studentUser.firstName))
+
+  return rows.map((row) => ({
+    studentMembershipId: Number(row.studentMembershipId),
     studentName: String(row.studentName),
     studentEmail: String(row.studentEmail),
   }))

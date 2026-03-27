@@ -43,6 +43,9 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
   const [allowResubmissions, setAllowResubmissions] = useState(
     state.values?.allowResubmissions === "on"
   )
+  const [enableLateDeadline, setEnableLateDeadline] = useState(
+    state.values?.enableLateDeadline === "on"
+  )
 
   const dateError = useMemo(() => state.errors?.endDate?.[0], [state.errors?.endDate])
 
@@ -133,6 +136,51 @@ export function CreateAssignmentForm({ courseId }: { courseId: number }) {
             <p className="text-sm text-destructive">{state.errors.endTime[0]}</p>
           )}
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <input
+            id="enableLateDeadline"
+            name="enableLateDeadline"
+            type="checkbox"
+            className="size-4 rounded border-input"
+            checked={enableLateDeadline}
+            onChange={(e) => setEnableLateDeadline(e.target.checked)}
+          />
+          <Label htmlFor="enableLateDeadline">Enable late deadline</Label>
+        </div>
+
+        {enableLateDeadline && (
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="lateUntilDate">Late deadline date</Label>
+              <Input
+                id="lateUntilDate"
+                name="lateUntilDate"
+                type="date"
+                defaultValue={state.values?.lateUntilDate ?? ""}
+                aria-invalid={!!state.errors?.lateUntilDate}
+              />
+              {state.errors?.lateUntilDate?.[0] && (
+                <p className="text-sm text-destructive">{state.errors.lateUntilDate[0]}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lateUntilTime">Late deadline time</Label>
+              <Input
+                id="lateUntilTime"
+                name="lateUntilTime"
+                type="time"
+                defaultValue={state.values?.lateUntilTime ?? ""}
+                aria-invalid={!!state.errors?.lateUntilTime}
+              />
+              {state.errors?.lateUntilTime?.[0] && (
+                <p className="text-sm text-destructive">{state.errors.lateUntilTime[0]}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">

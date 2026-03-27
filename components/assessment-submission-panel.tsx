@@ -15,18 +15,20 @@ type AssessmentSubmissionPanelProps = {
   assignmentId: number
   assignmentTitle: string
   dueAt: string
+  lateUntil: string | null
   totalPoints: number
   allowResubmissions: boolean
   maxAttemptResubmission: number
   history: MemberSubmissionHistoryItem[]
+  isInstructor?: boolean
 }
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024
 
-function statusStyles(status: string) {
-  if (status.trim().toLowerCase() === "submitted") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700"
-  }
+function statusStyles(status: string, isInstructor = false) {
+  const s = status.trim().toLowerCase()
+  if (s === "submitted") return "border-emerald-200 bg-emerald-50 text-emerald-700"
+  if (s === "late" && !isInstructor) return "border-amber-200 bg-amber-50 text-amber-700"
   return "border-slate-200 bg-slate-50 text-slate-700"
 }
 
@@ -35,10 +37,12 @@ export function AssessmentSubmissionPanel({
   assignmentId,
   assignmentTitle,
   dueAt,
+  lateUntil,
   totalPoints,
   allowResubmissions,
   maxAttemptResubmission,
   history,
+  isInstructor = false,
 }: AssessmentSubmissionPanelProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -50,12 +54,15 @@ export function AssessmentSubmissionPanel({
 
   const now = new Date()
   const dueDate = new Date(dueAt)
-  const submissionsClosed = now > dueDate
+  const lateDate = lateUntil ? new Date(lateUntil) : null
+  const isPastDue = now > dueDate
+  const inLateWindow = isPastDue && lateDate !== null && now <= lateDate
+  const submissionsClosed = !isInstructor && isPastDue && !inLateWindow
 
   const maxAllowed = allowResubmissions ? Math.max(1, maxAttemptResubmission) : 1
   const maxReached = history.length >= maxAllowed
 
-  // Upload is blocked by deadline OR hitting the submission cap
+  // Upload is blocked by deadline OR hitting the submission cap (instructors have no deadline)
   const uploadDisabled = submissionsClosed || maxReached
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,6 +180,12 @@ export function AssessmentSubmissionPanel({
                   <Calendar className="size-3.5" />
                   Due {format(dueDate, "MMM d, yyyy 'at' h:mm a")}
                 </p>
+                {!isInstructor && lateDate && (
+                  <p className="mt-0.5 flex items-center gap-1 text-sm text-amber-600">
+                    <Calendar className="size-3.5" />
+                    Late submissions accepted until {format(lateDate, "MMM d, yyyy 'at' h:mm a")}
+                  </p>
+                )}
               </div>
             </div>
             <p className="text-sm text-muted-foreground">{totalPoints} points</p>
@@ -191,13 +204,19 @@ export function AssessmentSubmissionPanel({
             </div>
           )}
 
+          {!isInstructor && inLateWindow && !maxReached && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              You are past the deadline — this submission will be marked as late.
+            </div>
+          )}
+
           {!submissionsClosed && maxReached && (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               You have used all {maxAllowed} submission attempt{maxAllowed !== 1 ? "s" : ""} for this assignment. You can still restore a previous version below.
             </div>
           )}
 
-          {!uploadDisabled && (
+          {!isInstructor && !uploadDisabled && !inLateWindow && (
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
               Submit before {format(dueDate, "MMM d, yyyy 'at' h:mm a")}.
             </div>
@@ -260,7 +279,7 @@ export function AssessmentSubmissionPanel({
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium text-foreground">Version {item.attemptNumber}</p>
                       {item.isCurrent && <Badge className="bg-primary text-primary-foreground">Current</Badge>}
-                      <Badge variant="outline" className={statusStyles(item.status)}>
+                      <Badge variant="outline" className={statusStyles(item.status, isInstructor)}>
                         {item.status}
                       </Badge>
                     </div>

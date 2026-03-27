@@ -51,6 +51,7 @@ export async function POST(
       .select({
         id: assignments.id,
         dueAt: assignments.dueAt,
+        lateUntil: assignments.lateUntil,
       })
       .from(assignments)
       .where(and(eq(assignments.id, parsedAssignmentId), eq(assignments.courseId, parsedCourseId)))
@@ -83,11 +84,18 @@ export async function POST(
 
     const now = new Date()
     const dueAt = new Date(String(assignment.dueAt))
+    const lateUntil = assignment.lateUntil ? new Date(String(assignment.lateUntil)) : null
 
-    // Students are blocked after the deadline; graders are not
-    if (!isGrader && now > dueAt) {
+    const isPastDue = now > dueAt
+    const inLateWindow = isPastDue && lateUntil !== null && now <= lateUntil
+
+    // Students can restore on time or during the late window; graders are never blocked
+    if (!isGrader && isPastDue && !inLateWindow) {
       return NextResponse.json({ error: "The submission window for this assessment has closed." }, { status: 400 })
     }
+
+    // Grader restores are always "submitted"; student restores in the late window are "late"
+    const restoredStatus = isGrader ? "submitted" : inLateWindow ? "late" : "submitted"
 
     const attemptsRows = await db
       .select({
@@ -108,7 +116,7 @@ export async function POST(
       studentMembershipId: targetMembershipId,
       attemptNumber: latestAttempt + 1,
       submittedAt: now.toISOString(),
-      status: "submitted",
+      status: restoredStatus,
       textContent: null,
       fileUrl: String(sourceSubmission.fileUrl),
       aiProcessedStatus: "awaiting",
