@@ -705,6 +705,122 @@ export async function getSubmissionGradeForGrader(
   }
 }
 
+export async function getSubmissionGradeForStudent(
+  userId: number,
+  courseId: number,
+  assignmentId: number,
+  submissionId: number,
+): Promise<SubmissionGradeDetail | null> {
+  const myMembership = alias(courseMemberships, "my_membership")
+  const studentUser = alias(users, "student_user")
+
+  const rows = await db
+    .select({
+      id: submissions.id,
+      attemptNumber: submissions.attemptNumber,
+      status: submissions.status,
+      submittedAt: submissions.submittedAt,
+      textContent: submissions.textContent,
+      fileUrl: submissions.fileUrl,
+      studentName: sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`,
+      studentEmail: studentUser.email,
+      assignmentId: assignments.id,
+      assignmentTitle: assignments.title,
+      totalPoints: assignments.totalPoints,
+      rubricJson: assignments.rubricJson,
+      courseId: courses.id,
+      courseTitle: courses.title,
+      gradeId: grades.id,
+      gradeTotalScore: grades.totalScore,
+      gradeOverallFeedback: grades.overallFeedback,
+      gradeGradedAt: grades.gradedAt,
+    })
+    .from(submissions)
+    .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.role, "student"),
+        eq(myMembership.status, "active"),
+        eq(submissions.studentMembershipId, myMembership.id),
+      ),
+    )
+    .innerJoin(studentUser, eq(studentUser.id, myMembership.userId))
+    .leftJoin(grades, eq(grades.submissionId, submissions.id))
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId), eq(submissions.id, submissionId)))
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return null
+
+  const rubric = parseRubricJson(row.rubricJson)
+  const flattenedItems = rubric ? flattenRubricItems(rubric) : []
+  const rubricQuestions = rubric
+    ? rubric.questions.map((question, questionIndex) => {
+        const items = flattenedItems
+          .filter((item) => item.question_order === questionIndex)
+          .map((item) => ({
+            order: item.order,
+            criterion: item.criterion,
+            rubricName: item.rubric_name,
+            maxScore: item.max_score,
+          }))
+
+        return {
+          questionId: question.question_id,
+          questionName: question.question_name,
+          maxScore: items.reduce((sum, item) => sum + item.maxScore, 0),
+          rubricItems: items,
+        }
+      })
+    : []
+
+  let grade: SubmissionGrade | null = null
+  if (row.gradeId) {
+    const scoreRows = await db
+      .select({
+        displayOrder: assignmentRubricItems.displayOrder,
+        pointsAwarded: rubricScores.pointsAwarded,
+      })
+      .from(rubricScores)
+      .innerJoin(assignmentRubricItems, eq(assignmentRubricItems.id, rubricScores.rubricItemId))
+      .where(eq(rubricScores.gradeId, Number(row.gradeId)))
+      .orderBy(asc(assignmentRubricItems.displayOrder))
+
+    grade = {
+      id: Number(row.gradeId),
+      totalScore: Number(row.gradeTotalScore ?? 0),
+      overallFeedback: row.gradeOverallFeedback ? String(row.gradeOverallFeedback) : null,
+      gradedAt: String(row.gradeGradedAt),
+      rubricScores: scoreRows.map((scoreRow) => ({
+        displayOrder: Number(scoreRow.displayOrder),
+        pointsAwarded: Number(scoreRow.pointsAwarded),
+      })),
+    }
+  }
+
+  return {
+    id: Number(row.id),
+    attemptNumber: Number(row.attemptNumber),
+    status: String(row.status),
+    submittedAt: String(row.submittedAt),
+    textContent: row.textContent ? String(row.textContent) : null,
+    fileUrl: row.fileUrl ? String(row.fileUrl) : null,
+    studentName: String(row.studentName),
+    studentEmail: String(row.studentEmail),
+    assignmentId: Number(row.assignmentId),
+    assignmentTitle: String(row.assignmentTitle),
+    totalPoints: Number(row.totalPoints),
+    courseId: Number(row.courseId),
+    courseTitle: String(row.courseTitle),
+    rubricQuestions,
+    grade,
+  }
+}
+
 export async function listMemberSubmissionHistory(
   userId: number,
   courseId: number,
