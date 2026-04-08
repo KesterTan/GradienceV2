@@ -19,11 +19,11 @@
 
 ## 0.1) Ownership and merge metadata
 - **Primary owner (by git authorship of PR #18 commit):** `preeyaX`
-- **Secondary owner (by git authorship on submission pipeline files):** `kesterTan`
+- **Secondary owner (by git authorship on submission pipeline files):** `KesterTan`
 - **Date merged into `main`:** **2026-03-26**
   - Evidence: commit `0f53760` — *`[NEW] Submit an Assignment, View Submission History, and Restore Previous Submissions (#18) -> merging to main`*
 
-> Note: “owner” isn’t explicitly defined in-repo; the owners above are inferred from git authorship of the submission feature’s merge commit and subsequent edits.
+
 
 ---
 
