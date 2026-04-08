@@ -142,4 +142,290 @@ describe("current-user helpers", () => {
       email: "stu@gradience.edu",
     })
   })
+
+  // Group A — requireAppUser core paths
+
+  it("does not update when user found by authProviderId and already has authProviderId set", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|existing", email: "existing@gradience.edu", name: "Existing User" },
+    })
+
+    mocks.selectQueue.push([
+      {
+        id: 5,
+        firstName: "Existing",
+        lastName: "User",
+        email: "existing@gradience.edu",
+        authProviderId: "auth0|existing",
+      },
+    ])
+
+    const user = await requireAppUser()
+
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(user).toEqual({
+      id: 5,
+      firstName: "Existing",
+      lastName: "User",
+      email: "existing@gradience.edu",
+    })
+  })
+
+  it("requireGraderUser also redirects to login when session is missing", async () => {
+    mocks.getSession.mockResolvedValueOnce(null)
+
+    await expect(requireGraderUser()).rejects.toThrow("REDIRECT:/login")
+    expect(mocks.redirect).toHaveBeenCalledWith("/login")
+  })
+
+  // Group B — splitName edge cases (verified through the insert path)
+
+  it("uses 'Account' as lastName when name is a single word", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|single", email: "alice@gradience.edu", name: "Alice" },
+    })
+
+    mocks.selectQueue.push([], [])
+    mocks.insertQueue.push([
+      { id: 10, firstName: "Alice", lastName: "Account", email: "alice@gradience.edu", authProviderId: "auth0|single" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ firstName: "Alice", lastName: "Account" }),
+    )
+  })
+
+  it("joins remaining words as lastName for multi-word names", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|multi", email: "abc@gradience.edu", name: "Alice Bob Smith" },
+    })
+
+    mocks.selectQueue.push([], [])
+    mocks.insertQueue.push([
+      { id: 11, firstName: "Alice", lastName: "Bob Smith", email: "abc@gradience.edu", authProviderId: "auth0|multi" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ firstName: "Alice", lastName: "Bob Smith" }),
+    )
+  })
+
+  it("trims extra whitespace from name before splitting", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|ws", email: "ws@gradience.edu", name: "  Alice  Bob  " },
+    })
+
+    mocks.selectQueue.push([], [])
+    mocks.insertQueue.push([
+      { id: 12, firstName: "Alice", lastName: "Bob", email: "ws@gradience.edu", authProviderId: "auth0|ws" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ firstName: "Alice", lastName: "Bob" }),
+    )
+  })
+
+  it("falls through to email prefix when name is all whitespace", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|wsonly", email: "alice@gradience.edu", name: "   " },
+    })
+
+    mocks.selectQueue.push([], [])
+    mocks.insertQueue.push([
+      { id: 13, firstName: "Alice", lastName: "Account", email: "alice@gradience.edu", authProviderId: "auth0|wsonly" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ firstName: "Alice", lastName: "Account" }),
+    )
+  })
+
+  it("uses email prefix for firstName when name is null", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|noname", email: "alice@gradience.edu", name: null },
+    })
+
+    mocks.selectQueue.push([], [])
+    mocks.insertQueue.push([
+      { id: 14, firstName: "Alice", lastName: "Account", email: "alice@gradience.edu", authProviderId: "auth0|noname" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ firstName: "Alice", lastName: "Account" }),
+    )
+  })
+
+  it("uses authProviderId-based fallback email when name and email are both null", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|abc", email: null, name: null },
+    })
+
+    mocks.selectQueue.push([])
+    mocks.insertQueue.push([
+      { id: 15, firstName: "Auth0|abc", lastName: "Account", email: "auth0|abc@auth.local", authProviderId: "auth0|abc" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "auth0|abc@auth.local" }),
+    )
+  })
+
+  it("uses 'user@auth.local' fallback when sub, email, and name are all null", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: null, email: null, name: null },
+    })
+
+    mocks.insertQueue.push([
+      { id: 16, firstName: "User", lastName: "Account", email: "user@auth.local", authProviderId: null },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "user@auth.local", firstName: "User", lastName: "Account" }),
+    )
+  })
+
+  // Group C — findUser null-input paths
+
+  it("only queries by email when sub is null", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: null, email: "found@gradience.edu", name: "Found User" },
+    })
+
+    mocks.selectQueue.push([
+      { id: 20, firstName: "Found", lastName: "User", email: "found@gradience.edu", authProviderId: null },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.select).toHaveBeenCalledTimes(1)
+  })
+
+  it("only queries by authProviderId when email is null", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|noemail", email: null, name: "No Email" },
+    })
+
+    mocks.selectQueue.push([
+      { id: 21, firstName: "No", lastName: "Email", email: "auth0|noemail@auth.local", authProviderId: "auth0|noemail" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.select).toHaveBeenCalledTimes(1)
+  })
+
+  it("makes no SELECT queries when both sub and email are null and falls through to insert", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: null, email: null, name: null },
+    })
+
+    mocks.insertQueue.push([
+      { id: 22, firstName: "User", lastName: "Account", email: "user@auth.local", authProviderId: null },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.select).not.toHaveBeenCalled()
+    expect(mocks.insert).toHaveBeenCalled()
+  })
+
+  // Group D — insert-path field values
+
+  it("inserts with status 'active' and passwordHash 'auth0-managed'", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|fields", email: "fields@gradience.edu", name: "Fields Test" },
+    })
+
+    mocks.selectQueue.push([], [])
+    mocks.insertQueue.push([
+      { id: 30, firstName: "Fields", lastName: "Test", email: "fields@gradience.edu", authProviderId: "auth0|fields" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "active", passwordHash: "auth0-managed" }),
+    )
+  })
+
+  it("inserts with authProviderId null when sub is null", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: null, email: "nosub@gradience.edu", name: "No Sub" },
+    })
+
+    mocks.selectQueue.push([])
+    mocks.insertQueue.push([
+      { id: 31, firstName: "No", lastName: "Sub", email: "nosub@gradience.edu", authProviderId: null },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ authProviderId: null }),
+    )
+  })
+
+  it("inserts with fallback email derived from sub when email is null", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|xyz", email: null, name: null },
+    })
+
+    mocks.selectQueue.push([])
+    mocks.insertQueue.push([
+      { id: 32, firstName: "Auth0|xyz", lastName: "Account", email: "auth0|xyz@auth.local", authProviderId: "auth0|xyz" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "auth0|xyz@auth.local" }),
+    )
+  })
+
+  // Group E — return type coercions
+
+  it("coerces id to a JS number even when the DB returns a bigint-like value", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|bigint", email: "bigint@gradience.edu", name: "Big Int" },
+    })
+
+    mocks.selectQueue.push([
+      { id: "99", firstName: "Big", lastName: "Int", email: "bigint@gradience.edu", authProviderId: "auth0|bigint" },
+    ])
+
+    const user = await requireAppUser()
+
+    expect(typeof user.id).toBe("number")
+    expect(user.id).toBe(99)
+  })
+
+  it("coerces firstName, lastName, and email to strings", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|coerce", email: "coerce@gradience.edu", name: "Coerce Test" },
+    })
+
+    mocks.selectQueue.push([
+      { id: 100, firstName: 42, lastName: true, email: "coerce@gradience.edu", authProviderId: "auth0|coerce" },
+    ])
+
+    const user = await requireAppUser()
+
+    expect(typeof user.firstName).toBe("string")
+    expect(typeof user.lastName).toBe("string")
+    expect(typeof user.email).toBe("string")
+  })
 })
