@@ -30,46 +30,46 @@
 ## 1) Architecture diagram (Mermaid, with execution locations)
 ```mermaid
 flowchart LR
-  subgraph ClientEnv[Client environment - Browser]
-    U[Student user]
-    UI[Next.js rendered UI (React)]
+  subgraph ClientEnv[Client environment]
+    U[Student]
+    UI[Web UI]
   end
 
-  subgraph ServerEnv[Server environment - Node.js (Next.js App Router)]
-    SSR[App Router pages / RSC]
-    API1[POST /api/courses/:courseId/assessments/:assignmentId/submit]
-    API2[POST /api/courses/:courseId/assessments/:assignmentId/restore]
-    API3[GET /api/courses/:courseId/assessments/:assignmentId/submissions/:submissionId/file]
-    FS[(Local filesystem: public/uploads)]
+  subgraph ServerEnv[Server environment]
+    SSR[Next server render]
+    API1[Submit upload API]
+    API2[Restore submission API]
+    API3[Get submission file API]
+    FS[(Local filesystem public uploads)]
   end
 
-  subgraph DataEnv[Data environment - PostgreSQL]
-    DB[(Postgres DB)]
-    TUsers[users]
-    TMemberships[course_memberships]
-    TAssignments[assignments]
-    TSubmissions[submissions]
+  subgraph DataEnv[Data environment]
+    DB[(Postgres)]
+    TUsers[users table]
+    TMemberships[course memberships table]
+    TAssignments[assignments table]
+    TSubmissions[submissions table]
   end
 
-  subgraph AuthEnv[Auth environment - Auth0]
-    Auth0[Auth0 session]
+  subgraph AuthEnv[Auth environment]
+    Auth0[Auth0]
   end
 
   U --> UI
   UI -->|navigate| SSR
-  SSR -->|read course/assessment data| DB
-  SSR -->|requireAppUser session lookup| Auth0
+  SSR -->|read course and assessment data| DB
+  SSR -->|read session| Auth0
 
-  UI -->|multipart/form-data PDF| API1
-  API1 -->|validate membership + assignment| DB
-  API1 -->|write PDF bytes| FS
+  UI -->|upload PDF| API1
+  API1 -->|validate membership and assignment| DB
+  API1 -->|write file bytes| FS
   API1 -->|insert submission row| TSubmissions
 
-  UI -->|restore request JSON| API2
-  API2 -->|read submissions + insert new attempt| TSubmissions
+  UI -->|restore request| API2
+  API2 -->|read submissions and insert new attempt| TSubmissions
 
-  UI -->|open PDF in new tab / iframe| API3
-  API3 -->|authorize + read submission| DB
+  UI -->|open file| API3
+  API3 -->|authorize and read submission| DB
   API3 -->|read file bytes| FS
 
   DB --- TUsers
@@ -91,33 +91,33 @@ flowchart LR
 flowchart TD
   Student[Student] -->|selects PDF bytes| Browser[Browser UI]
 
-  Browser -->|Auth0 cookies and session| Auth0[Auth0 session]
-  Browser -->|GET assessment page| App[Next.js server RSC]
+  Browser -->|uses Auth0 session| Auth0[Auth0]
+  Browser -->|GET assessment page| App[Next server]
 
-  App -->|requireAppUser identity fields| Auth0
+  App -->|requireAppUser| Auth0
   Auth0 -->|session user claims| App
-  App -->|ensure user row in users| DB[(Postgres DB)]
+  App -->|ensure user row in users| DB[(Postgres)]
 
   App -->|assessment + membership| DB
   DB -->|assignment fields + membership role/status| App
 
-  Browser -->|POST multipart: file=PDF| SubmitAPI[Submit route handler]
-  SubmitAPI -->|course_memberships lookup (active)| DB
-  SubmitAPI -->|assignments lookup| DB
-  SubmitAPI -->|attempt count query| DB
-  SubmitAPI -->|write bytes to public/uploads/...| FS[(Filesystem)]
-  SubmitAPI -->|INSERT submissions row fields| DB
-  SubmitAPI -->|JSON success or error| Browser
+  Browser -->|POST upload PDF| SubmitAPI[Submit route]
+  SubmitAPI -->|lookup active membership| DB
+  SubmitAPI -->|lookup assignment| DB
+  SubmitAPI -->|query attempt count| DB
+  SubmitAPI -->|write file bytes| FS[(Filesystem)]
+  SubmitAPI -->|insert submissions row| DB
+  SubmitAPI -->|return JSON success or error| Browser
 
   Browser -->|refresh page| App
   App -->|listMemberSubmissionHistory| DB
   DB -->|attempt history rows| App
   App -->|render history and View PDF links| Browser
 
-  Browser -->|GET /file route| FileAPI[File route handler]
-  FileAPI -->|authorize (active membership + owner/grader)| DB
-  FileAPI -->|read bytes from public/...| FS
-  FileAPI -->|PDF bytes inline| Browser
+  Browser -->|GET file route| FileAPI[File route]
+  FileAPI -->|authorize membership and role| DB
+  FileAPI -->|read file bytes| FS
+  FileAPI -->|return PDF bytes| Browser
 ```
 
 **Primary user/application data moved:**
@@ -134,44 +134,44 @@ This feature is implemented primarily with **functions** (React function compone
 ```mermaid
 classDiagram
   class AssessmentSubmissionPanel {
-    +props: AssessmentSubmissionPanelProps
-    +handleFileChange(event)
+    +props
+    +handleFileChange()
     +submitNewVersion()
-    +restoreSubmission(submissionId)
+    +restoreSubmission()
   }
 
   class SubmitRoute {
-    +POST(request, params)
+    +POST()
   }
 
   class RestoreRoute {
-    +POST(request, params)
+    +POST()
   }
 
   class SubmissionFileRoute {
-    +GET(request, params)
+    +GET()
   }
 
   class CourseManagement {
-    +getAssessmentForCourseMember(userId, courseId, assignmentId)
-    +listMemberSubmissionHistory(userId, courseId, assignmentId)
+    +getAssessmentForCourseMember()
+    +listMemberSubmissionHistory()
   }
 
   class CurrentUser {
     +requireAppUser()
-    -ensureUserRecord(params)
-    -findUser(authProviderId, email)
+    -ensureUserRecord()
+    -findUser()
   }
 
   class DrizzleDB {
-    +select(...)
-    +insert(...)
-    +update(...)
+    +select()
+    +insert()
+    +update()
   }
 
-  AssessmentSubmissionPanel --> SubmitRoute : fetch submit POST
-  AssessmentSubmissionPanel --> RestoreRoute : fetch restore POST
-  AssessmentSubmissionPanel --> SubmissionFileRoute : open View PDF
+  AssessmentSubmissionPanel --> SubmitRoute : uses
+  AssessmentSubmissionPanel --> RestoreRoute : uses
+  AssessmentSubmissionPanel --> SubmissionFileRoute : uses
 
   SubmitRoute --> CurrentUser : requireAppUser()
   RestoreRoute --> CurrentUser : requireAppUser()
