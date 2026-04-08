@@ -1,5 +1,7 @@
 # Human Acceptance Tests — User Story 8
 
+User: Christine Truong
+
 ---
 
 ## User Story 8.1: Allow Students to Submit After the Deadline with a Late Status
@@ -100,8 +102,6 @@ Answer: 5 / 5 - deadline clearly shown, amber theme helped (rather than red).
 5. Confirm all student cards are listed in **alphabetical order** by name.
 
 ### Survey Questions
-
-User: Christine Truong
 
 **Q1. How easy was it on a scale from 1 to 5 to find all the student submissions?**
 
