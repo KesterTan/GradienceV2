@@ -82,6 +82,7 @@ describe("current-user helpers", () => {
     const user = await requireAppUser()
 
     expect(mocks.updateSet).toHaveBeenCalledWith({ authProviderId: "auth0|abc", status: "active" })
+    expect(mocks.updateWhere).toHaveBeenCalled()
     expect(user).toEqual({
       id: 1,
       firstName: "Irene",
@@ -231,6 +232,23 @@ describe("current-user helpers", () => {
     )
   })
 
+  it("falls through to email prefix when name is an empty string", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|emptyname", email: "alice@gradience.edu", name: "" },
+    })
+
+    mocks.selectQueue.push([], [])
+    mocks.insertQueue.push([
+      { id: 13, firstName: "Alice", lastName: "Account", email: "alice@gradience.edu", authProviderId: "auth0|emptyname" },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ firstName: "Alice", lastName: "Account" }),
+    )
+  })
+
   it("falls through to email prefix when name is all whitespace", async () => {
     mocks.getSession.mockResolvedValueOnce({
       user: { sub: "auth0|wsonly", email: "alice@gradience.edu", name: "   " },
@@ -312,6 +330,36 @@ describe("current-user helpers", () => {
     await requireAppUser()
 
     expect(mocks.select).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not update when sub is null and user is found by email", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: null, email: "found@gradience.edu", name: "Found User" },
+    })
+
+    mocks.selectQueue.push([
+      { id: 20, firstName: "Found", lastName: "User", email: "found@gradience.edu", authProviderId: null },
+    ])
+
+    await requireAppUser()
+
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it("does not update when user found by email already has a different authProviderId set", async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      user: { sub: "auth0|new", email: "linked@gradience.edu", name: "Linked User" },
+    })
+
+    // provider lookup misses, email lookup finds record with a different existing provider
+    mocks.selectQueue.push(
+      [],
+      [{ id: 25, firstName: "Linked", lastName: "User", email: "linked@gradience.edu", authProviderId: "github|old" }],
+    )
+
+    await requireAppUser()
+
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 
   it("only queries by authProviderId when email is null", async () => {
