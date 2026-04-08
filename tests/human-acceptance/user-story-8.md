@@ -101,6 +101,8 @@ Answer: 5 / 5 - deadline clearly shown, amber theme helped (rather than red).
 
 ### Survey Questions
 
+User: Christine Truong
+
 **Q1. How easy was it on a scale from 1 to 5 to find all the student submissions?**
 
 > **Metric covered — Scannability of the complete student submission list:** This question measures whether the "Student submissions" section — with individual cards per student showing name, email, version, and status — allows an instructor to take in the full picture of all submissions at once without confusion, excessive scrolling, or needing to open individual entries to understand the overall state of the class.
