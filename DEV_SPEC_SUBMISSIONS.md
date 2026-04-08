@@ -19,7 +19,7 @@
 
 ## 0.1) Ownership and merge metadata
 - **Primary owner (by git authorship of PR #18 commit):** `preeyaX`
-- **Secondary owner (by git authorship on submission pipeline files):** `vickyc2266`
+- **Secondary owner (by git authorship on submission pipeline files):** `kesterTan`
 - **Date merged into `main`:** **2026-03-26**
   - Evidence: commit `0f53760` — *`[NEW] Submit an Assignment, View Submission History, and Restore Previous Submissions (#18) -> merging to main`*
 
@@ -30,20 +30,20 @@
 ## 1) Architecture diagram (Mermaid, with execution locations)
 ```mermaid
 flowchart LR
-  subgraph ClientEnv[Client environment (Browser)]
+  subgraph ClientEnv[Client environment - Browser]
     U[Student user]
     UI[Next.js rendered UI (React)]
   end
 
-  subgraph ServerEnv[Server environment (Node.js, Next.js App Router)]
+  subgraph ServerEnv[Server environment - Node.js (Next.js App Router)]
     SSR[App Router pages / RSC]
-    API1[Route Handler: POST /api/courses/:courseId/assessments/:assignmentId/submit]
-    API2[Route Handler: POST /api/courses/:courseId/assessments/:assignmentId/restore]
-    API3[Route Handler: GET /api/courses/:courseId/assessments/:assignmentId/submissions/:submissionId/file]
-    FS[(Local filesystem\npublic/uploads/...)]
+    API1[POST /api/courses/:courseId/assessments/:assignmentId/submit]
+    API2[POST /api/courses/:courseId/assessments/:assignmentId/restore]
+    API3[GET /api/courses/:courseId/assessments/:assignmentId/submissions/:submissionId/file]
+    FS[(Local filesystem: public/uploads)]
   end
 
-  subgraph DataEnv[Data environment (PostgreSQL)]
+  subgraph DataEnv[Data environment - PostgreSQL]
     DB[(Postgres DB)]
     TUsers[users]
     TMemberships[course_memberships]
@@ -51,14 +51,14 @@ flowchart LR
     TSubmissions[submissions]
   end
 
-  subgraph AuthEnv[Auth environment (Auth0)]
-    Auth0[Auth0 session via @auth0/nextjs-auth0]
+  subgraph AuthEnv[Auth environment - Auth0]
+    Auth0[Auth0 session]
   end
 
   U --> UI
   UI -->|navigate| SSR
   SSR -->|read course/assessment data| DB
-  SSR -->|requireAppUser() session lookup| Auth0
+  SSR -->|requireAppUser session lookup| Auth0
 
   UI -->|multipart/form-data PDF| API1
   API1 -->|validate membership + assignment| DB
@@ -91,12 +91,12 @@ flowchart LR
 flowchart TD
   Student[Student] -->|selects PDF bytes| Browser[Browser UI]
 
-  Browser -->|Auth0 cookies / session| Auth0[Auth0-backed session]
-  Browser -->|GET assessment page| App[Next.js server (RSC)]
+  Browser -->|Auth0 cookies and session| Auth0[Auth0 session]
+  Browser -->|GET assessment page| App[Next.js server RSC]
 
-  App -->|requireAppUser(): authProviderId, email, name| Auth0
+  App -->|requireAppUser identity fields| Auth0
   Auth0 -->|session user claims| App
-  App -->|ensure user row (users)| DB[(Postgres)]
+  App -->|ensure user row in users| DB[(Postgres DB)]
 
   App -->|assessment + membership| DB
   DB -->|assignment fields + membership role/status| App
@@ -106,18 +106,18 @@ flowchart TD
   SubmitAPI -->|assignments lookup| DB
   SubmitAPI -->|attempt count query| DB
   SubmitAPI -->|write bytes to public/uploads/...| FS[(Filesystem)]
-  SubmitAPI -->|INSERT submissions row (file_url, attempt_number, status)| DB
-  SubmitAPI -->|JSON {success:true} or {error:string}| Browser
+  SubmitAPI -->|INSERT submissions row fields| DB
+  SubmitAPI -->|JSON success or error| Browser
 
-  Browser -->|refresh (router.refresh)| App
-  App -->|listMemberSubmissionHistory()| DB
+  Browser -->|refresh page| App
+  App -->|listMemberSubmissionHistory| DB
   DB -->|attempt history rows| App
-  App -->|renders history + View PDF links| Browser
+  App -->|render history and View PDF links| Browser
 
   Browser -->|GET /file route| FileAPI[File route handler]
   FileAPI -->|authorize (active membership + owner/grader)| DB
   FileAPI -->|read bytes from public/...| FS
-  FileAPI -->|application/pdf bytes (inline)| Browser
+  FileAPI -->|PDF bytes inline| Browser
 ```
 
 **Primary user/application data moved:**
@@ -169,9 +169,9 @@ classDiagram
     +update(...)
   }
 
-  AssessmentSubmissionPanel --> SubmitRoute : fetch(POST submit)
-  AssessmentSubmissionPanel --> RestoreRoute : fetch(POST restore)
-  AssessmentSubmissionPanel --> SubmissionFileRoute : open(View PDF)
+  AssessmentSubmissionPanel --> SubmitRoute : fetch submit POST
+  AssessmentSubmissionPanel --> RestoreRoute : fetch restore POST
+  AssessmentSubmissionPanel --> SubmissionFileRoute : open View PDF
 
   SubmitRoute --> CurrentUser : requireAppUser()
   RestoreRoute --> CurrentUser : requireAppUser()
