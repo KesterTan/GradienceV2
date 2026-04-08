@@ -37,9 +37,7 @@ flowchart LR
 
   subgraph ServerEnv[Server environment]
     SSR[Next server render]
-    API1[Submit upload API]
-    API2[Restore submission API]
-    API3[Get submission file API]
+    SubmissionsModule[Submissions module]
     FS[(Local filesystem public uploads)]
   end
 
@@ -60,17 +58,13 @@ flowchart LR
   SSR -->|read course and assessment data| DB
   SSR -->|read session| Auth0
 
-  UI -->|upload PDF| API1
-  API1 -->|validate membership and assignment| DB
-  API1 -->|write file bytes| FS
-  API1 -->|insert submission row| TSubmissions
+  UI -->|upload PDF or restore| SubmissionsModule
+  SubmissionsModule -->|validate membership and assignment| DB
+  SubmissionsModule -->|write and read file bytes| FS
+  SubmissionsModule -->|insert and read submission rows| TSubmissions
 
-  UI -->|restore request| API2
-  API2 -->|read submissions and insert new attempt| TSubmissions
-
-  UI -->|open file| API3
-  API3 -->|authorize and read submission| DB
-  API3 -->|read file bytes| FS
+  UI -->|open file| SubmissionsModule
+  SubmissionsModule -->|authorize file access| DB
 
   DB --- TUsers
   DB --- TMemberships
@@ -101,23 +95,23 @@ flowchart TD
   App -->|assessment + membership| DB
   DB -->|assignment fields + membership role/status| App
 
-  Browser -->|POST upload PDF| SubmitAPI[Submit route]
-  SubmitAPI -->|lookup active membership| DB
-  SubmitAPI -->|lookup assignment| DB
-  SubmitAPI -->|query attempt count| DB
-  SubmitAPI -->|write file bytes| FS[(Filesystem)]
-  SubmitAPI -->|insert submissions row| DB
-  SubmitAPI -->|return JSON success or error| Browser
+  Browser -->|upload or restore request| SubmissionsModule[Submissions module]
+  SubmissionsModule -->|lookup active membership| DB
+  SubmissionsModule -->|lookup assignment| DB
+  SubmissionsModule -->|query attempt count| DB
+  SubmissionsModule -->|write file bytes| FS[(Filesystem)]
+  SubmissionsModule -->|insert submissions row| DB
+  SubmissionsModule -->|return JSON success or error| Browser
 
   Browser -->|refresh page| App
   App -->|listMemberSubmissionHistory| DB
   DB -->|attempt history rows| App
   App -->|render history and View PDF links| Browser
 
-  Browser -->|GET file route| FileAPI[File route]
-  FileAPI -->|authorize membership and role| DB
-  FileAPI -->|read file bytes| FS
-  FileAPI -->|return PDF bytes| Browser
+  Browser -->|open file| SubmissionsModule
+  SubmissionsModule -->|authorize membership and role| DB
+  SubmissionsModule -->|read file bytes| FS
+  SubmissionsModule -->|return PDF bytes| Browser
 ```
 
 **Primary user/application data moved:**
@@ -140,16 +134,10 @@ classDiagram
     +restoreSubmission()
   }
 
-  class SubmitRoute {
-    +POST()
-  }
-
-  class RestoreRoute {
-    +POST()
-  }
-
-  class SubmissionFileRoute {
-    +GET()
+  class SubmissionsModule {
+    +uploadSubmission()
+    +restoreSubmission()
+    +serveSubmissionFile()
   }
 
   class CourseManagement {
@@ -213,26 +201,18 @@ classDiagram
     +isCurrent
   }
 
-  AssessmentSubmissionPanel --> SubmitRoute : uses
-  AssessmentSubmissionPanel --> RestoreRoute : uses
-  AssessmentSubmissionPanel --> SubmissionFileRoute : uses
+  AssessmentSubmissionPanel --> SubmissionsModule : uses
 
-  SubmitRoute --> CurrentUser : requireAppUser()
-  RestoreRoute --> CurrentUser : requireAppUser()
-  SubmissionFileRoute --> CurrentUser : requireAppUser()
+  SubmissionsModule --> CurrentUser : requireAppUser()
 
-  SubmitRoute --> DrizzleDB : reads/writes
-  RestoreRoute --> DrizzleDB : reads/writes
-  SubmissionFileRoute --> DrizzleDB : reads
+  SubmissionsModule --> DrizzleDB : reads/writes
 
   CourseManagement --> DrizzleDB : reads
 
   CurrentUser --> UsersTable : reads/writes
-  SubmitRoute --> CourseMembershipsTable : reads
-  SubmitRoute --> AssignmentsTable : reads
-  SubmitRoute --> SubmissionsTable : reads/writes
-  RestoreRoute --> SubmissionsTable : reads/writes
-  SubmissionFileRoute --> SubmissionsTable : reads
+  SubmissionsModule --> CourseMembershipsTable : reads
+  SubmissionsModule --> AssignmentsTable : reads
+  SubmissionsModule --> SubmissionsTable : reads/writes
   CourseManagement --> SubmissionsTable : reads
   AssessmentSubmissionPanel --> MemberSubmissionHistoryItem : renders
 ```
