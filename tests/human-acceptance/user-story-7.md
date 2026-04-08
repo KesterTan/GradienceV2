@@ -1,5 +1,7 @@
 # Human Acceptance Tests — User Story 7
 
+User: Evelyn Lui
+
 ---
 
 ## User Story 7.1: Upload a PDF for an Assignment
