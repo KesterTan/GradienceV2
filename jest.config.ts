@@ -5,11 +5,16 @@ const config: Config = {
   testEnvironment: "node",
   testMatch: ["**/tests/**/*.jest.test.ts", "**/tests/**/*.jest.test.tsx"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
+  testMatch: [
+    "**/tests/**/*.jest.test.ts",
+    "**/tests/components/**/*.test.tsx",
+  ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
   clearMocks: true,
   restoreMocks: true,
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
 }
 
 export default config
