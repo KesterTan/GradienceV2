@@ -34,7 +34,7 @@
 
 > **Metric covered — Upload success on first attempt:** This question measures whether the upload flow (the dashed upload area, file picker, and submit button) is intuitive enough that a user can complete it without confusion or retrying. A score of 4 or 5 indicates the interface guided the user successfully on the first attempt.
 
-Answer: _____ / 5
+Answer: 5 / 5 - similar to gradescope, so easy to follow
 
 ---
 
@@ -42,7 +42,7 @@ Answer: _____ / 5
 
 > **Metric covered — Error encounter rate:** This question surfaces whether the user ran into any client-side or server-side errors (e.g., wrong file type warning, file too large, silent failure). Identifying what errors occurred and at which step reveals whether the system's constraints are communicated clearly enough before the user attempts submission.
 
-Answer: _____ errors
+Answer: 0 errors
 
 ---
 
@@ -50,13 +50,13 @@ Answer: _____ errors
 
 > **Metric covered — Confidence in submission receipt:** This question measures whether the system's success feedback (the green "New submission uploaded." message and the updated submission history card) is convincing enough that the user does not feel the need to re-verify by refreshing the page or clicking "View PDF". A score below 4 suggests the post-submission feedback needs to be stronger.
 
-Answer: _____ / 5
+Answer: 5 / 5 - saw a submission message + can view pdf.
 
 ---
 
 ### Overall Result
 
-- [ ] Pass
+- [x] Pass
 - [ ] Fail
 
 **Notes:**
@@ -96,7 +96,7 @@ Answer: _____ / 5
 
 > **Metric covered — Discoverability of the resubmit flow:** This question measures whether the upload area, button states, and submission history made it clear that submitting again was possible and that the new version would become the active one. A low score indicates the interface does not communicate resubmission behavior clearly enough for a user to act without hesitation.
 
-Answer: _____ / 5
+Answer: 5 / 5 - upload pdf not disabled so it made sense.
 
 ---
 
@@ -104,7 +104,7 @@ Answer: _____ / 5
 
 > **Metric covered — Error or block encountered when attempting to resubmit:** This question identifies whether the user ran into any unexpected barriers — such as a submission cap they were unaware of, a confusing disabled state, or a technical error — when trying to submit again. Unexpected blocks that the user cannot interpret represent a gap between system behavior and what the interface communicates upfront.
 
-Answer: _____ errors
+Answer: 0 errors
 
 ---
 
@@ -112,13 +112,13 @@ Answer: _____ errors
 
 > **Metric covered — Clarity of submission state after resubmitting:** This question measures whether the "Current" badge, version numbering, and updated submission history card are convincing enough that the user is certain their newest upload is the one that will be graded, without needing to take additional steps to verify.
 
-Answer: _____ / 5
+Answer: 5 / 5 - "current" badge easily visible.
 
 ---
 
 ### Overall Result
 
-- [ ] Pass
+- [x] Pass
 - [ ] Fail
 
 **Notes:**
@@ -160,7 +160,7 @@ Answer: _____ / 5
 
 > **Metric covered — Discoverability of the restore button:** This question measures whether the "Restore" button is visible and interpretable without being told it exists. A low score indicates that the button's placement, label, or visual weight is not prominent enough for a user to notice it independently while browsing their submission history.
 
-Answer: _____ / 5
+Answer: 5 / 5 - logical placement, logo helped.
 
 ---
 
@@ -168,7 +168,7 @@ Answer: _____ / 5
 
 > **Metric covered — Expectation-to-outcome alignment for restore:** This question measures whether the user's mental model of "restore" matched the system's actual behavior — creating a new version entry that copies the selected file, rather than overwriting or deleting anything. A low score reveals a gap between what the label and surrounding UI imply and what the feature actually does.
 
-Answer: _____ / 5
+Answer: 5 / 5 - understands what restore does because of gradescope.
 
 ---
 
@@ -176,17 +176,11 @@ Answer: _____ / 5
 
 > **Metric covered — Adequacy of post-restore feedback:** This question measures whether the system's confirmation — the success message and the updated submission history showing a new "Current" version — was sufficient for the user to be certain the restore worked correctly, without needing to click "View PDF" or take any additional verification steps.
 
-Answer: _____ / 5
+Answer: 5 / 5 - could see a new submission row for the restored pdf.
 
 ---
 
 ### Overall Result
 
-- [ ] Pass
+- [x] Pass
 - [ ] Fail
-
-**Notes:**
-
-&nbsp;
-
-&nbsp;
