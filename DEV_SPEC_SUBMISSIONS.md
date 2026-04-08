@@ -169,6 +169,50 @@ classDiagram
     +update()
   }
 
+  class UsersTable {
+    +id
+    +firstName
+    +lastName
+    +email
+    +authProviderId
+  }
+
+  class CourseMembershipsTable {
+    +id
+    +courseId
+    +userId
+    +role
+    +status
+  }
+
+  class AssignmentsTable {
+    +id
+    +courseId
+    +dueAt
+    +lateUntil
+    +allowResubmissions
+    +maxAttemptResubmission
+  }
+
+  class SubmissionsTable {
+    +id
+    +assignmentId
+    +studentMembershipId
+    +attemptNumber
+    +submittedAt
+    +status
+    +fileUrl
+  }
+
+  class MemberSubmissionHistoryItem {
+    +id
+    +attemptNumber
+    +status
+    +submittedAt
+    +fileUrl
+    +isCurrent
+  }
+
   AssessmentSubmissionPanel --> SubmitRoute : uses
   AssessmentSubmissionPanel --> RestoreRoute : uses
   AssessmentSubmissionPanel --> SubmissionFileRoute : uses
@@ -182,6 +226,15 @@ classDiagram
   SubmissionFileRoute --> DrizzleDB : reads
 
   CourseManagement --> DrizzleDB : reads
+
+  CurrentUser --> UsersTable : reads/writes
+  SubmitRoute --> CourseMembershipsTable : reads
+  SubmitRoute --> AssignmentsTable : reads
+  SubmitRoute --> SubmissionsTable : reads/writes
+  RestoreRoute --> SubmissionsTable : reads/writes
+  SubmissionFileRoute --> SubmissionsTable : reads
+  CourseManagement --> SubmissionsTable : reads
+  AssessmentSubmissionPanel --> MemberSubmissionHistoryItem : renders
 ```
 
 ---
@@ -218,6 +271,103 @@ classDiagram
   - `restoringSubmissionId: number | null`: prevents multi-restore.
 - **Styling helper**
   - `statusStyles(status, isInstructor)`: maps statuses to badge styles.
+
+#### `AssessmentPage` (`app/courses/[courseId]/assessments/[assignmentId]/page.tsx`)
+This is the primary **page entry point** where students upload PDFs and where graders view student submissions.
+
+**Public fields/methods**
+- `default export async function AssessmentPage({ params })`:
+  - Authenticates via `requireAppUser()`.
+  - Loads assessment context via `getAssessmentForCourseMember(...)`.
+  - Loads the viewer’s submission history via `listMemberSubmissionHistory(...)`.
+  - If viewer is an instructor (non-student), also loads:
+    - `listSubmissionsForAssessment(...)`
+    - `listStudentsWithoutSubmission(...)`
+  - Renders:
+    - `AssessmentSubmissionPanel` for upload + history
+    - `StudentSubmissionsCard` for instructor view of student submissions
+
+**Private fields/methods**
+- `isInstructor` derived from `assessment.viewerRole === "Instructor"`.
+
+#### `StudentSubmissionsCard` (`components/student-submissions-card.tsx`)
+Instructor-facing component that shows a student’s current submission and older versions, with links to view PDFs and open the submission detail page.
+
+**Public fields/methods**
+- `StudentSubmissionsCard({ courseId, assignmentId, versions })`:
+  - `versions: SubmissionSummary[]` (current version first).
+  - Renders “View PDF” link to the authenticated file route.
+  - Renders “Open submission” link to the submission detail page.
+  - Renders older-version history with a toggle.
+  - Includes `InstructorRestoreButton` for restoring an older version.
+
+**Private fields/methods**
+- `historyOpen` state controlling history visibility.
+- Derived `current` and `history` arrays from `versions`.
+
+#### `InstructorRestoreButton` (`components/instructor-restore-button.tsx`)
+Instructor-facing restore action used inside `StudentSubmissionsCard`.
+
+**Public fields/methods**
+- `InstructorRestoreButton({ courseId, assignmentId, submissionId })`:
+  - Calls `POST /api/courses/:courseId/assessments/:assignmentId/restore` with JSON `{ submissionId }`.
+  - On success, calls `router.refresh()` to update the UI.
+
+**Private fields/methods**
+- `restoring` state to disable repeated clicks.
+- `error` state for inline error display.
+- `handleRestore()` async function implementing fetch + error handling.
+
+#### `PdfUploadForm` (`components/pdf-upload-form.tsx`)
+Legacy/simple upload-only component that predates `AssessmentSubmissionPanel`. It still exists in the repo and uses the **older** “assignments” submit API route.
+
+**Public fields/methods**
+- `PdfUploadForm({ courseId, assignmentId, dueAt })`:
+  - Validates PDF selection on the client and uploads as multipart form-data.
+  - Calls `POST /api/courses/:courseId/assignments/:assignmentId/submit`.
+  - Calls `router.refresh()` on success.
+
+**Private fields/methods**
+- `inputRef` for clearing/triggering file input.
+- `selectedFile` and `uploading` state.
+- `handleFileChange(e)` and `handleSubmit(e)` event handlers.
+
+#### `RestoreButton` (`components/restore-button.tsx`)
+Legacy/simple restore button that predates `InstructorRestoreButton`. It still exists in the repo and uses the **older** “assignments submissions restore” API route.
+
+**Public fields/methods**
+- `RestoreButton({ courseId, assignmentId, submissionId })`:
+  - Calls `POST /api/courses/:courseId/assignments/:assignmentId/submissions/:submissionId/restore`.
+  - Calls `router.refresh()` on success.
+
+**Private fields/methods**
+- `loading` state.
+- `handleRestore()` async function implementing fetch + toast error handling.
+
+#### `SubmissionPage` (`app/courses/[courseId]/assessments/[assignmentId]/submissions/[submissionId]/page.tsx`)
+Grader-facing submission detail page (downstream of the upload pipeline). It embeds the submitted PDF via the authenticated file route and can also link directly to `submission.fileUrl`.
+
+**Public fields/methods**
+- `default export async function SubmissionPage({ params })`:
+  - Authenticates via `requireAppUser()`.
+  - Loads detailed submission+grade context via `getSubmissionGradeForGrader(...)`.
+  - Embeds the PDF using an `<iframe>` pointed at the file API route.
+  - Provides an “Open submitted file” link using the raw `submission.fileUrl` value.
+
+**Private fields/methods**
+- None (behavior is inline in the server component).
+
+#### `StudentSubmissionGradePage` (`app/courses/[courseId]/assessments/[assignmentId]/submissions/[submissionId]/grade/page.tsx`)
+Student-facing grade view (downstream of upload). It embeds the submitted PDF and renders rubric breakdown (if present).
+
+**Public fields/methods**
+- `default export async function StudentSubmissionGradePage({ params })`:
+  - Authenticates via `requireAppUser()`.
+  - Loads student-scoped grade context via `getSubmissionGradeForStudent(...)`.
+  - Embeds the PDF using an `<iframe>` pointed at the file API route.
+
+**Private fields/methods**
+- Computes `scoreByOrder` map to render rubric score breakdown.
 
 ---
 
@@ -294,6 +444,12 @@ classDiagram
     - `submissions.student_membership_id = my_membership.id`
     - `my_membership.status = 'active'`
   - Provides derived `isCurrent` (latest attempt).
+- `listSubmissionsForAssessment(userId, courseId, assignmentId)`:
+  - Grader-only list of student submissions for an assessment (used by `AssessmentPage` instructor view).
+- `listStudentsWithoutSubmission(userId, courseId, assignmentId)`:
+  - Grader-only list of students who have not submitted yet (used by `AssessmentPage` instructor view).
+- `getSubmissionForGrader(userId, courseId, assignmentId, submissionId)`:
+  - Loads a specific submission detail for instructor workflows (used by submission detail pages).
 
 **Private fields/methods**
 - Query construction details (aliases, joins, `sql<>` computed fields).
@@ -315,6 +471,146 @@ classDiagram
   - Locates a user by `auth_provider_id` or case-insensitive email.
 - `ensureUserRecord({ authProviderId, email, name })`:
   - Creates a user record if missing; updates `auth_provider_id` if needed.
+
+#### `auth0` client wrapper (`lib/auth0.ts`)
+`requireAppUser()` depends on the singleton `auth0` client exported from `lib/auth0.ts`.
+
+**Public fields/methods**
+- `createAuth0Client(appBaseUrl?)`:
+  - Constructs an `Auth0Client` from environment variables.
+  - Configures login/logout/callback routes and a callback redirect strategy.
+- `auth0`:
+  - Singleton `Auth0Client` used by `lib/current-user.ts` to call `auth0.getSession()`.
+
+**Private fields/methods**
+- `resolveAuth0Domain()` and `resolveAppBaseUrl()` used to derive runtime configuration.
+
+---
+
+### I) Database client wiring
+The submission routes and course-management module use the shared Drizzle client.
+
+#### `db` (`db/orm.ts`)
+**Public fields/methods**
+- `db`: Drizzle client created via `drizzle(pool, { schema })`, used for `select`, `insert`, `update`.
+
+**Private fields/methods**
+- None (module-level wiring).
+
+---
+
+### G) Database schema “classes” (Drizzle table definitions)
+The codebase models database tables as exported constants in `db/schema.ts` (e.g. `export const submissions = gradience.table("submissions", {...})`). These are not TypeScript `class` declarations, but they are **the primary “database classes”** that the route handlers and data layer reference.
+
+#### `users` table (`db/schema.ts`)
+**Public fields/methods**
+- **Fields (columns)**
+  - `id`: primary key.
+  - `first_name`, `last_name`: display name fields used across dashboards.
+  - `email`: account identity / display and de-duplication.
+  - `password_hash`: stored credential placeholder (Auth0-managed in current integration).
+  - `auth_provider_id`: links Auth0 identity to the app user row.
+  - `status`: active/disabled marker used by `requireAppUser()` when upserting.
+  - `created_at`: creation timestamp.
+  - `updated_at`: update timestamp.
+
+**Private fields/methods**
+- None (schema definition only).
+
+#### `course_memberships` table (`db/schema.ts`)
+**Public fields/methods**
+- **Fields (columns)**
+  - `id`: primary key; also persisted into `submissions.student_membership_id`.
+  - `course_id`: membership scope.
+  - `user_id`: links membership to `users.id`.
+  - `role`: `"student"` / `"grader"` (used to authorize upload/file access).
+  - `status`: `"active"` gate used in submission routes and course-management reads.
+  - `joined_at`: membership join timestamp.
+
+**Private fields/methods**
+- None (schema definition only).
+
+#### `assignments` table (`db/schema.ts`)
+**Public fields/methods**
+- **Fields (columns) used by submissions pipeline**
+  - `id`, `course_id`: used to verify the assignment exists within the course.
+  - `due_at`: submission deadline.
+  - `late_until`: optional late window end.
+  - `allow_resubmissions`, `max_attempt_resubmission`: attempt cap logic.
+
+**Private fields/methods**
+- None (schema definition only).
+
+#### `submissions` table (`db/schema.ts`)
+**Public fields/methods**
+- **Fields (columns) written/read by submission routes**
+  - `id`: primary key.
+  - `assignment_id`: which assignment was submitted.
+  - `student_membership_id`: which course membership submitted.
+  - `attempt_number`: version counter (incremented on each submit/restore).
+  - `submitted_at`: submit timestamp.
+  - `status`: `"submitted"` or `"late"` as derived in the submit/restore routes.
+  - `text_content`: reserved for text submissions (currently `null` for PDF uploads).
+  - `file_url`: either a site-relative path (e.g. `/uploads/...pdf`) or a full `https://...` URL.
+  - `ai_processed_status`: defaults `"awaiting"`.
+  - `created_at`, `updated_at`: timestamps.
+
+**Private fields/methods**
+- None (schema definition only).
+
+---
+
+### H) TypeScript type projections used in the submission pipeline
+These are declared in `lib/course-management.ts` and are used by UI components/pages to render submission state. They are not runtime values, but they are part of the implementation contract and are relevant to the story.
+
+#### `MemberSubmissionHistoryItem` type (`lib/course-management.ts`)
+**Public fields/methods**
+- **Fields**
+  - `id: number`: submission row id.
+  - `attemptNumber: number`: version number.
+  - `status: string`: `"submitted"` / `"late"` (and potentially other statuses if added later).
+  - `submittedAt: string`: timestamp string (ISO-like).
+  - `fileUrl: string | null`: path or URL for the PDF.
+  - `isCurrent: boolean`: derived client-facing flag for the latest attempt.
+
+**Private fields/methods**
+- None (type only).
+
+#### `SubmissionSummary` type (`lib/course-management.ts`)
+**Public fields/methods**
+- **Fields**
+  - `id`, `studentMembershipId`, `studentName`, `studentEmail`
+  - `status`, `submittedAt`, `attemptNumber`
+  - `fileUrl`
+
+**Private fields/methods**
+- None (type only).
+
+#### `SubmissionDetail` type (`lib/course-management.ts`)
+**Public fields/methods**
+- **Fields**
+  - Submission fields: `id`, `attemptNumber`, `status`, `submittedAt`, `textContent`, `fileUrl`
+  - Student identity: `studentName`, `studentEmail`
+  - Context: `assignmentTitle`, `courseId`, `courseTitle`, `assignmentId`
+
+**Private fields/methods**
+- None (type only).
+
+#### `AssessmentDetail` and `AssessmentMemberDetail` types (`lib/course-management.ts`)
+These types define the read model for the assessment page (which is where submission upload occurs).
+
+**Public fields/methods**
+- **`AssessmentDetail` fields (selected subset used by submissions UI)**
+  - `id`, `courseId`, `courseTitle`
+  - `title`, `description`
+  - `releaseAt`, `dueAt`, `lateUntil`
+  - `totalPoints`
+  - `allowResubmissions`, `maxAttemptResubmission`
+- **`AssessmentMemberDetail`**
+  - Extends `AssessmentDetail` by adding `viewerRole` (`"Student"` or `"Instructor"`) which gates which submission UI is rendered.
+
+**Private fields/methods**
+- None (types only).
 
 ---
 
@@ -501,7 +797,7 @@ PDF uploads may contain PII inside the document (names, IDs, etc.).
 
 ### 8.3) Storage security ownership (cannot be derived from repo policy)
 The repo does not define a security ownership matrix. Based on git authorship and typical team roles, the following is a **suggested** ownership mapping to fill in:
-- **Postgres DB security owners:** `preeyaX`, `vickyc2266`, `Kester`
+- **Postgres DB security owners:** `vickyc2266`, `Kester`
 - **Filesystem upload storage owners:** `preeyaX`, `vickyc2266`
 - **Auth0 configuration owners:** `Kester` (and whomever manages Auth0 tenant settings)
 
