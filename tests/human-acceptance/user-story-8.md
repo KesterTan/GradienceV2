@@ -44,7 +44,7 @@
 
 > **Metric covered — Clarity of submission window state communicated to the student:** This question measures whether the UI makes it unambiguous to the student whether they are currently allowed to submit — whether the window is open, in the late period, or fully closed. A score of 1 indicates the student was uncertain or incorrectly believed they could not submit; a score of 5 indicates the interface communicated their eligibility clearly without requiring them to guess.
 
-Answer: _____ / 5
+Answer: 5 / 5 - region to upload the pdf was still enabled, so believed that i could submit.
 
 ---
 
@@ -52,21 +52,21 @@ Answer: _____ / 5
 
 > **Metric covered — Visual distinction between late and on-time submissions:** This question measures whether the amber background, amber "late" label, and status badge on the instructor's student submission cards make it immediately apparent which submissions were late without requiring the instructor to check timestamps or open individual submissions.
 
-Answer: _____ / 5
+Answer: 5 / 5 - yellow badges were distinct.
 
 ---
 
-**Q3. How convinced were you on a scale from 1 to 5 that you were submitting during the late window?**
+**Q3. How convinced were you on a scale from 1 to 5 that you were allowed to submit during the late window?**
 
 > **Metric covered — Clarity of the late window indicator:** This question measures whether the amber "You are past the deadline — this submission will be marked as late." warning banner, combined with the "Late submissions accepted until..." line on the assignment info card, made it sufficiently clear to the student that they were specifically inside the late window — not just that submission was possible, but that they were past the regular deadline and within a grace period.
 
-Answer: _____ / 5
+Answer: 5 / 5 - deadline clearly shown, amber theme helped (rather than red).
 
 ---
 
 ### Overall Result
 
-- [ ] Pass
+- [x] Pass
 - [ ] Fail
 
 **Notes:**
@@ -105,7 +105,7 @@ Answer: _____ / 5
 
 > **Metric covered — Scannability of the complete student submission list:** This question measures whether the "Student submissions" section — with individual cards per student showing name, email, version, and status — allows an instructor to take in the full picture of all submissions at once without confusion, excessive scrolling, or needing to open individual entries to understand the overall state of the class.
 
-Answer: _____ / 5
+Answer: 5 / 5 - very natural to navigate to, clicking on the assignment immediately showed it. intuitive.
 
 ---
 
@@ -113,7 +113,7 @@ Answer: _____ / 5
 
 > **Metric covered — Completeness of submission status visibility:** This question measures whether students without any submission are rendered visibly enough — as named cards with a "No submission" badge — that an instructor can scan the list and immediately identify who is missing without cross-referencing a separate roster.
 
-Answer: _____ / 5
+Answer: 5 / 5 - very clear card with "no submission" label.
 
 ---
 
@@ -121,17 +121,12 @@ Answer: _____ / 5
 
 > **Metric covered — Legibility of submission status badges:** This question measures whether the color-coded status labels ("submitted" in green, "late" in amber) and the amber card background on late submissions allow an instructor to assess submission status at a glance, without needing to open the submission or check timestamps manually.
 
-Answer: _____ / 5
+Answer: 5 / 5 - could easily find the yellow badges.
 
 ---
 
 ### Overall Result
 
-- [ ] Pass
+- [x] Pass
 - [ ] Fail
 
-**Notes:**
-
-&nbsp;
-
-&nbsp;
