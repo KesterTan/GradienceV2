@@ -11,6 +11,7 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["tests/**/*.test.ts"],
+    exclude: ["tests/**/*.jest.test.ts"],
     clearMocks: true,
     restoreMocks: true,
   },
