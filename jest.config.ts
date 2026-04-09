@@ -7,7 +7,7 @@ const config: Config = {
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
   testMatch: [
     "**/tests/**/*.jest.test.ts",
-    "**/tests/components/**/*.test.tsx",
+    "**/tests/**/*.jest.test.tsx",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
