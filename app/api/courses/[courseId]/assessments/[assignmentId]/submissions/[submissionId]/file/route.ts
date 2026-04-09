@@ -5,6 +5,7 @@ import { NextResponse } from "next/server"
 import { db } from "@/db/orm"
 import { assignments, courseMemberships, submissions } from "@/db/schema"
 import { requireAppUser } from "@/lib/current-user"
+import { loadSubmissionPdfFromS3 } from "@/lib/s3-submissions"
 
 export const runtime = "nodejs"
 
@@ -82,6 +83,21 @@ export async function GET(
 
     if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
       return NextResponse.redirect(fileUrl)
+    }
+
+    if (fileUrl.startsWith("s3://")) {
+      const buffer = await loadSubmissionPdfFromS3(fileUrl)
+      if (!buffer) {
+        return NextResponse.json({ error: "Submitted file not found." }, { status: 404 })
+      }
+
+      return new NextResponse(buffer, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": "inline",
+          "Cache-Control": "private, no-store",
+        },
+      })
     }
 
     if (!fileUrl.startsWith("/")) {

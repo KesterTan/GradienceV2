@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { writeFile } from "fs/promises"
-import { join } from "path"
 import { randomUUID } from "crypto"
 import { and, eq, max } from "drizzle-orm"
 import { db } from "@/db/orm"
 import { assignments, courseMemberships, submissions } from "@/db/schema"
 import { requireAppUser } from "@/lib/current-user"
+import { buildSubmissionS3Url, uploadSubmissionPdfToS3 } from "@/lib/s3-submissions"
+
+export const runtime = "nodejs"
 
 export async function POST(
   req: NextRequest,
@@ -73,12 +74,19 @@ export async function POST(
       return NextResponse.json({ error: "Only PDF files are accepted" }, { status: 400 })
     }
 
-    // Save to public/uploads/
-    const filename = `${randomUUID()}.pdf`
-    const uploadDir = join(process.cwd(), "public", "uploads")
+    // Save to S3
+    const filename = `${Date.now()}-${randomUUID()}.pdf`
+    const objectKey = [
+      "submissions",
+      "assignments",
+      String(parsedCourseId),
+      String(parsedAssignmentId),
+      String(membership.id),
+      filename,
+    ].join("/")
     const bytes = await file.arrayBuffer()
-    await writeFile(join(uploadDir, filename), Buffer.from(bytes))
-    const fileUrl = `/uploads/${filename}`
+    await uploadSubmissionPdfToS3({ objectKey, body: Buffer.from(bytes) })
+    const fileUrl = buildSubmissionS3Url(objectKey)
 
     // Increment attempt number
     const maxResult = await db
