@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useMemo, useState } from "react"
+import { useActionState, useEffect, useMemo, useState } from "react"
 import { saveSubmissionGradeAction, type SubmissionGradeFormState } from "../actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -46,7 +46,38 @@ export function SubmissionGradeForm({
     })
     return next
   })
+  const [itemComments, setItemComments] = useState<Record<number, string>>(() => {
+    const next: Record<number, string> = {}
+    for (const score of initialGrade?.rubricScores ?? []) {
+      next[score.displayOrder - 1] = score.comment ?? ""
+    }
+    return next
+  })
   const [overallFeedback, setOverallFeedback] = useState(initialGrade?.overallFeedback ?? "")
+
+  useEffect(() => {
+    if (!state.appliedScores) return
+
+    setScores((current) => {
+      const next = { ...current }
+      for (const applied of state.appliedScores ?? []) {
+        next[applied.order] = applied.pointsAwarded
+      }
+      return next
+    })
+
+    setItemComments((current) => {
+      const next = { ...current }
+      for (const applied of state.appliedScores ?? []) {
+        next[applied.order] = applied.comment ?? ""
+      }
+      return next
+    })
+
+    if (typeof state.appliedOverallFeedback === "string") {
+      setOverallFeedback(state.appliedOverallFeedback)
+    }
+  }, [state.appliedOverallFeedback, state.appliedScores])
 
   const scoresPayload = useMemo(
     () =>
@@ -54,9 +85,10 @@ export function SubmissionGradeForm({
         question.rubricItems.map((item) => ({
           order: item.order,
           pointsAwarded: scores[item.order] ?? 0,
+          comment: itemComments[item.order] ?? "",
         })),
       ),
-    [rubricQuestions, scores],
+    [itemComments, rubricQuestions, scores],
   )
 
   const totalScore = useMemo(
@@ -115,38 +147,53 @@ export function SubmissionGradeForm({
 
                   <div className="space-y-3 p-4">
                     {question.rubricItems.map((item) => (
-                      <div
-                        key={`${question.questionId}-${item.order}`}
-                        className="grid gap-3 md:grid-cols-[1fr_auto]"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{item.criterion}</p>
-                          <p className="text-xs text-muted-foreground">{item.rubricName}</p>
-                        </div>
-                        <div className="flex items-end gap-2">
-                          <div className="space-y-1">
-                            <Label htmlFor={`score-${item.order}`}>Score</Label>
-                            <Input
-                              id={`score-${item.order}`}
-                              type="number"
-                              min={0}
-                              max={item.maxScore}
-                              value={scores[item.order] ?? 0}
-                              onChange={(event) => {
-                                const nextValue = Number(event.target.value)
-                                const safeValue = Number.isFinite(nextValue)
-                                  ? Math.min(Math.max(0, Math.trunc(nextValue)), item.maxScore)
-                                  : 0
-
-                                setScores((current) => ({
-                                  ...current,
-                                  [item.order]: safeValue,
-                                }))
-                              }}
-                              className="w-24"
-                            />
+                      <div key={`${question.questionId}-${item.order}`} className="grid gap-3">
+                        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{item.criterion}</p>
+                            <p className="text-xs text-muted-foreground">{item.rubricName}</p>
                           </div>
-                          <p className="pb-2 text-xs text-muted-foreground">/ {item.maxScore}</p>
+                          <div className="flex items-end gap-2">
+                            <div className="space-y-1">
+                              <Label htmlFor={`score-${item.order}`}>Score</Label>
+                              <Input
+                                id={`score-${item.order}`}
+                                type="number"
+                                min={0}
+                                max={item.maxScore}
+                                value={scores[item.order] ?? 0}
+                                onChange={(event) => {
+                                  const nextValue = Number(event.target.value)
+                                  const safeValue = Number.isFinite(nextValue)
+                                    ? Math.min(Math.max(0, Math.trunc(nextValue)), item.maxScore)
+                                    : 0
+
+                                  setScores((current) => ({
+                                    ...current,
+                                    [item.order]: safeValue,
+                                  }))
+                                }}
+                                className="w-24"
+                              />
+                            </div>
+                            <p className="pb-2 text-xs text-muted-foreground">/ {item.maxScore}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor={`comment-${item.order}`}>Explanation</Label>
+                          <Textarea
+                            id={`comment-${item.order}`}
+                            value={itemComments[item.order] ?? ""}
+                            onChange={(event) =>
+                              setItemComments((current) => ({
+                                ...current,
+                                [item.order]: event.target.value,
+                              }))
+                            }
+                            placeholder="Optional explanation for this rubric item"
+                            rows={2}
+                          />
                         </div>
                       </div>
                     ))}
@@ -172,9 +219,14 @@ export function SubmissionGradeForm({
             <p className="text-xs text-muted-foreground">
               Only instructors can save or update grades.
             </p>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving..." : initialGrade ? "Update grades" : "Save grades"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="submit" name="gradingMode" value="ai" variant="secondary" disabled={pending}>
+                {pending ? "Saving..." : "AI grade & save"}
+              </Button>
+              <Button type="submit" name="gradingMode" value="manual" disabled={pending}>
+                {pending ? "Saving..." : initialGrade ? "Update grades" : "Save grades"}
+              </Button>
+            </div>
           </div>
         </form>
       </CardContent>

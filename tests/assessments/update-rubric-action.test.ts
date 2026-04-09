@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   requireAppUser: vi.fn(),
+  uploadRubricJsonToS3: vi.fn(),
   select: vi.fn(),
   selectLimit: vi.fn(),
   transaction: vi.fn(),
@@ -15,6 +16,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }))
 vi.mock("@/lib/current-user", () => ({ requireAppUser: mocks.requireAppUser }))
+vi.mock("@/lib/s3-submissions", () => ({
+  buildRubricS3ObjectKey: ({ courseId, assignmentId }: { courseId: number; assignmentId: number }) =>
+    `rubrics/assessments/${courseId}/${assignmentId}/rubric.json`,
+  uploadRubricJsonToS3: mocks.uploadRubricJsonToS3,
+}))
 vi.mock("@/db/orm", () => ({
   db: {
     select: mocks.select,
@@ -30,6 +36,7 @@ describe("updateRubricAction", () => {
     mocks.selectQueue.length = 0
 
     mocks.requireAppUser.mockResolvedValue({ id: 42 })
+    mocks.uploadRubricJsonToS3.mockResolvedValue(undefined)
     mocks.selectLimit.mockImplementation(async () => (mocks.selectQueue.shift() ?? []) as unknown[])
     mocks.select.mockImplementation(() => ({
       from: () => ({
@@ -90,6 +97,11 @@ describe("updateRubricAction", () => {
 
     expect(state.errors).toBeUndefined()
     expect(mocks.transaction).toHaveBeenCalled()
+    expect(mocks.uploadRubricJsonToS3).toHaveBeenCalledWith(
+      expect.objectContaining({
+        objectKey: "rubrics/assessments/5/12/rubric.json",
+      }),
+    )
     expect(mocks.txUpdateSet).toHaveBeenCalledWith(
       expect.objectContaining({
         totalPoints: 8,
