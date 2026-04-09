@@ -98,6 +98,15 @@ describe("GradingPage", () => {
     return render(<GradingProvider>{ui}</GradingProvider>);
   };
 
+  // Helper to override context for specific tests
+  const renderWithMockContext = (overrides = {}) => {
+    (useGrading as jest.Mock).mockReturnValue({
+      ...mockGradingProviderValues,
+      ...overrides,
+    });
+    return render(<GradingPage />);
+  };
+
   it("renders the grading page with student name and total points", () => {
     renderWithProvider(<GradingPage />);
 
@@ -135,15 +144,15 @@ describe("GradingPage", () => {
 
   it("toggles section visibility when clicked", () => {
     renderWithProvider(<GradingPage />);
-
     const questionToggle = screen.getByRole("button", { name: /Question 1/ });
+    // Initially expanded
     expect(questionToggle).toHaveAttribute("aria-expanded", "true");
-
-    fireEvent.click(questionToggle);
-    expect(questionToggle).toHaveAttribute("aria-expanded", "true");
-
+    // Collapse
     fireEvent.click(questionToggle);
     expect(questionToggle).toHaveAttribute("aria-expanded", "false");
+    // Expand again
+    fireEvent.click(questionToggle);
+    expect(questionToggle).toHaveAttribute("aria-expanded", "true");
   });
 
   it("handles editing scores correctly", () => {
@@ -168,6 +177,11 @@ describe("GradingPage", () => {
     const scoreElements = screen.getAllByText("8/10");
     expect(scoreElements.length).toBeGreaterThan(0);
     expect(scoreElements[0]).toHaveClass("text-amber-600");
+  });
+
+  it("renders empty state when no grading results", () => {
+    renderWithMockContext({ gradingResults: {} });
+    expect(screen.getByText(/no grading results|no data|nothing to grade/i)).toBeInTheDocument();
   });
 
   it("toggles CollapsibleContent visibility based on open prop", () => {
