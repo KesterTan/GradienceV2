@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db/orm"
 import { assignments, courseMemberships, submissions } from "@/db/schema"
 import { requireAppUser } from "@/lib/current-user"
+import { buildSubmissionS3Url, uploadSubmissionPdfToS3 } from "@/lib/s3-submissions"
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024
 
@@ -113,14 +114,20 @@ export async function POST(
     }
 
     const fileName = `${Date.now()}-${randomUUID()}.pdf`
-    const relativeDir = path.join("uploads", "submissions", String(parsedAssignmentId), String(membership.id))
-    const relativePath = path.join(relativeDir, fileName)
-    const absoluteDir = path.join(process.cwd(), "public", relativeDir)
-    const absolutePath = path.join(process.cwd(), "public", relativePath)
+    const objectKey = path.posix.join(
+      "submissions",
+      "assessments",
+      String(parsedCourseId),
+      String(parsedAssignmentId),
+      String(membership.id),
+      fileName,
+    )
 
-    await mkdir(absoluteDir, { recursive: true })
     const bytes = await uploaded.arrayBuffer()
-    await writeFile(absolutePath, Buffer.from(bytes))
+    await uploadSubmissionPdfToS3({
+      objectKey,
+      body: Buffer.from(bytes),
+    })
 
     await db.insert(submissions).values({
       assignmentId: parsedAssignmentId,
@@ -129,14 +136,15 @@ export async function POST(
       submittedAt: now.toISOString(),
       status: submissionStatus,
       textContent: null,
-      fileUrl: `/${relativePath.split(path.sep).join("/")}`,
+      fileUrl: buildSubmissionS3Url(objectKey),
       aiProcessedStatus: "awaiting",
     })
 
     revalidatePath(`/courses/${parsedCourseId}/assessments/${parsedAssignmentId}`)
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error("Assessment submission upload failed:", error)
     return NextResponse.json({ error: "Unable to submit assignment." }, { status: 500 })
   }
 }
