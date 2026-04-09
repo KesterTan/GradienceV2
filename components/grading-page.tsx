@@ -59,7 +59,12 @@ function GradingBreakdownContent({
 }) {
   const totalEarned = results.reduce((s, r) => s + r.earnedPoints, 0)
   const totalMax = results.reduce((s, r) => s + r.totalPoints, 0)
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+  // All sections open by default
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    results.forEach(r => { initial[r.questionId] = true })
+    return initial
+  })
   const [editingQuestion, setEditingQuestion] = useState<string | null>(null)
   const [editScores, setEditScores] = useState<Record<string, number>>({})
 
@@ -132,7 +137,7 @@ function GradingBreakdownContent({
       <div className="flex-1 overflow-y-auto scroll-smooth bg-muted/30">
         <div className="space-y-3 p-4 pb-8">
           {results.map((result) => {
-            const isOpen = openSections[result.questionId] !== false
+            const isOpen = !!openSections[result.questionId]
             const isEditing = editingQuestion === result.questionId
             return (
               <Collapsible
@@ -395,12 +400,18 @@ export function GradingPage() {
                 onTabChange={() => {}}
               />
               <div className="flex-1 overflow-hidden" role="tabpanel" aria-label="Grading">
-                <GradingBreakdownContent
-                  highlightedQ={highlightedQ}
-                  setHighlightedQ={setHighlightedQ}
-                  results={results}
-                  onUpdateResults={setLocalResults}
-                />
+                {results.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-muted-foreground text-sm" data-testid="empty-grading-results">
+                    No grading results available
+                  </div>
+                ) : (
+                  <GradingBreakdownContent
+                    highlightedQ={highlightedQ}
+                    setHighlightedQ={setHighlightedQ}
+                    results={results}
+                    onUpdateResults={setLocalResults}
+                  />
+                )}
               </div>
             </div>
           </ResizablePanel>
