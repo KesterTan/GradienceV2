@@ -12,6 +12,7 @@ import {
   getRubricTotalMaxScore,
   rubricPayloadSchema,
 } from "@/lib/rubrics"
+import { buildRubricS3ObjectKey, uploadRubricJsonToS3 } from "@/lib/s3-submissions"
 
 export type RubricFormState = {
   errors?: {
@@ -95,6 +96,15 @@ export async function updateRubricAction(
   const totalMaxScore = getRubricTotalMaxScore(rubricJson)
 
   const flattenedItems = flattenRubricItems(rubricJson)
+
+  try {
+    await uploadRubricJsonToS3({
+      objectKey: buildRubricS3ObjectKey({ courseId, assignmentId }),
+      rubricJson,
+    })
+  } catch {
+    return { errors: { _form: ["Unable to save rubric JSON to S3. Check S3 configuration and try again."] } }
+  }
 
   await db.transaction(async (tx) => {
     await tx

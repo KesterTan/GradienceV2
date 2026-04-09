@@ -2,34 +2,48 @@ import { z } from "zod"
 
 export type RubricItem = {
   criterion: string
-  rubric_name: string
+  rubric_name?: string
+  score_awarded?: number
+  explanation?: string | null
   max_score: number
 }
 
 export type RubricQuestion = {
   question_id: string
-  question_name: string
+  question_name?: string
+  question_total?: number
+  question_max_total?: number
   rubric_items: RubricItem[]
 }
 
 export type RubricPayload = {
   questions: RubricQuestion[]
+  total_score?: number
+  total_max_score?: number
+  overall_feedback?: string
 }
 
 const rubricItemSchema = z.object({
   criterion: z.string().trim().min(1, "Criterion is required"),
-  rubric_name: z.string().trim().min(1, "Rubric name is required"),
-  max_score: z.number().int("Max score must be a whole number").min(0, "Max score cannot be negative"),
+  rubric_name: z.string().trim().min(1, "Rubric name is required").optional(),
+  score_awarded: z.number().min(0, "Score awarded cannot be negative").optional(),
+  explanation: z.string().optional().nullable(),
+  max_score: z.number().min(0, "Max score cannot be negative"),
 })
 
 const rubricQuestionSchema = z.object({
   question_id: z.string().trim().min(1, "Question id is required"),
-  question_name: z.string().trim().min(1, "Question name is required"),
+  question_name: z.string().trim().min(1, "Question name is required").optional(),
+  question_total: z.number().optional(),
+  question_max_total: z.number().optional(),
   rubric_items: z.array(rubricItemSchema).min(1, "At least one rubric item is required"),
 })
 
 export const rubricPayloadSchema = z.object({
   questions: z.array(rubricQuestionSchema).min(1, "At least one question is required"),
+  total_score: z.number().optional(),
+  total_max_score: z.number().optional(),
+  overall_feedback: z.string().optional(),
 })
 
 export type FlattenedRubricItem = RubricItem &
@@ -59,14 +73,20 @@ export function flattenRubricItems(rubric: RubricPayload): FlattenedRubricItem[]
   let order = 0
 
   return rubric.questions.flatMap((question, questionIndex) =>
-    question.rubric_items.map((item, itemIndex) => ({
-      ...item,
-      question_id: question.question_id,
-      question_name: question.question_name,
-      order: order++,
-      question_order: questionIndex,
-      item_order: itemIndex,
-    })),
+    question.rubric_items.map((item, itemIndex) => {
+      const rubricName = item.rubric_name?.trim() || item.criterion
+      const questionName = question.question_name?.trim() || question.question_id
+
+      return {
+        ...item,
+        rubric_name: rubricName,
+        question_id: question.question_id,
+        question_name: questionName,
+        order: order++,
+        question_order: questionIndex,
+        item_order: itemIndex,
+      }
+    }),
   )
 }
 

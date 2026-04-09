@@ -121,6 +121,7 @@ export type SubmissionGrade = {
   rubricScores: Array<{
     displayOrder: number
     pointsAwarded: number
+    comment?: string | null
   }>
 }
 
@@ -320,6 +321,7 @@ export async function getAssessmentRubricForMember(
       description: assignments.description,
       releaseAt: assignments.releaseAt,
       dueAt: assignments.dueAt,
+      lateUntil: assignments.lateUntil,
       totalPoints: assignments.totalPoints,
       courseId: courses.id,
       courseTitle: courses.title,
@@ -349,6 +351,7 @@ export async function getAssessmentRubricForMember(
     title: String(row.title),
     releaseAt: String(row.releaseAt),
     dueAt: String(row.dueAt),
+    lateUntil: row.lateUntil ? String(row.lateUntil) : null,
     totalPoints: Number(row.totalPoints),
     description: row.description ? String(row.description) : null,
     courseId: Number(row.courseId),
@@ -649,13 +652,13 @@ export async function getSubmissionGradeForGrader(
           .map((item) => ({
             order: item.order,
             criterion: item.criterion,
-            rubricName: item.rubric_name,
+            rubricName: item.rubric_name || item.criterion,
             maxScore: item.max_score,
           }))
 
         return {
           questionId: question.question_id,
-          questionName: question.question_name,
+          questionName: question.question_name || question.question_id,
           maxScore: items.reduce((sum, item) => sum + item.maxScore, 0),
           rubricItems: items,
         }
@@ -668,6 +671,7 @@ export async function getSubmissionGradeForGrader(
       .select({
         displayOrder: assignmentRubricItems.displayOrder,
         pointsAwarded: rubricScores.pointsAwarded,
+        comment: rubricScores.comment,
       })
       .from(rubricScores)
       .innerJoin(assignmentRubricItems, eq(assignmentRubricItems.id, rubricScores.rubricItemId))
@@ -682,6 +686,7 @@ export async function getSubmissionGradeForGrader(
       rubricScores: scoreRows.map((scoreRow) => ({
         displayOrder: Number(scoreRow.displayOrder),
         pointsAwarded: Number(scoreRow.pointsAwarded),
+        comment: scoreRow.comment ? String(scoreRow.comment) : null,
       })),
     }
   }
@@ -765,13 +770,13 @@ export async function getSubmissionGradeForStudent(
           .map((item) => ({
             order: item.order,
             criterion: item.criterion,
-            rubricName: item.rubric_name,
+            rubricName: item.rubric_name || item.criterion,
             maxScore: item.max_score,
           }))
 
         return {
           questionId: question.question_id,
-          questionName: question.question_name,
+          questionName: question.question_name || question.question_id,
           maxScore: items.reduce((sum, item) => sum + item.maxScore, 0),
           rubricItems: items,
         }
@@ -784,6 +789,7 @@ export async function getSubmissionGradeForStudent(
       .select({
         displayOrder: assignmentRubricItems.displayOrder,
         pointsAwarded: rubricScores.pointsAwarded,
+        comment: rubricScores.comment,
       })
       .from(rubricScores)
       .innerJoin(assignmentRubricItems, eq(assignmentRubricItems.id, rubricScores.rubricItemId))
@@ -798,6 +804,7 @@ export async function getSubmissionGradeForStudent(
       rubricScores: scoreRows.map((scoreRow) => ({
         displayOrder: Number(scoreRow.displayOrder),
         pointsAwarded: Number(scoreRow.pointsAwarded),
+        comment: scoreRow.comment ? String(scoreRow.comment) : null,
       })),
     }
   }

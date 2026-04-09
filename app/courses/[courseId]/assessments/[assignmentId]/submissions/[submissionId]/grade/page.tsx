@@ -39,8 +39,12 @@ export default async function StudentSubmissionGradePage({
   }
 
   const scoreByOrder = new Map<number, number>()
+  const commentByOrder = new Map<number, string>()
   for (const score of submission.grade?.rubricScores ?? []) {
     scoreByOrder.set(score.displayOrder - 1, score.pointsAwarded)
+    if (score.comment && score.comment.trim().length > 0) {
+      commentByOrder.set(score.displayOrder - 1, score.comment)
+    }
   }
 
   return (
@@ -156,15 +160,21 @@ export default async function StudentSubmissionGradePage({
                         <div className="space-y-3 p-4">
                           {question.rubricItems.map((item) => {
                             const itemScore = scoreByOrder.get(item.order) ?? 0
+                            const itemComment = commentByOrder.get(item.order) ?? null
 
                             return (
-                              <div key={`${question.questionId}-${item.order}`} className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-medium text-foreground">{item.criterion}</p>
-                                  <p className="text-xs text-muted-foreground">{item.rubricName}</p>
+                              <div key={`${question.questionId}-${item.order}`} className="space-y-1">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">{item.criterion}</p>
+                                    <p className="text-xs text-muted-foreground">{item.rubricName}</p>
+                                  </div>
+                                  <p className="text-sm font-semibold text-foreground">
+                                    {itemScore} / {item.maxScore}
+                                  </p>
                                 </div>
-                                <p className="text-sm font-semibold text-foreground">
-                                  {itemScore} / {item.maxScore}
+                                <p className="text-xs text-muted-foreground">
+                                  {itemComment ?? "No rubric-item feedback provided."}
                                 </p>
                               </div>
                             )

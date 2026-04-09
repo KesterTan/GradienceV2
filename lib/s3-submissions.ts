@@ -114,8 +114,46 @@ function getS3Client() {
   return s3Client
 }
 
+function isS3ObjectNotFoundError(error: unknown) {
+  if (!error || typeof error !== "object") return false
+
+  const maybeError = error as {
+    name?: string
+    Code?: string
+    code?: string
+    $metadata?: { httpStatusCode?: number }
+  }
+
+  return (
+    maybeError.name === "NoSuchKey" ||
+    maybeError.Code === "NoSuchKey" ||
+    maybeError.code === "NoSuchKey" ||
+    maybeError.$metadata?.httpStatusCode === 404
+  )
+}
+
 export function buildSubmissionS3Url(objectKey: string) {
   return `s3://${getS3Bucket()}/${objectKey}`
+}
+
+export function buildRubricS3ObjectKey({
+  courseId,
+  assignmentId,
+}: {
+  courseId: number
+  assignmentId: number
+}) {
+  return `rubrics/assessments/${courseId}/${assignmentId}/rubric.json`
+}
+
+export function buildRubricS3Url({
+  courseId,
+  assignmentId,
+}: {
+  courseId: number
+  assignmentId: number
+}) {
+  return buildSubmissionS3Url(buildRubricS3ObjectKey({ courseId, assignmentId }))
 }
 
 export function parseSubmissionS3Url(fileUrl: string) {
@@ -154,6 +192,26 @@ export async function uploadSubmissionPdfToS3({
   )
 }
 
+export async function uploadRubricJsonToS3({
+  objectKey,
+  rubricJson,
+}: {
+  objectKey: string
+  rubricJson: unknown
+}) {
+  const bucket = getS3Bucket()
+  const client = getS3Client()
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: JSON.stringify(rubricJson, null, 2),
+      ContentType: "application/json",
+    }),
+  )
+}
+
 export async function loadSubmissionPdfFromS3(fileUrl: string) {
   const parsed = parseSubmissionS3Url(fileUrl)
   if (!parsed) {
@@ -161,12 +219,20 @@ export async function loadSubmissionPdfFromS3(fileUrl: string) {
   }
 
   const client = getS3Client()
-  const result = await client.send(
-    new GetObjectCommand({
-      Bucket: parsed.bucket,
-      Key: parsed.key,
-    }),
-  )
+  let result
+  try {
+    result = await client.send(
+      new GetObjectCommand({
+        Bucket: parsed.bucket,
+        Key: parsed.key,
+      }),
+    )
+  } catch (error) {
+    if (isS3ObjectNotFoundError(error)) {
+      return null
+    }
+    throw error
+  }
 
   const body = result.Body
   if (!body) {
@@ -175,4 +241,41 @@ export async function loadSubmissionPdfFromS3(fileUrl: string) {
 
   const bytes = await body.transformToByteArray()
   return Buffer.from(bytes)
+}
+
+export async function loadRubricJsonFromS3(fileUrl: string) {
+  const parsed = parseSubmissionS3Url(fileUrl)
+  if (!parsed) {
+    return null
+  }
+
+  const client = getS3Client()
+  let result
+  try {
+    result = await client.send(
+      new GetObjectCommand({
+        Bucket: parsed.bucket,
+        Key: parsed.key,
+      }),
+    )
+  } catch (error) {
+    if (isS3ObjectNotFoundError(error)) {
+      return null
+    }
+    throw error
+  }
+
+  const body = result.Body
+  if (!body) {
+    return null
+  }
+
+  const bytes = await body.transformToByteArray()
+  const text = Buffer.from(bytes).toString("utf8")
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
 }
