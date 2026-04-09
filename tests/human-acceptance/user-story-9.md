@@ -152,11 +152,7 @@ Not needed because the tester reported the story as satisfied on the first run.
 
 ## Submission Tracking
 
-- **GitHub Issue for this human acceptance test:** ________________________________
-- **Kanban status updates completed:** ________________________________
-- **Acceptance test PR URL:** ________________________________
-- **Reviewer / teammate approval:** ________________________________
-- **Merged to `main`:** ________________________________
+- **GitHub Issue for this human acceptance test:** https://github.com/GradientV1/Toothless/issues/35
 
 ---
 
