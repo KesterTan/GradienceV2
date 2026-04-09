@@ -64,6 +64,51 @@ describe("RubricCard", () => {
   let container: HTMLDivElement
   let root: Root
 
+  function renderCard(
+    overrides: Partial<React.ComponentProps<typeof RubricCard>> = {},
+  ) {
+    const props: React.ComponentProps<typeof RubricCard> = {
+      question: createQuestion(),
+      rubric: null,
+      isGenerated: false,
+      isLoading: false,
+      onGenerate: jest.fn(),
+      onUpdateRubric: jest.fn(),
+      index: 0,
+      ...overrides,
+    }
+
+    act(() => {
+      root.render(React.createElement(RubricCard, props))
+    })
+
+    return props
+  }
+
+  function getByTestId(testId: string) {
+    const element = container.querySelector(`[data-testid="${testId}"]`)
+    if (!element) {
+      throw new Error(`Expected element with data-testid="${testId}"`)
+    }
+    return element
+  }
+
+  function queryByTestId(testId: string) {
+    return container.querySelector(`[data-testid="${testId}"]`)
+  }
+
+  function getTitleInput(index: number) {
+    return getByTestId(`criterion-title-${index}`) as HTMLInputElement
+  }
+
+  function getPointsInput(index: number) {
+    return getByTestId(`criterion-points-${index}`) as HTMLInputElement
+  }
+
+  function getDescriptionInput(index: number) {
+    return getByTestId(`criterion-description-${index}`) as HTMLTextAreaElement
+  }
+
   beforeEach(() => {
     document.body.innerHTML = ""
     container = document.createElement("div")
@@ -77,129 +122,227 @@ describe("RubricCard", () => {
     })
   })
 
-  test("starts manual editing for a question without a rubric and saves the updated rubric", () => {
-    const onGenerate = jest.fn()
+  test("shows the empty state and keeps save disabled until a criterion title is entered", () => {
+    renderCard()
+
+    expect(container.textContent).toContain("No rubric yet")
+
+    click(getByTestId("write-rubric-button"))
+
+    const saveButton = getByTestId("save-rubric-button") as HTMLButtonElement
+    expect(saveButton).toBeDisabled()
+    expect(container.querySelector('button[aria-label^="Remove criterion"]')).toBeNull()
+
+    changeInput(getTitleInput(0), "Accuracy")
+
+    expect(saveButton).not.toBeDisabled()
+  })
+
+  test("filters empty criteria, allows empty descriptions, and normalizes unusual point values before saving", () => {
     const onUpdateRubric = jest.fn()
 
-    act(() => {
-      root.render(
-        React.createElement(RubricCard, {
-          question: createQuestion(),
-          rubric: null,
-          isGenerated: false,
-          isLoading: false,
-          onGenerate,
-          onUpdateRubric,
-          index: 0,
-        }),
-      )
-    })
+    renderCard({ onUpdateRubric })
+    click(getByTestId("write-rubric-button"))
 
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Write Rubric")) ?? null)
+    changeInput(getTitleInput(0), "Accuracy")
+    changeInput(getPointsInput(0), "0")
+    expect(getPointsInput(0).value).toBe("1")
+    changeInput(getPointsInput(0), "-5")
+    expect(getPointsInput(0).value).toBe("1")
+    changeInput(getPointsInput(0), "not-a-number")
+    expect(getPointsInput(0).value).toBe("1")
 
-    const titleInput = container.querySelector('input[placeholder*="Criterion title"]') as HTMLInputElement | null
-    const pointsInput = container.querySelector('input[type="number"]') as HTMLInputElement | null
-    const descriptionInput = container.querySelector("textarea") as HTMLTextAreaElement | null
+    click(getByTestId("add-criterion-button"))
+    changeInput(getPointsInput(1), "9999")
+    expect(getPointsInput(1).value).toBe("9999")
 
-    expect(titleInput).not.toBeNull()
-    expect(pointsInput).not.toBeNull()
-    expect(descriptionInput).not.toBeNull()
+    click(getByTestId("add-criterion-button"))
+    changeInput(getTitleInput(2), "Examples")
+    changeInput(getPointsInput(2), "9999")
 
-    changeInput(titleInput!, "Accuracy")
-    changeInput(pointsInput!, "7")
-    changeInput(descriptionInput!, "Covers the three MVC layers correctly.")
+    click(getByTestId("save-rubric-button"))
 
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Add Criterion")) ?? null)
-
-    const criterionTitleInputs = Array.from(
-      container.querySelectorAll('input[placeholder*="Criterion title"]'),
-    ) as HTMLInputElement[]
-    const criterionPointInputs = Array.from(container.querySelectorAll('input[type="number"]')) as HTMLInputElement[]
-    const criterionDescriptionInputs = Array.from(container.querySelectorAll("textarea")) as HTMLTextAreaElement[]
-
-    changeInput(criterionTitleInputs[1], "Examples")
-    changeInput(criterionPointInputs[1], "4")
-    changeInput(criterionDescriptionInputs[1], "Includes a practical framework example.")
-
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Save Rubric")) ?? null)
-
-    expect(onGenerate).not.toHaveBeenCalled()
     expect(onUpdateRubric).toHaveBeenCalledWith({
       id: "custom-r-q-1",
       questionTitle: "Question 1: Explain MVC",
-      totalPoints: 11,
+      totalPoints: 10000,
       criteria: [
         {
           id: expect.stringMatching(/^custom-/),
           title: "Accuracy",
-          maxPoints: 7,
-          description: "Covers the three MVC layers correctly.",
+          maxPoints: 1,
+          description: "",
         },
         {
           id: expect.stringMatching(/^custom-/),
           title: "Examples",
-          maxPoints: 4,
-          description: "Includes a practical framework example.",
+          maxPoints: 9999,
+          description: "",
         },
       ],
     })
-    expect(container.textContent).toContain("No rubric yet")
   })
 
-  test("loads existing rubric values into edit mode, supports cancel, remove, and regenerate actions", () => {
+  test("hides rubric actions while loading so no generate or edit interactions are available", () => {
     const onGenerate = jest.fn()
     const onUpdateRubric = jest.fn()
 
-    act(() => {
-      root.render(
-        React.createElement(RubricCard, {
-          question: createQuestion(),
-          rubric: createRubric(),
-          isGenerated: true,
-          isLoading: false,
-          onGenerate,
-          onUpdateRubric,
-          index: 0,
-        }),
-      )
+    renderCard({
+      isLoading: true,
+      onGenerate,
+      onUpdateRubric,
     })
+
+    expect(container.textContent).toContain("Generating...")
+    expect(container.textContent).toContain("Analyzing question...")
+    expect(queryByTestId("generate-rubric-button")).toBeNull()
+    expect(queryByTestId("write-rubric-button")).toBeNull()
+    expect(queryByTestId("edit-rubric-button")).toBeNull()
+    expect(queryByTestId("regenerate-rubric-button")).toBeNull()
+    expect(queryByTestId("save-rubric-button")).toBeNull()
+    expect(onGenerate).not.toHaveBeenCalled()
+    expect(onUpdateRubric).not.toHaveBeenCalled()
+  })
+
+  test("cancels transient add and remove edits without leaking stale state", () => {
+    renderCard({
+      rubric: createRubric(),
+      isGenerated: true,
+    })
+
+    click(getByTestId("edit-rubric-button"))
+    click(getByTestId("add-criterion-button"))
+
+    expect(container.querySelectorAll('[data-testid^="criterion-title-"]')).toHaveLength(3)
+
+    click(getByTestId("cancel-rubric-button"))
 
     expect(container.textContent).toContain("Concept accuracy")
     expect(container.textContent).toContain("Examples")
+    expect(container.textContent).not.toContain("Criterion title")
 
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Edit")) ?? null)
-
-    const titleInputs = Array.from(
-      container.querySelectorAll('input[placeholder*="Criterion title"]'),
-    ) as HTMLInputElement[]
-    expect(titleInputs.map((input) => input.value)).toEqual(["Concept accuracy", "Examples"])
-
-    changeInput(titleInputs[0], "Changed title")
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Cancel")) ?? null)
-
-    expect(onUpdateRubric).not.toHaveBeenCalled()
-    expect(container.textContent).toContain("Concept accuracy")
-    expect(container.textContent).not.toContain("Changed title")
-
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Edit")) ?? null)
+    click(getByTestId("edit-rubric-button"))
     click(container.querySelector('button[aria-label="Remove criterion 2"]'))
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Save Rubric")) ?? null)
+
+    expect(container.querySelectorAll('[data-testid^="criterion-title-"]')).toHaveLength(1)
+
+    click(getByTestId("cancel-rubric-button"))
+
+    expect(container.textContent).toContain("Concept accuracy")
+    expect(container.textContent).toContain("Examples")
+  })
+
+  test("recomputes total points after repeated edits and reloads the latest saved values on the next edit", () => {
+    const onUpdateRubric = jest.fn()
+    const baseRubric = createRubric()
+
+    renderCard({
+      rubric: baseRubric,
+      isGenerated: true,
+      onUpdateRubric,
+    })
+
+    click(getByTestId("edit-rubric-button"))
+    changeInput(getTitleInput(0), "Accuracy revised")
+    changeInput(getPointsInput(0), "10")
+    changeInput(getPointsInput(0), "6")
+    changeInput(getPointsInput(1), "8")
+
+    click(getByTestId("save-rubric-button"))
 
     expect(onUpdateRubric).toHaveBeenCalledWith({
       id: "rubric-1",
       questionTitle: "Question 1: Explain MVC",
-      totalPoints: 5,
+      totalPoints: 14,
       criteria: [
         {
           id: "criterion-1",
-          title: "Concept accuracy",
-          maxPoints: 5,
+          title: "Accuracy revised",
+          maxPoints: 6,
           description: "Defines each MVC layer correctly.",
+        },
+        {
+          id: "criterion-2",
+          title: "Examples",
+          maxPoints: 8,
+          description: "Uses a practical example.",
         },
       ],
     })
 
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Regenerate")) ?? null)
+    const updatedRubric = onUpdateRubric.mock.calls[0][0]
+
+    renderCard({
+      rubric: updatedRubric,
+      isGenerated: true,
+      onUpdateRubric,
+    })
+
+    click(getByTestId("edit-rubric-button"))
+
+    expect(getTitleInput(0).value).toBe("Accuracy revised")
+    expect(getPointsInput(0).value).toBe("6")
+    expect(getPointsInput(1).value).toBe("8")
+  })
+
+  test("supports a full create, edit, save, remove, and regenerate sequence", () => {
+    const onGenerate = jest.fn()
+    let latestRubric: ReturnType<typeof createRubric> | null = null
+
+    const onUpdateRubric = jest.fn((rubric) => {
+      latestRubric = rubric
+    })
+
+    renderCard({
+      onGenerate,
+      onUpdateRubric,
+    })
+
+    click(getByTestId("write-rubric-button"))
+    changeInput(getTitleInput(0), "Accuracy")
+    changeInput(getPointsInput(0), "5")
+    click(getByTestId("save-rubric-button"))
+
+    expect(latestRubric).not.toBeNull()
+
+    renderCard({
+      rubric: latestRubric,
+      isGenerated: true,
+      onGenerate,
+      onUpdateRubric,
+    })
+
+    click(getByTestId("edit-rubric-button"))
+    click(getByTestId("add-criterion-button"))
+    changeInput(getTitleInput(1), "Examples")
+    changeInput(getPointsInput(1), "4")
+    click(getByTestId("save-rubric-button"))
+
+    expect(latestRubric?.totalPoints).toBe(9)
+    expect(latestRubric?.criteria).toHaveLength(2)
+
+    renderCard({
+      rubric: latestRubric,
+      isGenerated: true,
+      onGenerate,
+      onUpdateRubric,
+    })
+
+    click(getByTestId("edit-rubric-button"))
+    click(container.querySelector('button[aria-label="Remove criterion 2"]'))
+    click(getByTestId("save-rubric-button"))
+
+    expect(latestRubric?.totalPoints).toBe(5)
+    expect(latestRubric?.criteria).toHaveLength(1)
+
+    renderCard({
+      rubric: latestRubric,
+      isGenerated: true,
+      onGenerate,
+      onUpdateRubric,
+    })
+
+    click(getByTestId("regenerate-rubric-button"))
     expect(onGenerate).toHaveBeenCalledTimes(1)
   })
 })

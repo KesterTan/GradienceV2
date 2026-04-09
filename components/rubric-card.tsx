@@ -181,6 +181,7 @@ export function RubricCard({
                     }}
                     size="sm"
                     className="gap-1.5"
+                    data-testid="generate-rubric-button"
                   >
                     <Sparkles className="size-3.5" />
                     Generate
@@ -193,6 +194,7 @@ export function RubricCard({
                     variant="outline"
                     size="sm"
                     className="gap-1.5"
+                    data-testid="write-rubric-button"
                   >
                     <Pencil className="size-3.5" />
                     Write Rubric
@@ -233,6 +235,7 @@ export function RubricCard({
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-xs"
+                    data-testid="regenerate-rubric-button"
                   >
                     <Sparkles className="size-3" />
                     Regenerate
@@ -245,6 +248,7 @@ export function RubricCard({
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-xs"
+                    data-testid="edit-rubric-button"
                   >
                     <Pencil className="size-3" />
                     Edit
@@ -270,6 +274,7 @@ export function RubricCard({
                           updateCriterion(idx, "title", e.target.value)
                         }
                         placeholder="Criterion title (e.g., Conceptual Understanding)"
+                        data-testid={`criterion-title-${idx}`}
                         className="flex-1 rounded-md border bg-white px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground"
                       />
                       <input
@@ -284,6 +289,7 @@ export function RubricCard({
                             Math.max(1, parseInt(e.target.value) || 1)
                           )
                         }
+                        data-testid={`criterion-points-${idx}`}
                         className="w-16 rounded-md border bg-white px-2 py-1.5 text-center text-sm font-medium text-foreground outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20"
                       />
                       <span className="text-xs text-muted-foreground">pts</span>
@@ -304,6 +310,7 @@ export function RubricCard({
                         updateCriterion(idx, "description", e.target.value)
                       }
                       placeholder="Describe what this criterion evaluates..."
+                      data-testid={`criterion-description-${idx}`}
                       className="min-h-12 resize-none text-sm"
                       rows={2}
                     />
@@ -313,6 +320,7 @@ export function RubricCard({
                 <button
                   type="button"
                   onClick={addCriterion}
+                  data-testid="add-criterion-button"
                   className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
                 >
                   <Plus className="size-3.5" />
@@ -325,6 +333,7 @@ export function RubricCard({
                     variant="ghost"
                     size="sm"
                     className="gap-1.5"
+                    data-testid="cancel-rubric-button"
                   >
                     <X className="size-3.5" />
                     Cancel
@@ -334,6 +343,7 @@ export function RubricCard({
                     size="sm"
                     className="gap-1.5"
                     disabled={editCriteria.every((c) => c.title.trim() === "")}
+                    data-testid="save-rubric-button"
                   >
                     <Check className="size-3.5" />
                     Save Rubric
