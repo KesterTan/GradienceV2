@@ -5,7 +5,7 @@ const config: Config = {
   testEnvironment: "node",
   testMatch: [
     "**/tests/**/*.jest.test.ts",
-    "**/tests/components/**/*.test.tsx",
+    "**/tests/**/*.jest.test.tsx",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
