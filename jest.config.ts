@@ -3,6 +3,8 @@ import type { Config } from "jest"
 const config: Config = {
   preset: "ts-jest",
   testEnvironment: "node",
+  testMatch: ["**/tests/**/*.jest.test.ts", "**/tests/**/*.jest.test.tsx"],
+  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
   testMatch: [
     "**/tests/**/*.jest.test.ts",
     "**/tests/**/*.jest.test.tsx",
