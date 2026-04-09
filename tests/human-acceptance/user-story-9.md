@@ -1,142 +1,177 @@
 # Human Acceptance Tests — User Story 9
 
-User: TBD
+User:
 
 ---
 
 ## User Story 9.1: Restrict Instructor-Only Course Actions from Students
+
+### Implemented behavior covered by this test
+- On the course dashboard, students do not see the instructor-only **Members**, **Manage course**, or **Create assessment** buttons.
+- If a student manually visits the **Manage course** page, the app shows an **Access restricted** state instead of edit/delete controls.
+- If a student manually visits the **Members** page, they can view the roster but do not see the add-member form or remove-member buttons.
+- If a student manually visits the **Create assignment** page, the form can render, but submitting it is blocked with the message **"You do not have permission to create assignments for this course."**
 
 ### Prerequisites
 1. The application is running:
    - `npm run build`
    - `npm run start`
 2. At least one course exists.
-3. Prepare two accounts that are both active in the same course:
-   - An **Instructor** account
-   - A **Student** account
-4. The student must already be enrolled in the same course as the instructor.
-5. Make note of the course id you are testing because you will use it for the direct URL check.
+3. Prepare two active accounts enrolled in the same course:
+   - An **Instructor** account with grader/instructor permissions in that course
+   - A **Student** account with student permissions in that course
+4. The course should already contain at least one assignment so the tester can also compare the instructor and student views of the assignment page.
+5. Record the numeric `courseId` for the test course.
 
 ### Steps
 
-#### Part A: Instructor experience
+#### Part A: Confirm the instructor can see and use instructor-only actions
 1. Log in as the instructor.
-2. Navigate to the target course dashboard.
-3. Confirm the dashboard shows a **"Create assessment"** button.
-4. Confirm the dashboard also shows a **"Members"** button for roster management.
-5. Click **"Create assessment"**.
-6. Confirm the **Create assignment** page loads successfully.
-7. Fill in a mock assignment title and any other required fields.
-8. Click **"Create assignment"**.
-9. Confirm the app returns you to the course dashboard.
-10. Confirm the new assignment appears in the course list.
+2. Open the target course dashboard.
+3. Confirm the page shows these controls in the upper-right action area:
+   - **Members**
+   - **Manage course**
+   - **Create assessment**
+4. Click **Create assessment**.
+5. Confirm the **Create assignment** page loads and shows the assignment form.
+6. Enter a mock assignment title and any required fields.
+7. Click **Create assignment**.
+8. Confirm the app returns to the course dashboard and the new assignment appears in the assignment list.
 
-#### Part B: Student experience
-11. Log out.
-12. Log back in as the student enrolled in the same course.
-13. Navigate to the same course dashboard.
-14. Confirm the dashboard does **not** show the **"Create assessment"** button.
-15. Confirm the dashboard does **not** show the **"Members"** button.
-16. Confirm any instructor-only grading controls are not visible from the student view.
+#### Part B: Confirm the student dashboard hides instructor-only actions
+9. Log out.
+10. Log back in as the student enrolled in the same course.
+11. Open the same course dashboard.
+12. Confirm the page does **not** show:
+   - **Members**
+   - **Manage course**
+   - **Create assessment**
+13. Open an existing assignment from the course dashboard.
+14. Confirm the student does **not** see instructor-only controls such as **Edit assignment** or the **Student submissions** section.
 
-#### Part C: Direct access / authorization check
-17. While still logged in as the student, manually visit `/courses/<courseId>/assessments/new` using the same course id from Part A.
-18. Confirm the system does **not** let the student complete instructor-only assignment creation.
-19. Verify one of the following happens:
-   - The student is redirected away from the page, or
-   - The page shows a clear unauthorized / course not found / no access message, or
-   - Submitting the form is blocked with a permission error such as **"You do not have permission to create assignments for this course."**
+#### Part C: Confirm direct URL access still blocks student-only misuse
+15. While still logged in as the student, manually visit `/courses/<courseId>/manage`.
+16. Confirm the page shows **Access restricted** and the message **"Only instructors can edit or delete this course."**
+17. Manually visit `/courses/<courseId>/members`.
+18. Confirm the roster page loads, but there is no add-member email form and no remove-member trash buttons.
+19. Manually visit `/courses/<courseId>/assessments/new`.
+20. Confirm the **Create assignment** form renders.
+21. Enter a mock assignment title and any other required fields.
+22. Click **Create assignment**.
+23. Confirm the submission is blocked and the page shows **"You do not have permission to create assignments for this course."**
+24. Confirm no new assignment appears on the course dashboard after returning to `/courses/<courseId>`.
 
 ### Metrics (and Why)
 
-#### 1. Permission Transparency
+#### 1. Role-Appropriate Action Visibility
 
-Measures whether each role only sees actions they can actually use.
+This measures whether each user role only sees the controls they can actually use.
 
-- Lean Startup: Role-appropriate UI reduces friction and helps users reach value faster.
-- The Mom Test: Users reveal confusion through hesitation and misclicks, not by politely saying the interface is unclear.
-- Why it matters: If students see instructor-only controls, the product feels unfinished and untrustworthy.
+- Lean Startup: role clarity reduces friction and shortens the path to value.
+- The Mom Test: confusion shows up as hesitation, misclicks, and "why is this here?" moments, not in polite compliments.
+- Why this matters for willingness to pay: if students repeatedly see instructor tools, the product feels sloppy and untrustworthy.
 
-#### 2. Enforcement Rigor
+#### 2. Unauthorized Action Containment
 
-Measures whether backend and route-level protections block privilege bypass attempts.
+This measures whether students are blocked from completing instructor-only operations even when they try direct URLs.
 
-- Lean Startup: Security is part of the core value hypothesis for any grading workflow.
-- The Mom Test: Real behavior matters more than stated trust; trying the direct URL exposes whether protection is real.
-- Why it matters: If a student can access instructor workflows, the grading platform loses integrity and becomes hard to trust or adopt.
+- Lean Startup: trust and data integrity are part of the core product value, not a bonus feature.
+- The Mom Test: watching what a tester tries to bypass reveals more than asking whether they "felt secure."
+- Why this matters for willingness to pay: instructors will not pay for a grading workflow they think students can tamper with.
 
-#### 3. Error Message Clarity
+#### 3. Recovery and Explanation Clarity
 
-Measures whether a blocked student understands what happened and what to do next.
+This measures whether the app explains blocked actions clearly enough that a user can recover without outside help.
 
-- Lean Startup: Clear recovery paths reduce support burden and keep users moving.
-- The Mom Test: Good feedback is observed when users recover without asking for help.
-- Why it matters: A vague failure feels like a bug; a clear explanation feels intentional and safe.
+- Lean Startup: clear feedback lowers support cost and keeps users moving through the product.
+- The Mom Test: users expose unclear messaging when they get stuck or ask what just happened.
+- Why this matters for willingness to pay: a protected action that looks like a bug still feels broken, even if the backend is correct.
 
 ### Survey Questions
 
-**Q1. When you were using the course page as a student, how clear did the page make your allowed actions on a scale from 1 to 5?**
+**Q1. While using the course as a student, how often did the interface show actions that felt like they belonged to instructors instead of you?**
 
-> **Metric covered — Permission transparency:** This question measures whether the student-facing dashboard felt complete and role-appropriate without exposing irrelevant instructor controls. A low score means the student either saw actions they could not use or felt unsure whether something was missing from the page.
+Scale: `1 = very often`, `5 = not at all`
 
-Answer: TBD
+> **Metric covered — Role-appropriate action visibility:** This question checks whether the student experience felt clean and role-specific, without dangling instructor controls that invite confusion or failed clicks.
 
----
-
-**Q2. After trying the direct URL, how confident were you on a scale from 1 to 5 that the system would stop students from getting into instructor-only workflows?**
-
-> **Metric covered — Enforcement rigor:** This question measures whether the application's actual access control feels strong when a student tries to bypass the UI by navigating directly to an instructor route. A low score means the tester saw behavior that felt permissive, inconsistent, or easy to circumvent.
-
-Answer: TBD
+Answer: 5 / 5
 
 ---
 
-**Q3. If you reached a restricted page by mistake, how easy would it be on a scale from 1 to 5 to understand what happened and what to do next?**
+**Q2. After trying the direct URLs, how comfortable would you feel using this app in a real class without worrying that students could change instructor-only course settings?**
 
-> **Metric covered — Error message clarity:** This question measures whether the system's redirect or permission error gives enough context for the user to recover without confusion. A low score means the app failed in a way that felt vague, broken, or misleading.
+Scale: `1 = not comfortable`, `5 = very comfortable`
 
-Answer: TBD
+> **Metric covered — Unauthorized action containment:** This question gets at trust in the actual enforcement, not just the visual polish of the dashboard.
+
+Answer: 4 / 5
+
+---
+
+**Q3. When the app blocked you from an instructor-only action, how quickly could you tell what happened and what to do next?**
+
+Scale: `1 = I was confused`, `5 = I knew immediately`
+
+> **Metric covered — Recovery and explanation clarity:** This question measures whether the app communicates blocked actions clearly enough to feel intentional rather than buggy.
+
+Answer: 4 / 5
 
 ---
 
 ## Classmate Testing
 
-**Classmate:** TBD  
-**Team:** Different team required  
-**Test date:** TBD
+**Classmate:**  Cici ge
+**Team:** Pickmyplate
+**Test date:** 2026-04-07
 
 ### Attempt 1 Responses
 
-- **Q1:** TBD
-- **Q2:** TBD
-- **Q3:** TBD
+- **Q1:** 5 / 5
+- **Q2:** 4 / 5
+- **Q3:** 4 / 5
 
-**Result:** TBD
+**Result:** Satisfied
 
-### Notes / Improvements
+### Notes
 
-- TBD
+- The tester said the student dashboard was clean and did not tempt them with instructor-only buttons.
+- The tester trusted the restrictions after trying direct URLs.
+- The one point of hesitation was that the create-assignment page still loads for students before the permission error appears on submit, so the behavior is secure but not as explicit as an immediate redirect.
 
-### Retest Responses
+### Retest
 
-- **Q1:** TBD
-- **Q2:** TBD
-- **Q3:** TBD
-
-**Retest Result:** TBD
+Not needed because the tester reported the story as satisfied on the first run.
 
 ### Overall Result
 
-- [ ] Pass
+- [x] Pass
 - [ ] Fail
 
 ---
 
 ## Submission Tracking
 
-- **GitHub Issue for this human acceptance test:** TBD
-- **Kanban status updates completed:** TBD
-- **Acceptance test PR URL:** TBD
-- **Reviewer / teammate approval:** TBD
-- **Merged to `main`:** TBD
-- **LLM chat log or accessible URL:** TBD
+- **GitHub Issue for this human acceptance test:** ________________________________
+- **Kanban status updates completed:** ________________________________
+- **Acceptance test PR URL:** ________________________________
+- **Reviewer / teammate approval:** ________________________________
+- **Merged to `main`:** ________________________________
+
+---
+
+## LLM Prompt Log
+
+This local markdown file is the accessible copy of the LLM generation log for User Story 9.
+
+### Prompt 1
+
+> Generate a human acceptance test for this implemented behavior: students should not see instructor-only buttons on the course dashboard, students who open `/courses/<courseId>/manage` should see an access-restricted state, students who open `/courses/<courseId>/members` should not be able to add or remove members, and students who open `/courses/<courseId>/assessments/new` should be blocked on submit with "You do not have permission to create assignments for this course."
+
+### Prompt 2
+
+> Based on that same implemented behavior, generate three survey questions and three satisfaction metrics that measure whether role restrictions feel trustworthy, clear, and worth paying for in a real classroom workflow.
+
+### Editing Note
+
+The generated material was manually edited to match the application's actual behavior exactly, especially the fact that the create-assignment page can render for students but assignment creation is still blocked on submit.
