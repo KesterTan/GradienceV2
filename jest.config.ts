@@ -5,10 +5,6 @@ const config: Config = {
   testEnvironment: "node",
   testMatch: ["**/tests/**/*.jest.test.ts", "**/tests/**/*.jest.test.tsx"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
-  testMatch: [
-    "**/tests/**/*.jest.test.ts",
-    "**/tests/**/*.jest.test.tsx",
-  ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
