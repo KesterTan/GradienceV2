@@ -10,6 +10,26 @@ jobs:
   vitest:
     name: Vitest
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,6 +42,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Apply database schema
+        run: psql -h localhost -U postgres -d postgres -f db/schema.sql
+        env:
+          PGPASSWORD: postgres
 
       - name: Run Vitest
         run: npm test
