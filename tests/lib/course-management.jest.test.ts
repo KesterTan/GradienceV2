@@ -459,7 +459,7 @@ describe("course-management", () => {
       expect(mockParseRubricJson).toHaveBeenCalled()
       expect(result?.rubricQuestions.length).toBe(1)
       expect(result?.grade?.totalScore).toBe(8)
-      expect(result?.grade?.rubricScores[0]).toEqual({ displayOrder: 1, pointsAwarded: 4 })
+      expect(result?.grade?.rubricScores[0]).toEqual({ displayOrder: 1, pointsAwarded: 4, comment: null })
     })
 
     test("getSubmissionGradeForGrader returns null grade when no grade row (gradeId null)", async () => {
@@ -540,8 +540,8 @@ describe("course-management", () => {
       expect(result?.rubricQuestions[0].questionId).toBe("Q1")
       expect(result?.rubricQuestions[1].questionId).toBe("Q2")
       expect(result?.grade?.rubricScores).toEqual([
-        { displayOrder: 2, pointsAwarded: 3 },
-        { displayOrder: 1, pointsAwarded: 7 },
+        { displayOrder: 2, pointsAwarded: 3, comment: null },
+        { displayOrder: 1, pointsAwarded: 7, comment: null },
       ])
     })
 

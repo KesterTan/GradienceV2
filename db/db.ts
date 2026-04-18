@@ -18,7 +18,7 @@ const poolConfig: any = {
   host: process.env.PGHOST,
   user: process.env.PGUSER,
   database: process.env.PGDATABASE || "postgres",
-  password: () => signer.getAuthToken(),
+  password: process.env.PGPASSWORD || (() => signer.getAuthToken()),
   port: Number(process.env.PGPORT),
   max: 20,
 };
