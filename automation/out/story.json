@@ -1,0 +1,47 @@
+{
+  "title": "Local API server to trigger Claude story creation and PR publishing",
+  "user_story": "As a developer, I want to trigger Claude to create a user story or publish a pull request via a local API call, so that I can integrate these workflows into my own scripts and tooling without invoking the Claude Code CLI directly.",
+  "rationale": "The team already has story-publisher and pr-publisher skills backed by automation scripts. Exposing them through a lightweight local HTTP server lets developers curl an endpoint or call it from any script, making Claude-driven story and PR creation composable with other tooling without requiring interactive CLI use.",
+  "machine_acceptance_criteria": [
+    "Given the local server is running, when a POST /story request is made with a JSON body containing a 'prompt' field, then the server invokes the story-publisher workflow and returns the created issue URL in the response.",
+    "Given the local server is running, when a POST /pr request is made with a JSON body containing an optional 'branch' field, then the server invokes the pr-publisher workflow and returns the created PR URL in the response.",
+    "Given a request is missing required fields, when the server processes it, then it returns a 400 response with a descriptive error message.",
+    "Given ANTHROPIC_API_KEY is not set in the environment, when the server starts, then it exits with a clear error message rather than silently failing at request time.",
+    "Given a workflow invocation fails, when the server handles the error, then it returns a 500 response with the error output rather than hanging."
+  ],
+  "human_acceptance_criteria": [
+    "Run the server locally and curl POST /story with a prompt; verify a GitHub issue is created and the URL is returned in the response.",
+    "Run the server locally and curl POST /pr; verify a pull request is opened and the PR URL is returned.",
+    "Verify a missing 'prompt' field returns a 400 with a clear message.",
+    "Verify startup fails with a readable error if ANTHROPIC_API_KEY is not set."
+  ],
+  "implementation_plan": [
+    "1. Create automation/server.ts (or server.js): a minimal HTTP server (Node built-in or Express) with POST /story and POST /pr routes.",
+    "2. POST /story: validate 'prompt' field, shell out to the existing publish_story.sh script (or Claude Code SDK call) with the prompt, stream stdout/stderr, return { issueUrl } on success.",
+    "3. POST /pr: validate optional 'branch' field, shell out to the publish_pr.sh script, return { prUrl } on success.",
+    "4. Add startup check for ANTHROPIC_API_KEY and GH_TOKEN environment variables; exit(1) with a message if missing.",
+    "5. Add a start script to package.json: 'automation:server': 'ts-node automation/server.ts' (or node equivalent).",
+    "6. Document usage with example curl commands in README under a 'Local Automation API' section."
+  ],
+  "backend_changes": [
+    "New automation/server.ts implementing the local HTTP API.",
+    "New 'automation:server' npm script in package.json.",
+    "Reuse existing automation/scripts/publish_story.sh and automation/scripts/publish_pr.sh as the execution layer."
+  ],
+  "frontend_changes": [
+    "None."
+  ],
+  "test_changes": [
+    "Unit tests for request validation: missing 'prompt' → 400; valid body → calls the correct script.",
+    "Integration smoke test: start the server, POST /story with a mock prompt, assert the script is invoked with expected args."
+  ],
+  "known_risks_assumptions": [
+    "The server runs locally only and is not intended for deployment; no auth is added in this story.",
+    "Assumes the existing shell scripts are correct and stable; errors in those scripts surface as 500 responses.",
+    "Shell-out latency depends on Claude API response time; the HTTP response will block until the workflow completes.",
+    "No concurrency handling in v1 — simultaneous requests may conflict on automation/out/story.json; follow-up story can add request queuing."
+  ],
+  "priority": "P1",
+  "size": "S",
+  "sprint": "sprint3"
+}
