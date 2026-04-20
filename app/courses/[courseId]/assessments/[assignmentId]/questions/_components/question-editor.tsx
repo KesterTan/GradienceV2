@@ -130,7 +130,7 @@ export function QuestionEditor({
     try {
       const result = await saveQuestionsAction({}, formData)
       if (result.errors) {
-        setFormError(result.errors._form?.[0] ?? null)
+        setFormError(result.errors._form?.[0] ?? result.errors.questionsPayload?.[0] ?? null)
         setFieldErrors(result.errors.fieldErrors ?? {})
         return
       }

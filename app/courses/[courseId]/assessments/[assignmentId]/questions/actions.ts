@@ -127,6 +127,7 @@ export async function saveQuestionsAction(
     .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
 
   revalidatePath(`/courses/${courseId}/assessments/${assignmentId}`)
+  revalidatePath(`/courses/${courseId}/assessments/${assignmentId}/questions`)
 
   return { success: true, savedQuestions: questionsJson.questions }
 }

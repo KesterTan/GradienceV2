@@ -276,7 +276,7 @@ describe("saveQuestionsAction", () => {
     expect(result.savedQuestions?.[0].is_extra_credit).toBe(true)
   })
 
-  it("calls revalidatePath for the assessment page", async () => {
+  it("revalidates both the assessment page and the questions page", async () => {
     mocks.selectQueue.push(
       [{ id: 99 }],
       [{ id: 12 }],
@@ -286,5 +286,7 @@ describe("saveQuestionsAction", () => {
     await saveQuestionsAction({}, makeFormData({ questionsPayload: validPayload() }))
 
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/courses/5/assessments/12")
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/courses/5/assessments/12/questions")
+    expect(mocks.revalidatePath).toHaveBeenCalledTimes(2)
   })
 })
