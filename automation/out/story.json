@@ -1,47 +1,54 @@
 {
-  "title": "Local API server to trigger Claude story creation and PR publishing",
-  "user_story": "As a developer, I want to trigger Claude to create a user story or publish a pull request via a local API call, so that I can integrate these workflows into my own scripts and tooling without invoking the Claude Code CLI directly.",
-  "rationale": "The team already has story-publisher and pr-publisher skills backed by automation scripts. Exposing them through a lightweight local HTTP server lets developers curl an endpoint or call it from any script, making Claude-driven story and PR creation composable with other tooling without requiring interactive CLI use.",
+  "title": "Instructor can add and view assignment questions one by one",
+  "user_story": "As an instructor, I want to add questions to an assignment one at a time and view the full list of questions I have entered, so that I can build a structured question set for students to answer.",
+  "rationale": "Assignments currently support a title and description but have no structured question model. Instructors need a way to compose individual questions and review them in order before publishing — this is the smallest increment that introduces the question data model and the entry/review UI.",
   "machine_acceptance_criteria": [
-    "Given the local server is running, when a POST /story request is made with a JSON body containing a 'prompt' field, then the server invokes the story-publisher workflow and returns the created issue URL in the response.",
-    "Given the local server is running, when a POST /pr request is made with a JSON body containing an optional 'branch' field, then the server invokes the pr-publisher workflow and returns the created PR URL in the response.",
-    "Given a request is missing required fields, when the server processes it, then it returns a 400 response with a descriptive error message.",
-    "Given ANTHROPIC_API_KEY is not set in the environment, when the server starts, then it exits with a clear error message rather than silently failing at request time.",
-    "Given a workflow invocation fails, when the server handles the error, then it returns a 500 response with the error output rather than hanging."
+    "Given an instructor on the assignment detail page, when they submit the 'Add question' form with a non-empty prompt, then a new row is inserted into gradience.assignment_questions linked to that assignment.",
+    "Given an instructor on the assignment detail page, when the page renders, then all questions for that assignment are displayed in ascending display_order.",
+    "Given a blank or whitespace-only prompt, when the instructor submits the form, then a validation error is shown and no row is inserted.",
+    "Given a student or unauthenticated user, when they POST to the add-question action, then the server returns a permission error and no row is inserted.",
+    "Given an instructor who has added at least one question, when they navigate away and return to the assignment detail page, then the questions persist and are listed in the order they were added."
   ],
   "human_acceptance_criteria": [
-    "Run the server locally and curl POST /story with a prompt; verify a GitHub issue is created and the URL is returned in the response.",
-    "Run the server locally and curl POST /pr; verify a pull request is opened and the PR URL is returned.",
-    "Verify a missing 'prompt' field returns a 400 with a clear message.",
-    "Verify startup fails with a readable error if ANTHROPIC_API_KEY is not set."
+    "Instructor can open an assignment and see an 'Add question' form below the assignment details.",
+    "After submitting the form, the new question appears immediately in the list without a jarring experience (Next.js revalidation redirect is acceptable).",
+    "The question list clearly shows each question prompt and its order number.",
+    "A student viewing the same page does not see the add-question form.",
+    "Submitting a blank question shows a clear inline error and does not add an empty item to the list."
   ],
   "implementation_plan": [
-    "1. Create automation/server.ts (or server.js): a minimal HTTP server (Node built-in or Express) with POST /story and POST /pr routes.",
-    "2. POST /story: validate 'prompt' field, shell out to the existing publish_story.sh script (or Claude Code SDK call) with the prompt, stream stdout/stderr, return { issueUrl } on success.",
-    "3. POST /pr: validate optional 'branch' field, shell out to the publish_pr.sh script, return { prUrl } on success.",
-    "4. Add startup check for ANTHROPIC_API_KEY and GH_TOKEN environment variables; exit(1) with a message if missing.",
-    "5. Add a start script to package.json: 'automation:server': 'ts-node automation/server.ts' (or node equivalent).",
-    "6. Document usage with example curl commands in README under a 'Local Automation API' section."
+    "1. Add gradience.assignment_questions table to db/schema.ts with fields: id (bigserial PK), assignment_id (bigint FK), prompt (text NOT NULL), display_order (integer NOT NULL), points (integer NOT NULL DEFAULT 0), created_at, updated_at.",
+    "2. Write and apply a migration SQL block to db/schema.sql to CREATE the new table.",
+    "3. Update db/seed.ts to insert 2-3 sample questions for the demo assignment.",
+    "4. Add lib/course-management.ts helpers: listQuestionsForAssignment(userId, courseId, assignmentId) and addQuestionToAssignment(userId, assignmentId, prompt).",
+    "5. Create app/courses/[courseId]/assessments/[assignmentId]/actions.ts with addQuestionAction: authenticates, calls requireActiveGraderMembership, validates prompt via Zod, sets display_order = existing count + 1, inserts row, revalidates page.",
+    "6. Create app/courses/[courseId]/assessments/[assignmentId]/_components/add-question-form.tsx — client component with a 'prompt' Textarea and submit Button using useActionState.",
+    "7. Update app/courses/[courseId]/assessments/[assignmentId]/page.tsx to fetch questions via listQuestionsForAssignment, render an ordered list (Card per question), and render AddQuestionForm only when isInstructor.",
+    "8. Add Vitest unit tests for the Zod validation in the add-question action schema."
   ],
   "backend_changes": [
-    "New automation/server.ts implementing the local HTTP API.",
-    "New 'automation:server' npm script in package.json.",
-    "Reuse existing automation/scripts/publish_story.sh and automation/scripts/publish_pr.sh as the execution layer."
+    "db/schema.ts: export new assignmentQuestions table (id, assignment_id, prompt, display_order, points, created_at, updated_at).",
+    "db/schema.sql: CREATE TABLE gradience.assignment_questions with matching columns.",
+    "db/seed.ts: insert sample questions for the demo assignment.",
+    "lib/course-management.ts: add listQuestionsForAssignment (SELECT ordered by display_order) and addQuestionToAssignment (INSERT, auto-sets display_order).",
+    "app/courses/[courseId]/assessments/[assignmentId]/actions.ts: new addQuestionAction — auth via requireAppUser, grader check via requireActiveGraderMembership, Zod prompt validation, DB insert, revalidatePath + redirect."
   ],
   "frontend_changes": [
-    "None."
+    "app/courses/[courseId]/assessments/[assignmentId]/_components/add-question-form.tsx: new client component with prompt Textarea, submit Button, inline error display, and pending state.",
+    "app/courses/[courseId]/assessments/[assignmentId]/page.tsx: fetch and render ordered question list (Card per question showing order number and prompt); render AddQuestionForm below the list for instructors only."
   ],
   "test_changes": [
-    "Unit tests for request validation: missing 'prompt' → 400; valid body → calls the correct script.",
-    "Integration smoke test: start the server, POST /story with a mock prompt, assert the script is invoked with expected args."
+    "tests/unit/add-question-action.test.ts: Vitest tests — (1) blank prompt returns validation error, (2) whitespace-only prompt returns validation error, (3) valid prompt passes validation.",
+    "tests/human-acceptance/user-story-questions.md: HAT script — log in as instructor, navigate to assignment, add two questions one at a time, verify both appear in order; log in as student, verify the add-question form is absent."
   ],
   "known_risks_assumptions": [
-    "The server runs locally only and is not intended for deployment; no auth is added in this story.",
-    "Assumes the existing shell scripts are correct and stable; errors in those scripts surface as 500 responses.",
-    "Shell-out latency depends on Claude API response time; the HTTP response will block until the workflow completes.",
-    "No concurrency handling in v1 — simultaneous requests may conflict on automation/out/story.json; follow-up story can add request queuing."
+    "display_order is set server-side as count(existing questions)+1; concurrent inserts could produce duplicate order values — acceptable for MVP, can be addressed with a sequence or client-side reorder in a follow-up.",
+    "No reorder or delete UI is included in this story; a follow-up story is needed for editing and removing questions.",
+    "Questions are stored in a new relational table (not in rubric_json JSONB) to keep them queryable, consistent with the assignmentRubricItems pattern already in schema.ts.",
+    "points per question defaults to 0; wiring questions into the assignment totalPoints aggregate is deferred to a follow-up.",
+    "No schema migration tooling is codified beyond db:apply — the new table DDL must be run against the target DB via npm run db:apply."
   ],
   "priority": "P1",
-  "size": "S",
+  "size": "M",
   "sprint": "sprint3"
 }
