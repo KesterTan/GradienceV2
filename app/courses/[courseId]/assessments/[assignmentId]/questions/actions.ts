@@ -69,11 +69,20 @@ export async function saveQuestionsAction(
 
   const parsed = questionsPayloadSchema.safeParse(parsedPayload)
   if (!parsed.success) {
+    const { formErrors } = parsed.error.flatten()
     const fieldErrors: Record<string, string[]> = {}
     for (const issue of parsed.error.issues) {
       if (!issue.path.length) continue
       const key = issue.path.join(".")
       fieldErrors[key] = [...(fieldErrors[key] ?? []), issue.message]
+    }
+    if (Object.keys(fieldErrors).length === 0) {
+      return {
+        errors: {
+          questionsPayload:
+            formErrors.length > 0 ? formErrors : ["Questions payload is invalid."],
+        },
+      }
     }
     return { errors: { fieldErrors } }
   }
