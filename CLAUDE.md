@@ -7,7 +7,7 @@ For new product user stories:
 - Each story must be small enough for one PR and roughly two weeks or less.
 - Each story must include:
   - machine acceptance criteria
-  - human acceptance criteria (this should be something like)
+  - human acceptance criteria: user can complete the intended task and verify the outcome
   - implementation plan
   - backend changes
   - frontend changes

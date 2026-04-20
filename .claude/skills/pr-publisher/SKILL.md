@@ -15,17 +15,13 @@ When invoked, do the following:
    - proposed branch name
    - proposed commit message
    - proposed PR title
-   - proposed PR body
+   - proposed PR body (use the template below)
+
 4. If approved, run the PR publish script:
    bash automation/scripts/publish_pr.sh GradientV1/YOUR_REPO
 
-Requirements:
-- Keep the PR scoped to one story.
-- Prefer branch names like:
-  feature/<short-story-name>
-  fix/<short-problem-name>
-- PR title should be short and clear.
-- PR body must include these sections:
+### PR Body Template
+The PR body must include these sections:
 
 ## Summary
 - ...
@@ -54,3 +50,10 @@ Requirements:
    - branch name
    - commit SHA if created
    - PR URL
+
+Requirements:
+- Keep the PR scoped to one story.
+- Prefer branch names like:
+  feature/<short-story-name>
+  fix/<short-problem-name>
+- PR title should be short and clear.

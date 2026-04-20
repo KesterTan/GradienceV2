@@ -40,6 +40,9 @@ fi
 PR_TITLE=$(git log -1 --pretty=%s)
 PR_BODY_FILE=$(mktemp)
 
+# Clean up temp file on exit
+trap "rm -f '$PR_BODY_FILE'" EXIT
+
 {
   echo "## Summary"
   echo "- Replace with a concise summary of the story implemented."
@@ -77,7 +80,5 @@ PR_URL=$(gh pr create \
   --head "$CURRENT_BRANCH" \
   --title "$PR_TITLE" \
   --body-file "$PR_BODY_FILE")
-
-rm -f "$PR_BODY_FILE"
 
 echo "Created PR: $PR_URL"
