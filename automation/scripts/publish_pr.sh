@@ -31,9 +31,10 @@ fi
 
 BASE_BRANCH=$(gh repo view "$REPO" --json defaultBranchRef --jq '.defaultBranchRef.name')
 
-# Try to infer issue number from branch name or latest commit text
+
+# Try to infer issue number from branch name (e.g., feature/issue-123, fix-456, bugfix/789, feature/123, feature/issue123, or #123)
 ISSUE_NUMBER=""
-if [[ "$CURRENT_BRANCH" =~ ([0-9]+) ]]; then
+if [[ "$CURRENT_BRANCH" =~ (?:[/-]|issue-?|#)([0-9]+)$ ]]; then
   ISSUE_NUMBER="${BASH_REMATCH[1]}"
 fi
 
