@@ -25,17 +25,26 @@ const emptyQuestion = (index: number): AssignmentQuestion => ({
   is_extra_credit: false,
 })
 
+function escHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+}
+
 function printQuestionsPdf(assignmentTitle: string, courseTitle: string, questions: AssignmentQuestion[]) {
   const rows = questions
     .map(
       (q) =>
         `<div class="question">
           <div class="question-header">
-            <span class="question-id">${q.question_id}</span>
+            <span class="question-id">${escHtml(q.question_id)}</span>
             ${q.is_extra_credit ? '<span class="badge">Extra credit</span>' : ""}
             <span class="points">${q.question_max_total} pts</span>
           </div>
-          <p class="question-text">${q.question_text}</p>
+          <p class="question-text">${escHtml(q.question_text)}</p>
         </div>`,
     )
     .join("")
@@ -43,7 +52,7 @@ function printQuestionsPdf(assignmentTitle: string, courseTitle: string, questio
   const count = questions.length
   const html = [
     "<!DOCTYPE html><html><head><meta charset='utf-8'>",
-    `<title>${assignmentTitle} \u2014 Questions</title>`,
+    `<title>${escHtml(assignmentTitle)} \u2014 Questions</title>`,
     "<style>",
     "body{font-family:Georgia,serif;max-width:720px;margin:40px auto;color:#111;font-size:14px}",
     "h1{font-size:20px;margin-bottom:4px}",
@@ -56,8 +65,8 @@ function printQuestionsPdf(assignmentTitle: string, courseTitle: string, questio
     ".question-text{margin:0;line-height:1.6}",
     "@media print{body{margin:20px}}",
     "</style></head><body>",
-    `<h1>${assignmentTitle}</h1>`,
-    `<p class="meta">Course: ${courseTitle} &nbsp;&middot;&nbsp; ${count} question${count !== 1 ? "s" : ""}</p>`,
+    `<h1>${escHtml(assignmentTitle)}</h1>`,
+    `<p class="meta">Course: ${escHtml(courseTitle)} &nbsp;&middot;&nbsp; ${count} question${count !== 1 ? "s" : ""}</p>`,
     rows,
     "</body></html>",
   ].join("")
@@ -118,19 +127,21 @@ export function QuestionEditor({
       JSON.stringify({ assignment_title: "", course: "", instructions_summary: "", questions: snapshot }),
     )
 
-    const result = await saveQuestionsAction({}, formData)
-
-    setPending(false)
-
-    if (result.errors) {
-      setFormError(result.errors._form?.[0] ?? null)
-      setFieldErrors(result.errors.fieldErrors ?? {})
-      return
+    try {
+      const result = await saveQuestionsAction({}, formData)
+      if (result.errors) {
+        setFormError(result.errors._form?.[0] ?? null)
+        setFieldErrors(result.errors.fieldErrors ?? {})
+        return
+      }
+      // Success — update display state immediately from the snapshot we sent
+      setSavedQuestions(result.savedQuestions ?? snapshot)
+      setIsEditing(false)
+    } catch {
+      setFormError("An unexpected error occurred. Please try again.")
+    } finally {
+      setPending(false)
     }
-
-    // Success — update display state immediately from the snapshot we sent
-    setSavedQuestions(result.savedQuestions ?? snapshot)
-    setIsEditing(false)
   }
 
   const hasError = (path: string) => Boolean(fieldErrors[path]?.length)
@@ -148,7 +159,13 @@ export function QuestionEditor({
   const removeQuestion = (index: number) => {
     setQuestions((prev) => {
       const next = prev.filter((_, i) => i !== index)
-      return next.map((q, i) => ({ ...q, question_id: `Q${i + 1}` }))
+      let autoNum = 1
+      return next.map((q) => {
+        if (/^Q\d+$/.test(q.question_id)) {
+          return { ...q, question_id: `Q${autoNum++}` }
+        }
+        return q
+      })
     })
   }
 

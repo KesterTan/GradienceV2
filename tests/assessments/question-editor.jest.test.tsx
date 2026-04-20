@@ -335,4 +335,40 @@ describe("extra-credit checkbox", () => {
     expect(container.querySelector("form")).toBeNull()
     expect(container.textContent).toContain("Edit questions")
   })
+
+  test("on server-returned form error, edit form stays open and error message is shown", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(mockSaveQuestionsAction as any).mockResolvedValue({
+      errors: { _form: ["You do not have permission to edit questions for this assessment."] },
+    })
+
+    act(() => {
+      root.render(<QuestionEditor {...defaultEditorProps()} />)
+    })
+
+    const form = container.querySelector("form")!
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true }))
+    })
+
+    expect(container.querySelector("form")).not.toBeNull()
+    expect(container.textContent).toContain("You do not have permission")
+  })
+
+  test("on unexpected thrown error, edit form stays open and generic error is shown", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(mockSaveQuestionsAction as any).mockRejectedValue(new Error("Network failure"))
+
+    act(() => {
+      root.render(<QuestionEditor {...defaultEditorProps()} />)
+    })
+
+    const form = container.querySelector("form")!
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true }))
+    })
+
+    expect(container.querySelector("form")).not.toBeNull()
+    expect(container.textContent).toContain("unexpected error")
+  })
 })
