@@ -1,44 +1,56 @@
 {
-  "title": "Student read-only view of assignment questions with PDF download",
-  "user_story": "As a student, I want to view the list of questions for an assignment and download them as a PDF, so that I can review what will be evaluated before submitting my work.",
-  "rationale": "The instructor question editor (PR #53) stores questions in assignments.questions_json and the QuestionEditor component already has a canEdit=false read-only mode with a Download PDF button. This story wires up the student-facing experience: ensuring the Questions link is accessible from the assessment page for students, the read-only question list renders correctly, and the PDF download works.",
+  "title": "Student regrade request with instructor resolution",
+  "user_story": "As a student, I want to request a regrade for my assignment and provide a reason, so that I can have my work reviewed again if I believe it was graded incorrectly.",
+  "rationale": "Grades are already released to students but there is no structured dispute flow. Adding a regrade request + instructor resolution queue replaces ad-hoc emails with a traceable, in-product workflow.",
   "machine_acceptance_criteria": [
-    "Given a student on the assessment detail page, when questions have been saved by the instructor, then a 'Questions' link is visible and navigates to /courses/{courseId}/assessments/{assignmentId}/questions",
-    "Given a student navigates to the questions page, when questions exist, then question cards render with question ID, text, max points, and extra-credit badge — no edit form, no Add question button, no Save or Cancel button is present",
-    "Given a student navigates to the questions page, when no questions have been saved, then a 'No questions yet' card is displayed with a back link",
-    "Given a student is on the questions page with questions loaded, when they click 'Download PDF', then a print dialog opens with all questions rendered in the correct format",
-    "Given a user who is not an active member of the course navigates to the questions page, then they receive a 404"
+    "Given a student views a released grade, when they submit a regrade request with a non-empty reason, then a regrade_requests row is created with status 'pending'.",
+    "Given a regrade request already exists for a submission, when the student tries to submit another, then the form is disabled and shows the existing request status.",
+    "Given an instructor views the assessment detail page, when pending regrade requests exist, then those student submission cards appear at the top of the list with a visible badge.",
+    "Given an instructor opens a regrade request, when they edit the grade and click Resolve, then the grade is updated, the regrade_requests row status is set to 'resolved', and the student's grade view reflects the new score.",
+    "Given an instructor resolves a regrade request, when the student views their grade, then the updated score and a 'Regrade resolved' status are shown.",
+    "Given any regrade API route is called without authentication, then it returns 401."
   ],
   "human_acceptance_criteria": [
-    "Log in as a student enrolled in a course where the instructor has saved questions — navigate to the assessment, click Questions, and verify question cards appear with no edit controls visible",
-    "On the questions page, click Download PDF and confirm the browser print dialog opens showing the assignment title, course name, and all questions with point values and extra-credit badges",
-    "Log in as a student in a course where the instructor has NOT yet saved questions — navigate to the questions page and confirm 'No questions yet' is shown",
-    "Confirm the Back to assessment button returns to the correct assessment detail page"
+    "Student can open a released submission, fill in a reason, and click 'Request Regrade' — a confirmation message appears and the form is disabled.",
+    "Instructor can see pending regrade requests highlighted at the top of the assessment submissions list.",
+    "Instructor can open a regrade request, see the student's reason, edit the rubric scores, and click Resolve — the request disappears from the pending list and the grade is updated.",
+    "Student refreshes their grade page and sees the resolved score."
   ],
   "implementation_plan": [
-    "Confirm the Questions button on app/courses/[courseId]/assessments/[assignmentId]/page.tsx is not gated by isInstructor — it is already accessible to all members, no change needed",
-    "Confirm getAssessmentQuestionsForMember in lib/course-management.ts returns rows for student memberships and sets viewerRole='Student' via the existing SQL CASE expression — already implemented",
-    "Confirm questions/page.tsx passes canEdit={isInstructor} (false for students) to QuestionEditor and renders the 'No questions yet' card for students when questionsJson is null — already implemented",
-    "Confirm QuestionEditor canEdit=false renders question cards and Download PDF button without any edit controls — already implemented",
-    "Manually verify the full student flow end-to-end in the browser using a student account"
+    "Add regrade_requests table to db/schema.ts (submissionId, studentMembershipId, reason, status enum pending/resolved, resolvedByMembershipId nullable, resolvedAt nullable, createdAt, updatedAt).",
+    "Add corresponding SQL to db/schema.sql.",
+    "Add DB helpers in lib/course-management.ts: createRegradeRequest, getExistingRegradeRequest, listRegradeRequestsForAssignment, resolveRegradeRequest (updates grade + marks resolved in one transaction).",
+    "Add POST /api/.../submissions/[submissionId]/regrade — student submits request.",
+    "Add PATCH /api/.../submissions/[submissionId]/regrade — instructor resolves request, accepts updated rubric scores in body.",
+    "On student grade page (/grade): add a 'Request Regrade' card below Instructor Feedback, hidden if grade not released.",
+    "On instructor assessment page: sort and badge submissions that have a pending regrade request, pinning them to the top.",
+    "Add a regrade resolution page for instructors: shows student reason, editable rubric scores (reuse SubmissionGradeForm), and a Resolve button.",
+    "Add unit tests for POST and PATCH routes, and resolveRegradeRequest DB helper."
   ],
   "backend_changes": [
-    "No new backend changes required — getAssessmentQuestionsForMember already handles student membership and returns questionsJson with correct viewerRole"
+    "db/schema.ts: add regradeRequests table.",
+    "db/schema.sql: add CREATE TABLE for regrade_requests.",
+    "lib/course-management.ts: createRegradeRequest, getExistingRegradeRequest, listRegradeRequestsForAssignment, resolveRegradeRequest.",
+    "app/api/courses/[courseId]/assessments/[assignmentId]/submissions/[submissionId]/regrade/route.ts: POST (student) and PATCH (instructor resolve) handlers."
   ],
   "frontend_changes": [
-    "No new component changes required — QuestionEditor canEdit=false read-only mode and Download PDF button are fully implemented",
-    "Confirm the Questions link on the assessment detail page is not wrapped in an isInstructor guard — already the case, no change needed"
+    "app/courses/[courseId]/assessments/[assignmentId]/submissions/[submissionId]/grade/page.tsx: add RegradeRequestCard below Instructor Feedback when grade is released.",
+    "New component: _components/regrade-request-card.tsx — textarea + submit button, collapses to status after submission.",
+    "app/courses/[courseId]/assessments/[assignmentId]/page.tsx: pin and badge submissions with pending regrade requests at the top of the list.",
+    "New page: app/courses/[courseId]/assessments/[assignmentId]/submissions/[submissionId]/regrade/page.tsx — instructor sees student reason, editable grade form, Resolve button."
   ],
   "test_changes": [
-    "No automated test changes in this story — test coverage for the student view is tracked in a separate testing story"
+    "POST regrade route: success, duplicate request, grade not released, unauthenticated.",
+    "PATCH regrade route: success, request not found, unauthorized (student cannot resolve), unauthenticated.",
+    "resolveRegradeRequest DB helper: updates grade and sets status to resolved atomically."
   ],
   "known_risks_assumptions": [
-    "Questions are only visible to students once the instructor has explicitly saved them — there is no draft or preview mode for unpublished questions",
-    "The PDF is generated client-side as an HTML blob via window.print() — output quality depends on the browser's print-to-PDF capability and may vary across browsers",
-    "If assignments.questions_json contains corrupted data (non-null but fails schema parse), parseQuestionsJson returns null and the student sees 'No questions yet' silently — a follow-up story should add an explicit error state for this edge case",
-    "Student access control relies on getAssessmentQuestionsForMember correctly checking active course membership"
+    "Grade must be released (isReleasedToStudent=true) before a regrade can be requested.",
+    "One pending regrade request per submission enforced at the application layer.",
+    "Resolving overwrites the existing grade row rather than creating a new one — simpler for now, no audit trail of the original grade.",
+    "The regrade resolution UI reuses SubmissionGradeForm; if that component changes, the regrade page inherits those changes."
   ],
   "priority": "P1",
-  "size": "S",
+  "size": "L",
   "sprint": "sprint3"
 }
