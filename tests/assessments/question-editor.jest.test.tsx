@@ -207,6 +207,48 @@ describe("canEdit=true with no saved questions (edit mode)", () => {
     expect(deleteButton).toBeDefined()
     expect((deleteButton as HTMLButtonElement).disabled).toBe(true)
   })
+
+  test("deleting a question after a validation failure rebases field error keys", async () => {
+    // Return field errors for both Q1 and Q2 on first submit
+    mockSaveQuestionsAction.mockResolvedValueOnce({
+      errors: {
+        fieldErrors: {
+          "questions.0.question_text": ["Question text is required"],
+          "questions.1.question_text": ["Question text is required"],
+        },
+      },
+    })
+
+    const payload = makePayload([
+      makeQuestion({ question_id: "Q1", question_text: "" }),
+      makeQuestion({ question_id: "Q2", question_text: "" }),
+    ])
+    act(() => {
+      root.render(<QuestionEditor {...defaultEditorProps({ initialPayload: payload })} />)
+    })
+
+    // Enter edit mode
+    const editButton = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent === "Edit questions",
+    )!
+    act(() => { editButton.click() })
+
+    // Submit to trigger field errors
+    const form = container.querySelector("form")!
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true }))
+    })
+
+    // Delete the first question — errors for index 1 should shift to index 0
+    const deleteButtons = Array.from(container.querySelectorAll("button")).filter(
+      (b) => b.textContent === "Delete",
+    )
+    act(() => { deleteButtons[0].click() })
+
+    // Only one question card should remain and it should not show a stale error
+    // from index 1 (which is now index 0 after rebasing)
+    expect(container.textContent).not.toContain("Question 2")
+  })
 })
 
 describe("canEdit=true with saved questions (view mode)", () => {

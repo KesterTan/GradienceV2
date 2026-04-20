@@ -167,6 +167,21 @@ export function QuestionEditor({
         return q
       })
     })
+    setFieldErrors((prev) => {
+      const next: Record<string, string[]> = {}
+      for (const key of Object.keys(prev)) {
+        const match = key.match(/^questions\.(\d+)\.(.+)$/)
+        if (!match) {
+          next[key] = prev[key]
+          continue
+        }
+        const i = Number(match[1])
+        if (i === index) continue
+        const newKey = i > index ? `questions.${i - 1}.${match[2]}` : key
+        next[newKey] = prev[key]
+      }
+      return next
+    })
   }
 
   const enterEditMode = () => {
