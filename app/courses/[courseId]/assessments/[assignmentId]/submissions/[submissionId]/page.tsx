@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getSubmissionGradeForGrader } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
+import { InstructorReleaseButton } from "@/components/instructor-release-button"
 import { SubmissionGradeForm } from "./_components/submission-grade-form"
 
 export default async function SubmissionPage({
@@ -126,6 +127,14 @@ export default async function SubmissionPage({
                     <span className="text-muted-foreground">Saved grade:</span> {submission.grade.totalScore}/{submission.totalPoints}
                   </p>
                 )}
+                <div className="pt-1">
+                  <InstructorReleaseButton
+                    courseId={submission.courseId}
+                    assignmentId={submission.assignmentId}
+                    submissionId={submission.id}
+                    isReleased={submission.grade?.isReleasedToStudent ?? false}
+                  />
+                </div>
                 {submission.fileUrl && (
                   <p>
                     <span className="text-muted-foreground">File:</span>{" "}

@@ -124,6 +124,7 @@ export type SubmissionGrade = {
   totalScore: number
   overallFeedback: string | null
   gradedAt: string
+  isReleasedToStudent: boolean
   rubricScores: Array<{
     displayOrder: number
     pointsAwarded: number
@@ -694,6 +695,7 @@ export async function getSubmissionGradeForGrader(
       gradeTotalScore: grades.totalScore,
       gradeOverallFeedback: grades.overallFeedback,
       gradeGradedAt: grades.gradedAt,
+      gradeIsReleasedToStudent: grades.isReleasedToStudent,
     })
     .from(submissions)
     .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
@@ -759,6 +761,7 @@ export async function getSubmissionGradeForGrader(
       totalScore: Number(row.gradeTotalScore ?? 0),
       overallFeedback: row.gradeOverallFeedback ? String(row.gradeOverallFeedback) : null,
       gradedAt: String(row.gradeGradedAt),
+      isReleasedToStudent: Boolean(row.gradeIsReleasedToStudent ?? false),
       rubricScores: scoreRows.map((scoreRow) => ({
         displayOrder: Number(scoreRow.displayOrder),
         pointsAwarded: Number(scoreRow.pointsAwarded),
@@ -816,6 +819,7 @@ export async function getSubmissionGradeForStudent(
       gradeTotalScore: grades.totalScore,
       gradeOverallFeedback: grades.overallFeedback,
       gradeGradedAt: grades.gradedAt,
+      gradeIsReleasedToStudent: grades.isReleasedToStudent,
       regradeRequestId: regradeRequests.id,
       regradeRequestReason: regradeRequests.reason,
       regradeRequestStatus: regradeRequests.status,
@@ -867,7 +871,7 @@ export async function getSubmissionGradeForStudent(
     : []
 
   let grade: SubmissionGrade | null = null
-  if (row.gradeId) {
+  if (row.gradeId && row.gradeIsReleasedToStudent) {
     const scoreRows = await db
       .select({
         displayOrder: assignmentRubricItems.displayOrder,
@@ -884,6 +888,7 @@ export async function getSubmissionGradeForStudent(
       totalScore: Number(row.gradeTotalScore ?? 0),
       overallFeedback: row.gradeOverallFeedback ? String(row.gradeOverallFeedback) : null,
       gradedAt: String(row.gradeGradedAt),
+      isReleasedToStudent: true,
       rubricScores: scoreRows.map((scoreRow) => ({
         displayOrder: Number(scoreRow.displayOrder),
         pointsAwarded: Number(scoreRow.pointsAwarded),
