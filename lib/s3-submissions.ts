@@ -212,6 +212,36 @@ export async function uploadRubricJsonToS3({
   )
 }
 
+export function buildQuestionsS3ObjectKey({
+  courseId,
+  assignmentId,
+}: {
+  courseId: number
+  assignmentId: number
+}) {
+  return `questions/assessments/${courseId}/${assignmentId}/questions.json`
+}
+
+export async function uploadQuestionsJsonToS3({
+  objectKey,
+  questionsJson,
+}: {
+  objectKey: string
+  questionsJson: unknown
+}) {
+  const bucket = getS3Bucket()
+  const client = getS3Client()
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: JSON.stringify(questionsJson, null, 2),
+      ContentType: "application/json",
+    }),
+  )
+}
+
 export async function loadSubmissionPdfFromS3(fileUrl: string) {
   const parsed = parseSubmissionS3Url(fileUrl)
   if (!parsed) {

@@ -86,6 +86,7 @@ export const assignments = gradience.table("assignments", {
   title: text("title").notNull(),
   description: text("description"),
   rubricJson: jsonb("rubric_json"),
+  questionsJson: jsonb("questions_json"),
   assignmentType: text("assignment_type").notNull(),
   totalPoints: integer("total_points").notNull(),
   releaseAt: timestamp("release_at", { withTimezone: true, mode: "string" }).notNull(),

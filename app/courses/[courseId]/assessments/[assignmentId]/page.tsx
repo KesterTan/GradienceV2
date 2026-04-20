@@ -74,6 +74,11 @@ export default async function AssessmentPage({
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             <Button asChild className="w-full sm:w-auto" variant="outline">
+              <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/questions`}>
+                Questions
+              </Link>
+            </Button>
+            <Button asChild className="w-full sm:w-auto" variant="outline">
               <Link href={`/courses/${assessment.courseId}/assessments/${assessment.id}/rubric`}>
                 Rubric
               </Link>

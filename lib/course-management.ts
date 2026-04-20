@@ -66,6 +66,11 @@ export type AssessmentRubricDetail = AssessmentDetail & {
   rubricJson: unknown | null
 }
 
+export type AssessmentQuestionsDetail = AssessmentDetail & {
+  viewerRole: CourseViewerRole
+  questionsJson: unknown | null
+}
+
 export type SubmissionSummary = {
   id: number
   studentMembershipId: number
@@ -357,6 +362,61 @@ export async function getAssessmentRubricForMember(
     courseId: Number(row.courseId),
     courseTitle: String(row.courseTitle),
     rubricJson: row.rubricJson ?? null,
+    allowResubmissions: Boolean(row.allowResubmissions),
+    maxAttemptResubmission: Number(row.maxAttemptResubmission ?? 0),
+    viewerRole: row.viewerRole === "Student" ? "Student" : "Instructor",
+  }
+}
+
+export async function getAssessmentQuestionsForMember(
+  userId: number,
+  courseId: number,
+  assignmentId: number,
+): Promise<AssessmentQuestionsDetail | null> {
+  const myMembership = alias(courseMemberships, "my_membership")
+  const rows = await db
+    .select({
+      id: assignments.id,
+      title: assignments.title,
+      description: assignments.description,
+      releaseAt: assignments.releaseAt,
+      dueAt: assignments.dueAt,
+      lateUntil: assignments.lateUntil,
+      totalPoints: assignments.totalPoints,
+      courseId: courses.id,
+      courseTitle: courses.title,
+      questionsJson: assignments.questionsJson,
+      allowResubmissions: assignments.allowResubmissions,
+      maxAttemptResubmission: assignments.maxAttemptResubmission,
+      viewerRole: sql<CourseViewerRole>`case when ${myMembership.role} = 'student' then 'Student' else 'Instructor' end`,
+    })
+    .from(assignments)
+    .innerJoin(courses, eq(courses.id, assignments.courseId))
+    .innerJoin(
+      myMembership,
+      and(
+        eq(myMembership.courseId, courses.id),
+        eq(myMembership.userId, userId),
+        eq(myMembership.status, "active"),
+      ),
+    )
+    .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId)))
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return null
+
+  return {
+    id: Number(row.id),
+    title: String(row.title),
+    releaseAt: String(row.releaseAt),
+    dueAt: String(row.dueAt),
+    lateUntil: row.lateUntil ? String(row.lateUntil) : null,
+    totalPoints: Number(row.totalPoints),
+    description: row.description ? String(row.description) : null,
+    courseId: Number(row.courseId),
+    courseTitle: String(row.courseTitle),
+    questionsJson: row.questionsJson ?? null,
     allowResubmissions: Boolean(row.allowResubmissions),
     maxAttemptResubmission: Number(row.maxAttemptResubmission ?? 0),
     viewerRole: row.viewerRole === "Student" ? "Student" : "Instructor",
