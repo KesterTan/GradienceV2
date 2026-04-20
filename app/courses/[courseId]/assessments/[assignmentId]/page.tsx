@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { format } from "date-fns"
 import { AssessmentSubmissionPanel } from "@/components/assessment-submission-panel"
+import { AssignZeroButton } from "@/components/assign-zero-button"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { StudentSubmissionsCard } from "@/components/student-submissions-card"
 import { Button } from "@/components/ui/button"
@@ -150,8 +151,13 @@ export default async function AssessmentPage({
                     <CardDescription>{student.studentEmail}</CardDescription>
                   </CardHeader>
                   <CardContent className="px-5 pb-5 sm:px-6">
-                    <div className="flex items-center gap-2 rounded-lg border bg-slate-50 px-3 py-3">
+                    <div className="flex items-center justify-between gap-2 rounded-lg border bg-slate-50 px-3 py-3">
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">No submission</span>
+                      <AssignZeroButton
+                        courseId={assessment.courseId}
+                        assignmentId={assessment.id}
+                        studentMembershipId={student.studentMembershipId}
+                      />
                     </div>
                   </CardContent>
                 </Card>
