@@ -113,6 +113,18 @@ export const assignmentRubricItems = gradience.table("assignment_rubric_items", 
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 })
 
+export const regradeRequests = gradience.table("regrade_requests", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  submissionId: bigint("submission_id", { mode: "number" }).notNull(),
+  studentMembershipId: bigint("student_membership_id", { mode: "number" }).notNull(),
+  reason: text("reason").notNull(),
+  status: text("status").notNull().default("pending"),
+  resolvedByMembershipId: bigint("resolved_by_membership_id", { mode: "number" }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true, mode: "string" }),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+})
+
 export const submissions = gradience.table("submissions", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   assignmentId: bigint("assignment_id", { mode: "number" }).notNull(),

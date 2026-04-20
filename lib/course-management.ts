@@ -7,6 +7,7 @@ import {
   courseMemberships,
   courses,
   grades,
+  regradeRequests,
   rubricScores,
   submissions,
   users,
@@ -130,10 +131,25 @@ export type SubmissionGrade = {
   }>
 }
 
+export type RegradeRequest = {
+  id: number
+  submissionId: number
+  studentMembershipId: number
+  reason: string
+  status: "pending" | "resolved"
+  createdAt: string
+}
+
+export type RegradeRequestSummary = RegradeRequest & {
+  studentName: string
+  studentEmail: string
+}
+
 export type SubmissionGradeDetail = SubmissionDetail & {
   totalPoints: number
   rubricQuestions: SubmissionGradeQuestion[]
   grade: SubmissionGrade | null
+  regradeRequest: RegradeRequest | null
 }
 
 export async function listCoursesForGrader(userId: number): Promise<CourseSummary[]> {
@@ -767,6 +783,7 @@ export async function getSubmissionGradeForGrader(
     courseTitle: String(row.courseTitle),
     rubricQuestions,
     grade,
+    regradeRequest: null,
   }
 }
 
@@ -799,6 +816,11 @@ export async function getSubmissionGradeForStudent(
       gradeTotalScore: grades.totalScore,
       gradeOverallFeedback: grades.overallFeedback,
       gradeGradedAt: grades.gradedAt,
+      regradeRequestId: regradeRequests.id,
+      regradeRequestReason: regradeRequests.reason,
+      regradeRequestStatus: regradeRequests.status,
+      regradeRequestStudentMembershipId: regradeRequests.studentMembershipId,
+      regradeRequestCreatedAt: regradeRequests.createdAt,
     })
     .from(submissions)
     .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
@@ -815,6 +837,7 @@ export async function getSubmissionGradeForStudent(
     )
     .innerJoin(studentUser, eq(studentUser.id, myMembership.userId))
     .leftJoin(grades, eq(grades.submissionId, submissions.id))
+    .leftJoin(regradeRequests, eq(regradeRequests.submissionId, submissions.id))
     .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId), eq(submissions.id, submissionId)))
     .limit(1)
 
@@ -869,6 +892,17 @@ export async function getSubmissionGradeForStudent(
     }
   }
 
+  const regradeRequest: RegradeRequest | null = row.regradeRequestId
+    ? {
+        id: Number(row.regradeRequestId),
+        submissionId: Number(row.id),
+        studentMembershipId: Number(row.regradeRequestStudentMembershipId),
+        reason: String(row.regradeRequestReason),
+        status: String(row.regradeRequestStatus) as "pending" | "resolved",
+        createdAt: String(row.regradeRequestCreatedAt),
+      }
+    : null
+
   return {
     id: Number(row.id),
     attemptNumber: Number(row.attemptNumber),
@@ -885,6 +919,7 @@ export async function getSubmissionGradeForStudent(
     courseTitle: String(row.courseTitle),
     rubricQuestions,
     grade,
+    regradeRequest,
   }
 }
 
@@ -926,4 +961,150 @@ export async function listMemberSubmissionHistory(
     fileUrl: row.fileUrl ? String(row.fileUrl) : null,
     isCurrent: index === 0,
   }))
+}
+
+export async function createRegradeRequest(
+  studentMembershipId: number,
+  submissionId: number,
+  reason: string,
+): Promise<RegradeRequest> {
+  const rows = await db
+    .insert(regradeRequests)
+    .values({ studentMembershipId, submissionId, reason, status: "pending" })
+    .returning()
+
+  const row = rows[0]
+  return {
+    id: Number(row.id),
+    submissionId: Number(row.submissionId),
+    studentMembershipId: Number(row.studentMembershipId),
+    reason: String(row.reason),
+    status: String(row.status) as "pending" | "resolved",
+    createdAt: String(row.createdAt),
+  }
+}
+
+export async function getExistingRegradeRequest(
+  submissionId: number,
+): Promise<RegradeRequest | null> {
+  const rows = await db
+    .select()
+    .from(regradeRequests)
+    .where(eq(regradeRequests.submissionId, submissionId))
+    .orderBy(desc(regradeRequests.createdAt))
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return null
+
+  return {
+    id: Number(row.id),
+    submissionId: Number(row.submissionId),
+    studentMembershipId: Number(row.studentMembershipId),
+    reason: String(row.reason),
+    status: String(row.status) as "pending" | "resolved",
+    createdAt: String(row.createdAt),
+  }
+}
+
+export async function listRegradeRequestsForAssignment(
+  courseId: number,
+  assignmentId: number,
+): Promise<RegradeRequestSummary[]> {
+  const studentMembership = alias(courseMemberships, "student_membership")
+  const studentUser = alias(users, "student_user")
+
+  const rows = await db
+    .select({
+      id: regradeRequests.id,
+      submissionId: regradeRequests.submissionId,
+      studentMembershipId: regradeRequests.studentMembershipId,
+      reason: regradeRequests.reason,
+      status: regradeRequests.status,
+      createdAt: regradeRequests.createdAt,
+      studentName: sql<string>`trim(${studentUser.firstName} || ' ' || ${studentUser.lastName})`,
+      studentEmail: studentUser.email,
+    })
+    .from(regradeRequests)
+    .innerJoin(submissions, eq(submissions.id, regradeRequests.submissionId))
+    .innerJoin(assignments, and(eq(assignments.id, submissions.assignmentId), eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
+    .innerJoin(studentMembership, eq(studentMembership.id, regradeRequests.studentMembershipId))
+    .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
+    .where(eq(regradeRequests.status, "pending"))
+    .orderBy(desc(regradeRequests.createdAt))
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    submissionId: Number(row.submissionId),
+    studentMembershipId: Number(row.studentMembershipId),
+    reason: String(row.reason),
+    status: String(row.status) as "pending" | "resolved",
+    createdAt: String(row.createdAt),
+    studentName: String(row.studentName),
+    studentEmail: String(row.studentEmail),
+  }))
+}
+
+export async function resolveRegradeRequest(
+  regradeRequestId: number,
+  resolverMembershipId: number,
+  submissionId: number,
+  assignmentId: number,
+  scoreItems: Array<{ order: number; pointsAwarded: number; comment: string | null }>,
+  overallFeedback: string | null,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const rubricItemRows = await tx
+      .select({ id: assignmentRubricItems.id, displayOrder: assignmentRubricItems.displayOrder })
+      .from(assignmentRubricItems)
+      .where(eq(assignmentRubricItems.assignmentId, assignmentId))
+      .orderBy(asc(assignmentRubricItems.displayOrder))
+
+    const scoresByOrder = new Map(scoreItems.map((item) => [item.order, item.pointsAwarded]))
+    const commentsByOrder = new Map(scoreItems.map((item) => [item.order, item.comment ?? null]))
+    const totalScore = scoreItems.reduce((sum, item) => sum + item.pointsAwarded, 0)
+
+    await tx
+      .update(grades)
+      .set({
+        gradedByMembershipId: resolverMembershipId,
+        totalScore,
+        overallFeedback,
+        gradedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(grades.submissionId, submissionId))
+
+    const gradeRows = await tx
+      .select({ id: grades.id })
+      .from(grades)
+      .where(eq(grades.submissionId, submissionId))
+      .limit(1)
+
+    const gradeId = gradeRows[0]?.id
+    if (!gradeId) throw new Error("GRADE_NOT_FOUND")
+
+    await tx.delete(rubricScores).where(eq(rubricScores.gradeId, gradeId))
+
+    if (rubricItemRows.length > 0) {
+      await tx.insert(rubricScores).values(
+        rubricItemRows.map((row, index) => ({
+          gradeId,
+          rubricItemId: row.id,
+          pointsAwarded: scoresByOrder.get(index) ?? 0,
+          comment: commentsByOrder.get(index) ?? null,
+        })),
+      )
+    }
+
+    await tx
+      .update(regradeRequests)
+      .set({
+        status: "resolved",
+        resolvedByMembershipId: resolverMembershipId,
+        resolvedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(regradeRequests.id, regradeRequestId))
+  })
 }
