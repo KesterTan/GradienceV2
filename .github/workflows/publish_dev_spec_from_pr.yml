@@ -1,0 +1,57 @@
+name: Publish Dev Spec from PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_numbers:
+        description: 'Comma-separated list of Pull Request Numbers (e.g., 12,15,18)'
+        required: true
+        type: string
+
+jobs:
+  generate-dev-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch PR details and diffs for all PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IFS=',' read -ra PRS <<< "${{ github.event.inputs.pr_numbers }}"
+          > prs.json
+          > prs.diff
+          for PR_NUM in "${PRS[@]}"; do
+            PR_NUM_TRIM=$(echo "$PR_NUM" | xargs)
+            gh pr view "$PR_NUM_TRIM" --json title,body,number,headRefName,baseRefName,author,files,commits,additions,deletions,changedFiles,labels,assignees,reviewRequests,linkedIssues >> prs.json
+            echo -e "\n\n# Diff for PR $PR_NUM_TRIM\n" >> prs.diff
+            gh pr diff "$PR_NUM_TRIM" >> prs.diff
+          done
+
+      - name: Generate dev spec markdown (multi-PR)
+        run: |
+          bash automation/scripts/dev_spec_from_pr.sh prs.json prs.diff
+
+      - name: Create dev-spec branch, commit, and push
+        run: |
+          BRANCH=dev-spec/pr-$(echo "${{ github.event.inputs.pr_numbers }}" | tr ',' '-')
+          git checkout -b $BRANCH
+          DEV_SPEC_FILE=DEV_SPEC_PR_$(echo "${{ github.event.inputs.pr_numbers }}" | tr ',' '_').md
+          git add $DEV_SPEC_FILE
+          git commit -m "dev spec for PR(s) ${{ github.event.inputs.pr_numbers }}"
+          git push origin $BRANCH
+
+      - name: Open PR for dev spec
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH=dev-spec/pr-$(echo "${{ github.event.inputs.pr_numbers }}" | tr ',' '-')
+          gh pr create --base main --head $BRANCH --title "Dev spec for PR(s) ${{ github.event.inputs.pr_numbers }}" --body "This PR adds a development specification for PR(s) ${{ github.event.inputs.pr_numbers }}."
