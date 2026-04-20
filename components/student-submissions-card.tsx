@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { format } from "date-fns"
 import { ChevronDown, ChevronUp } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { InstructorRestoreButton } from "@/components/instructor-restore-button"
@@ -13,9 +14,10 @@ type Props = {
   courseId: number
   assignmentId: number
   versions: SubmissionSummary[]
+  hasPendingRegrade?: boolean
 }
 
-export function StudentSubmissionsCard({ courseId, assignmentId, versions }: Props) {
+export function StudentSubmissionsCard({ courseId, assignmentId, versions, hasPendingRegrade }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false)
 
   const current = versions[0]
@@ -24,7 +26,14 @@ export function StudentSubmissionsCard({ courseId, assignmentId, versions }: Pro
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle>{current.studentName}</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle>{current.studentName}</CardTitle>
+          {hasPendingRegrade && (
+            <Badge variant="outline" className="border-amber-400 text-amber-700">
+              Regrade requested
+            </Badge>
+          )}
+        </div>
         <CardDescription>{current.studentEmail}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 px-5 pb-5 sm:px-6">
@@ -57,6 +66,13 @@ export function StudentSubmissionsCard({ courseId, assignmentId, versions }: Pro
                 Open submission
               </Link>
             </Button>
+            {hasPendingRegrade && (
+              <Button asChild size="sm" variant="outline" className="border-amber-400 text-amber-700 hover:bg-amber-50">
+                <Link href={`/courses/${courseId}/assessments/${assignmentId}/submissions/${current.id}/regrade`}>
+                  Review regrade
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
 
