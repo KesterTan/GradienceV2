@@ -125,6 +125,18 @@ describe("saveQuestionsAction", () => {
     expect(result.errors?.questionsPayload?.[0]).toMatch(/valid JSON/i)
   })
 
+  it("returns questionsPayload error when JSON parses to a non-object (root-level schema failure)", async () => {
+    mocks.selectQueue.push([{ id: 99 }])
+    const fd = new FormData()
+    fd.set("courseId", "5")
+    fd.set("assignmentId", "12")
+    fd.set("questionsPayload", JSON.stringify("just a string"))
+
+    const result = await saveQuestionsAction({}, fd)
+    expect(result.errors?.questionsPayload?.[0]).toBeDefined()
+    expect(result.errors?.fieldErrors).toBeUndefined()
+  })
+
   it("returns fieldErrors for empty question_text", async () => {
     mocks.selectQueue.push([{ id: 99 }])
     const result = await saveQuestionsAction(
