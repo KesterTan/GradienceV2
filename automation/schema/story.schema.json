@@ -1,0 +1,67 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+        "title",
+        "user_story",
+        "rationale",
+        "machine_acceptance_criteria",
+        "human_acceptance_criteria",
+        "implementation_plan",
+        "backend_changes",
+        "frontend_changes",
+        "test_changes",
+        "known_risks_assumptions",
+        "priority",
+        "size",
+        "sprint"
+    ],
+    "properties": {
+        "title": { "type": "string", "minLength": 5 },
+        "user_story": { "type": "string", "pattern": "^As a .+, I want .+, so that .+\\.$" },
+        "rationale": { "type": "string", "minLength": 20 },
+        "machine_acceptance_criteria": {
+            "type": "array",
+            "minItems": 2,
+            "items": { "type": "string" }
+        },
+        "human_acceptance_criteria": {
+            "type": "array",
+            "minItems": 2,
+            "items": { "type": "string" }
+        },
+        "implementation_plan": {
+            "type": "array",
+            "minItems": 2,
+            "items": { "type": "string" }
+        },
+        "backend_changes": {
+            "type": "array",
+            "items": { "type": "string" }
+        },
+        "frontend_changes": {
+            "type": "array",
+            "items": { "type": "string" }
+        },
+        "test_changes": {
+            "type": "array",
+            "items": { "type": "string" }
+        },
+        "known_risks_assumptions": {
+            "type": "array",
+            "items": { "type": "string" }
+        },
+        "priority": {
+            "type": "string",
+            "enum": ["P0", "P1", "P2"]
+        },
+        "size": {
+            "type": "string",
+            "enum": ["XS", "S", "M", "L"]
+        },
+        "sprint": {
+            "type": "string",
+            "const": "sprint3"
+        }
+    }
+}
