@@ -95,7 +95,25 @@ export function QuestionEditor({
   const [isEditing, setIsEditing] = useState(!hasSavedQuestions)
   const [pending, setPending] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
+
+  const [savedAssignmentTitle, setSavedAssignmentTitle] = useState(
+    initialPayload?.assignment_title?.trim() || assignmentTitle,
+  )
+  const [savedCourse, setSavedCourse] = useState(
+    initialPayload?.course?.trim() || courseTitle,
+  )
+  const [savedInstructionsSummary, setSavedInstructionsSummary] = useState(
+    initialPayload?.instructions_summary ?? "",
+  )
+
+  const [assignmentTitleInput, setAssignmentTitleInput] = useState(savedAssignmentTitle)
+  const [courseInput, setCourseInput] = useState(savedCourse)
+  const [instructionsSummaryInput, setInstructionsSummaryInput] = useState(savedInstructionsSummary)
+
+  const effectiveAssignmentTitle = savedAssignmentTitle || assignmentTitle
+  const effectiveCourseTitle = savedCourse || courseTitle
 
   const [savedQuestions, setSavedQuestions] = useState<AssignmentQuestion[]>(
     () => initialPayload?.questions ?? [],
@@ -110,10 +128,135 @@ export function QuestionEditor({
     }))
   })
 
+  const importQuestionsJson = async (file: File) => {
+    setImportError(null)
+
+    const readString = (value: unknown) =>
+      typeof value === "string" ? value.trim() : ""
+
+    const readNumber = (value: unknown, fallback: number) => {
+      const parsed = Number(value)
+      if (!Number.isFinite(parsed) || parsed < 0) return fallback
+      return parsed
+    }
+
+    const normalizeQuestion = (rawQuestion: unknown, index: number): AssignmentQuestion | null => {
+      if (!rawQuestion || typeof rawQuestion !== "object") return null
+      const question = rawQuestion as Record<string, unknown>
+
+      const questionId =
+        readString(question.question_id) ||
+        readString(question.id) ||
+        (Number.isFinite(Number(question.question_number))
+          ? `Q${Number(question.question_number)}`
+          : `Q${index + 1}`)
+
+      const questionText =
+        readString(question.question_text) ||
+        readString(question.text) ||
+        readString(question.prompt) ||
+        readString(question.question) ||
+        readString(question.content)
+
+      if (!questionText) return null
+
+      const questionMaxTotal =
+        readNumber(question.question_max_total, NaN) ||
+        readNumber(question.max_points, NaN) ||
+        readNumber(question.maxScore, NaN) ||
+        readNumber(question.points, 10)
+
+      const isExtraCredit =
+        question.is_extra_credit === true ||
+        question.extra_credit === true ||
+        question.extraCredit === true
+
+      return {
+        question_id: questionId,
+        question_text: questionText,
+        question_max_total: questionMaxTotal,
+        is_extra_credit: isExtraCredit,
+      }
+    }
+
+    try {
+      const text = await file.text()
+      const parsed = JSON.parse(text) as unknown
+
+      let importedAssignmentTitle = ""
+      let importedCourse = ""
+      let importedInstructionsSummary = ""
+      let rawQuestions: unknown = parsed
+
+      if (!Array.isArray(parsed) && parsed && typeof parsed === "object") {
+        const payload = parsed as Record<string, unknown>
+
+        importedAssignmentTitle =
+          readString(payload.assignment_title) ||
+          readString(payload.assignmentTitle) ||
+          readString(payload.title)
+
+        importedCourse =
+          readString(payload.course) ||
+          readString(payload.course_title) ||
+          readString(payload.courseTitle)
+
+        importedInstructionsSummary =
+          readString(payload.instructions_summary) ||
+          readString(payload.instructionsSummary) ||
+          readString(payload.description)
+
+        if (Array.isArray(payload.questions)) {
+          rawQuestions = payload.questions
+        } else if (Array.isArray(payload.items)) {
+          rawQuestions = payload.items
+        } else if (payload.assignment && typeof payload.assignment === "object") {
+          const assignmentPayload = payload.assignment as Record<string, unknown>
+          if (!importedAssignmentTitle) {
+            importedAssignmentTitle = readString(assignmentPayload.title)
+          }
+          if (!importedCourse) {
+            importedCourse = readString(assignmentPayload.course)
+          }
+          if (!importedInstructionsSummary) {
+            importedInstructionsSummary = readString(assignmentPayload.description)
+          }
+          if (Array.isArray(assignmentPayload.questions)) {
+            rawQuestions = assignmentPayload.questions
+          }
+        }
+      }
+
+      if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
+        setImportError("JSON must include a questions array (or be an array of questions).")
+        return
+      }
+
+      const normalizedQuestions = rawQuestions
+        .map((rawQuestion, index) => normalizeQuestion(rawQuestion, index))
+        .filter((question): question is AssignmentQuestion => Boolean(question))
+
+      if (normalizedQuestions.length === 0) {
+        setImportError("No valid questions found in uploaded JSON.")
+        return
+      }
+
+      setQuestions(normalizedQuestions)
+      if (importedAssignmentTitle) setAssignmentTitleInput(importedAssignmentTitle)
+      if (importedCourse) setCourseInput(importedCourse)
+      if (importedInstructionsSummary) setInstructionsSummaryInput(importedInstructionsSummary)
+      setFieldErrors({})
+      setFormError(null)
+    } catch {
+      setImportError("Unable to parse JSON file.")
+    }
+  }
+
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setPending(true)
     setFormError(null)
+    setImportError(null)
     setFieldErrors({})
 
     // Snapshot questions at the moment of submit — no stale closure risk
@@ -124,7 +267,12 @@ export function QuestionEditor({
     formData.set("assignmentId", String(assignmentId))
     formData.set(
       "questionsPayload",
-      JSON.stringify({ assignment_title: "", course: "", instructions_summary: "", questions: snapshot }),
+      JSON.stringify({
+        assignment_title: assignmentTitleInput,
+        course: courseInput,
+        instructions_summary: instructionsSummaryInput,
+        questions: snapshot,
+      }),
     )
 
     try {
@@ -136,6 +284,9 @@ export function QuestionEditor({
       }
       // Success — update display state immediately from the snapshot we sent
       setSavedQuestions(result.savedQuestions ?? snapshot)
+      setSavedAssignmentTitle(assignmentTitleInput)
+      setSavedCourse(courseInput)
+      setSavedInstructionsSummary(instructionsSummaryInput)
       setIsEditing(false)
     } catch {
       setFormError("An unexpected error occurred. Please try again.")
@@ -188,7 +339,11 @@ export function QuestionEditor({
     setQuestions(
       savedQuestions.length ? savedQuestions.map((q) => ({ ...q })) : [emptyQuestion(0)],
     )
+    setAssignmentTitleInput(savedAssignmentTitle)
+    setCourseInput(savedCourse)
+    setInstructionsSummaryInput(savedInstructionsSummary)
     setFormError(null)
+    setImportError(null)
     setFieldErrors({})
     setIsEditing(true)
   }
@@ -210,7 +365,9 @@ export function QuestionEditor({
           <Button
             type="button"
             variant="outline"
-            onClick={() => printQuestionsPdf(assignmentTitle, courseTitle, savedQuestions)}
+            onClick={() =>
+              printQuestionsPdf(effectiveAssignmentTitle, effectiveCourseTitle, savedQuestions)
+            }
           >
             Download PDF
           </Button>
@@ -234,7 +391,9 @@ export function QuestionEditor({
             <Button
               type="button"
               variant="outline"
-              onClick={() => printQuestionsPdf(assignmentTitle, courseTitle, savedQuestions)}
+              onClick={() =>
+                printQuestionsPdf(effectiveAssignmentTitle, effectiveCourseTitle, savedQuestions)
+              }
             >
               Download PDF
             </Button>
@@ -260,14 +419,66 @@ export function QuestionEditor({
             {questions.length} question{questions.length !== 1 ? "s" : ""}
           </p>
         </div>
-        {savedQuestions.length > 0 && (
-          <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
-            Cancel
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Input
+            type="file"
+            accept="application/json,.json"
+            className="max-w-xs"
+            onChange={async (event) => {
+              const file = event.currentTarget.files?.[0]
+              if (!file) return
+              await importQuestionsJson(file)
+              event.currentTarget.value = ""
+            }}
+          />
+          {savedQuestions.length > 0 && (
+            <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+              Cancel
+            </Button>
+          )}
+        </div>
       </div>
 
       {formError && <p className="text-sm text-destructive">{formError}</p>}
+      {importError && <p className="text-sm text-destructive">{importError}</p>}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Assignment details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="assignment-title">Assignment title</Label>
+              <Input
+                id="assignment-title"
+                value={assignmentTitleInput}
+                onChange={(event) => setAssignmentTitleInput(event.target.value)}
+                placeholder="Assignment title"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="course-title">Course</Label>
+              <Input
+                id="course-title"
+                value={courseInput}
+                onChange={(event) => setCourseInput(event.target.value)}
+                placeholder="Course title"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="instructions-summary">Instructions summary</Label>
+            <Textarea
+              id="instructions-summary"
+              rows={3}
+              value={instructionsSummaryInput}
+              onChange={(event) => setInstructionsSummaryInput(event.target.value)}
+              placeholder="Optional instructions summary"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="space-y-4">
         {questions.map((question, index) => (

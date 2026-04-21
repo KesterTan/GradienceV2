@@ -1,7 +1,11 @@
 "use client"
 
-import { useActionState, useMemo, useState } from "react"
-import { updateRubricAction, type RubricFormState } from "../actions"
+import { useActionState, useMemo, useState, useTransition } from "react"
+import {
+  generateRubricSuggestionAction,
+  updateRubricAction,
+  type RubricFormState,
+} from "../actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -49,6 +53,8 @@ const initialState: RubricFormState = {}
 export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }: RubricEditorProps) {
   const [state, formAction, pending] = useActionState(updateRubricAction, initialState)
   const [importError, setImportError] = useState<string | null>(null)
+  const [suggestionError, setSuggestionError] = useState<string | null>(null)
+  const [isGenerating, startGenerateTransition] = useTransition()
   const [overallFeedback, setOverallFeedback] = useState<string>(initialRubric?.overall_feedback ?? "")
   const [questions, setQuestions] = useState<RubricQuestion[]>(() => {
     if (!initialRubric?.questions?.length) {
@@ -104,6 +110,7 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
 
   const importRubricJson = async (file: File) => {
     setImportError(null)
+    setSuggestionError(null)
 
     try {
       const text = await file.text()
@@ -195,6 +202,51 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
 
   const updateQuestion = (index: number, update: Partial<RubricQuestion>) => {
     setQuestions((prev) => prev.map((q, i) => (i === index ? { ...q, ...update } : q)))
+  }
+
+  const generateRubricFromAssignmentQuestions = () => {
+    setImportError(null)
+    setSuggestionError(null)
+
+    startGenerateTransition(async () => {
+      const formData = new FormData()
+      formData.set("courseId", String(courseId))
+      formData.set("assignmentId", String(assignmentId))
+
+      const result = await generateRubricSuggestionAction({}, formData)
+      if (result.errors?._form?.[0]) {
+        setSuggestionError(result.errors._form[0])
+        return
+      }
+
+      if (!result.rubric?.questions?.length) {
+        setSuggestionError("Rubric suggestion service returned no questions.")
+        return
+      }
+
+      setQuestions(
+        result.rubric.questions.map((question, questionIndex) => {
+          const normalizedItems = question.rubric_items.map((item) => ({
+            criterion: item.criterion,
+            explanation: item.explanation,
+            max_score: item.max_score,
+          }))
+
+          return {
+            question_id:
+              typeof question.question_id === "string" && question.question_id.trim().length > 0
+                ? question.question_id
+                : `Q${questionIndex + 1}`,
+            question_max_total: normalizedItems.reduce((sum, item) => sum + item.max_score, 0),
+            rubric_items: normalizedItems,
+          }
+        }),
+      )
+
+      if (typeof result.rubric.overall_feedback === "string") {
+        setOverallFeedback(result.rubric.overall_feedback)
+      }
+    })
   }
 
   const updateItem = (qIndex: number, itemIndex: number, update: Partial<RubricItem>) => {
@@ -325,6 +377,14 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={generateRubricFromAssignmentQuestions}
+            disabled={pending || isGenerating}
+          >
+            {isGenerating ? "Generating..." : "Generate with AI"}
+          </Button>
           <Input
             type="file"
             accept="application/json,.json"
@@ -356,6 +416,7 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
       )}
       {state.errors?._form?.[0] && <p className="text-sm text-destructive">{state.errors._form[0]}</p>}
       {importError && <p className="text-sm text-destructive">{importError}</p>}
+      {suggestionError && <p className="text-sm text-destructive">{suggestionError}</p>}
 
       <div className="space-y-4">
         {questions.map((question, index) => {

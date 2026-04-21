@@ -309,3 +309,37 @@ export async function loadRubricJsonFromS3(fileUrl: string) {
     return null
   }
 }
+
+export async function loadJsonFromS3ObjectKey(objectKey: string) {
+  const bucket = getS3Bucket()
+  const client = getS3Client()
+
+  let result
+  try {
+    result = await client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: objectKey,
+      }),
+    )
+  } catch (error) {
+    if (isS3ObjectNotFoundError(error)) {
+      return null
+    }
+    throw error
+  }
+
+  const body = result.Body
+  if (!body) {
+    return null
+  }
+
+  const bytes = await body.transformToByteArray()
+  const text = Buffer.from(bytes).toString("utf8")
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}

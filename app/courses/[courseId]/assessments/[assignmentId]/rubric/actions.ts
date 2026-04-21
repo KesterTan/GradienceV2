@@ -12,7 +12,11 @@ import {
   getRubricTotalMaxScore,
   rubricPayloadSchema,
 } from "@/lib/rubrics"
-import { buildRubricS3ObjectKey, uploadRubricJsonToS3 } from "@/lib/s3-submissions"
+import {
+  buildRubricS3ObjectKey,
+  loadJsonFromS3ObjectKey,
+  uploadRubricJsonToS3,
+} from "@/lib/s3-submissions"
 
 export type RubricFormState = {
   errors?: {
@@ -20,6 +24,268 @@ export type RubricFormState = {
     fieldErrors?: Record<string, string[]>
     _form?: string[]
   }
+}
+
+export type RubricSuggestionState = {
+  rubric?: {
+    questions: Array<{
+      question_id: string
+      question_max_total: number
+      rubric_items: Array<{
+        criterion: string
+        explanation: string
+        max_score: number
+      }>
+    }>
+    overall_feedback: string
+  }
+  errors?: {
+    _form?: string[]
+  }
+}
+
+function buildAssignmentQuestionObjectKeyCandidates(courseId: number, assignmentId: number) {
+  return [
+    `questions/assessments/${courseId}/${assignmentId}/questions.json`,
+    `assignments/${courseId}/${assignmentId}/questions.json`,
+    `assessments/${courseId}/${assignmentId}/questions.json`,
+    `questions/assignments/${courseId}/${assignmentId}.json`,
+    `questions/assignments/${assignmentId}.json`,
+  ]
+}
+
+async function loadAssignmentQuestionsJsonFromS3(courseId: number, assignmentId: number) {
+  const candidates = buildAssignmentQuestionObjectKeyCandidates(courseId, assignmentId)
+
+  for (const objectKey of candidates) {
+    const payload = await loadJsonFromS3ObjectKey(objectKey)
+    if (payload) {
+      return payload
+    }
+  }
+
+  return null
+}
+
+function toNumber(value: unknown) {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : null
+}
+
+function normalizeSuggestedRubricPayload(rawPayload: unknown) {
+  if (!rawPayload || typeof rawPayload !== "object") {
+    return null
+  }
+
+  const response = rawPayload as Record<string, unknown>
+  const candidates: unknown[] = []
+
+  if (Array.isArray(response.questions)) {
+    candidates.push({
+      questions: response.questions,
+      overall_feedback: typeof response.overall_feedback === "string" ? response.overall_feedback : "",
+    })
+  }
+
+  if (response.result && typeof response.result === "object") {
+    const nested = response.result as Record<string, unknown>
+    if (Array.isArray(nested.questions)) {
+      candidates.push({
+        questions: nested.questions,
+        overall_feedback:
+          typeof nested.overall_feedback === "string"
+            ? nested.overall_feedback
+            : typeof response.overall_feedback === "string"
+            ? response.overall_feedback
+            : "",
+      })
+    }
+  }
+
+  if (Array.isArray(rawPayload)) {
+    candidates.push({ questions: rawPayload, overall_feedback: "" })
+  }
+
+  for (const candidate of candidates) {
+    const value = candidate as { questions?: unknown; overall_feedback?: unknown }
+    if (!Array.isArray(value.questions) || value.questions.length === 0) {
+      continue
+    }
+
+    const normalizedQuestions = value.questions
+      .map((rawQuestion, index) => {
+        if (!rawQuestion || typeof rawQuestion !== "object") {
+          return null
+        }
+
+        const question = rawQuestion as Record<string, unknown>
+        const rawItems = Array.isArray(question.rubric_items)
+          ? question.rubric_items
+          : Array.isArray(question.items)
+          ? question.items
+          : null
+        if (!rawItems || rawItems.length === 0) {
+          return null
+        }
+
+        const rubricItems = rawItems
+          .map((rawItem) => {
+            if (!rawItem || typeof rawItem !== "object") {
+              return null
+            }
+
+            const item = rawItem as Record<string, unknown>
+            const criterion =
+              typeof item.criterion === "string"
+                ? item.criterion.trim()
+                : typeof item.title === "string"
+                ? item.title.trim()
+                : ""
+            const maxScore =
+              toNumber(item.max_score) ??
+              toNumber(item.max_points) ??
+              toNumber(item.maxScore) ??
+              toNumber(item.points) ??
+              0
+
+            if (!criterion || maxScore < 0) {
+              return null
+            }
+
+            return {
+              criterion,
+              max_score: maxScore,
+              explanation:
+                typeof item.explanation === "string"
+                  ? item.explanation
+                  : typeof item.description === "string"
+                  ? item.description
+                  : "",
+            }
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+
+        if (rubricItems.length === 0) {
+          return null
+        }
+
+        const questionId =
+          typeof question.question_id === "string" && question.question_id.trim().length > 0
+            ? question.question_id.trim()
+            : `Q${index + 1}`
+
+        return {
+          question_id: questionId,
+          question_max_total: rubricItems.reduce((sum, item) => sum + item.max_score, 0),
+          rubric_items: rubricItems,
+        }
+      })
+      .filter((question): question is NonNullable<typeof question> => Boolean(question))
+
+    if (normalizedQuestions.length === 0) {
+      continue
+    }
+
+    return {
+      questions: normalizedQuestions,
+      overall_feedback:
+        typeof value.overall_feedback === "string" ? value.overall_feedback : "",
+    }
+  }
+
+  return null
+}
+
+export async function generateRubricSuggestionAction(
+  _prevState: RubricSuggestionState,
+  formData: FormData,
+): Promise<RubricSuggestionState> {
+  const user = await requireAppUser()
+
+  const rawCourseId = formData.get("courseId")
+  const rawAssignmentId = formData.get("assignmentId")
+  const courseId = typeof rawCourseId === "string" ? Number(rawCourseId) : NaN
+  const assignmentId = typeof rawAssignmentId === "string" ? Number(rawAssignmentId) : NaN
+
+  if (!Number.isFinite(courseId) || !Number.isFinite(assignmentId)) {
+    return { errors: { _form: ["Invalid course or assignment id."] } }
+  }
+
+  const membership = await requireInstructorMembership(courseId, user.id)
+  if (!membership) {
+    return { errors: { _form: ["You do not have permission to generate rubrics for this assessment."] } }
+  }
+
+  const assignmentRows = await db
+    .select({ id: assignments.id })
+    .from(assignments)
+    .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
+    .limit(1)
+
+  if (!assignmentRows[0]) {
+    return { errors: { _form: ["Assessment not found."] } }
+  }
+
+  const questionPayload = await loadAssignmentQuestionsJsonFromS3(courseId, assignmentId)
+  if (!questionPayload) {
+    return {
+      errors: {
+        _form: [
+          "Unable to find assignment questions JSON in S3 for this assessment.",
+        ],
+      },
+    }
+  }
+
+  const gradingApiUrl = process.env.AI_GRADING_API_URL || "http://3.93.76.195/grade"
+  const rubricSuggestUrl =
+    process.env.AI_RUBRIC_SUGGEST_API_URL ||
+    gradingApiUrl.replace(/\/grade\/?$/, "/rubric/suggest")
+
+  const payload = new FormData()
+  payload.append(
+    "question_file",
+    new Blob([JSON.stringify(questionPayload)], { type: "application/json" }),
+    `assignment-${assignmentId}-questions.json`,
+  )
+
+  let response: Response
+  try {
+    response = await fetch(rubricSuggestUrl, {
+      method: "POST",
+      body: payload,
+    })
+  } catch {
+    return { errors: { _form: ["Unable to reach the rubric suggestion service right now."] } }
+  }
+
+  const responseText = await response.text()
+  if (!response.ok) {
+    const suffix = responseText.trim().length > 0 ? ` ${responseText.trim().slice(0, 300)}` : ""
+    return { errors: { _form: [`Rubric suggestion request failed (${response.status}).${suffix}`] } }
+  }
+
+  let responseJson: unknown
+  try {
+    responseJson = JSON.parse(responseText)
+  } catch {
+    return { errors: { _form: ["Rubric suggestion service did not return valid JSON."] } }
+  }
+
+  const normalized = normalizeSuggestedRubricPayload(responseJson)
+  if (!normalized) {
+    return { errors: { _form: ["Rubric suggestion response format was not recognized."] } }
+  }
+
+  const parsed = rubricPayloadSchema.safeParse({
+    questions: normalized.questions,
+    overall_feedback: normalized.overall_feedback,
+  })
+  if (!parsed.success) {
+    return { errors: { _form: ["Suggested rubric payload did not pass validation."] } }
+  }
+
+  return { rubric: normalized }
 }
 
 async function requireInstructorMembership(courseId: number, userId: number) {
