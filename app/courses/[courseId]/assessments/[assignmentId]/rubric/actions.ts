@@ -342,7 +342,7 @@ export async function generateRubricSuggestionAction(
     overall_feedback: normalized.overall_feedback,
   })
   if (!parsed.success) {
-    return { errors: { _form: ["Suggested rubric payload did not pass validation."] } }
+    const timeoutMs = Number(process.env.AI_RUBRIC_SUGGEST_TIMEOUT_MS) || 30000
   }
 
   return { rubric: normalized }

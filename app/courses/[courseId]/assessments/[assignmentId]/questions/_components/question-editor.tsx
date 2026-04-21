@@ -423,17 +423,24 @@ export function QuestionEditor({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Input
-            type="file"
-            accept="application/json,.json"
-            className="max-w-xs"
-            onChange={async (event) => {
-              const file = event.currentTarget.files?.[0]
-              if (!file) return
-              await importQuestionsJson(file)
-              event.currentTarget.value = ""
-            }}
-          />
+          <div>
+            <Label htmlFor="import-questions-json" className="sr-only">
+              Import questions JSON
+            </Label>
+            <Input
+              id="import-questions-json"
+              type="file"
+              accept="application/json,.json"
+              className="max-w-xs"
+              aria-label="Import questions JSON"
+              onChange={async (event) => {
+                const file = event.currentTarget.files?.[0]
+                if (!file) return
+                await importQuestionsJson(file)
+                event.currentTarget.value = ""
+              }}
+            />
+          </div>
           {savedQuestions.length > 0 && (
             <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
               Cancel
