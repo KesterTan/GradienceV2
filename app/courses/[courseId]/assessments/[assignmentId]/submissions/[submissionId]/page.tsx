@@ -114,6 +114,22 @@ export default async function SubmissionPage({
               </CardContent>
             </Card>
 
+            {submission.regradeRequest?.status === "pending" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Student&apos;s regrade request</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-muted-foreground">
+                    Submitted {format(new Date(submission.regradeRequest.createdAt), "MMM d, yyyy h:mm a")} by {submission.studentName}
+                  </p>
+                  <p className="whitespace-pre-wrap leading-relaxed text-foreground">
+                    {submission.regradeRequest.reason}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>Submission details</CardTitle>
@@ -156,6 +172,7 @@ export default async function SubmissionPage({
                 totalPoints={submission.totalPoints}
                 rubricQuestions={submission.rubricQuestions}
                 initialGrade={submission.grade}
+                regradeRequestId={submission.regradeRequest?.status === "pending" ? submission.regradeRequest.id : undefined}
               />
             ) : (
               <Card>

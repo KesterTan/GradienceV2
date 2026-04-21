@@ -696,6 +696,11 @@ export async function getSubmissionGradeForGrader(
       gradeOverallFeedback: grades.overallFeedback,
       gradeGradedAt: grades.gradedAt,
       gradeIsReleasedToStudent: grades.isReleasedToStudent,
+      regradeRequestId: regradeRequests.id,
+      regradeRequestReason: regradeRequests.reason,
+      regradeRequestStatus: regradeRequests.status,
+      regradeRequestStudentMembershipId: regradeRequests.studentMembershipId,
+      regradeRequestCreatedAt: regradeRequests.createdAt,
     })
     .from(submissions)
     .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
@@ -715,6 +720,7 @@ export async function getSubmissionGradeForGrader(
     )
     .innerJoin(studentUser, eq(studentUser.id, studentMembership.userId))
     .leftJoin(grades, eq(grades.submissionId, submissions.id))
+    .leftJoin(regradeRequests, eq(regradeRequests.submissionId, submissions.id))
     .where(and(eq(courses.id, courseId), eq(assignments.id, assignmentId), eq(submissions.id, submissionId)))
     .limit(1)
 
@@ -786,7 +792,16 @@ export async function getSubmissionGradeForGrader(
     courseTitle: String(row.courseTitle),
     rubricQuestions,
     grade,
-    regradeRequest: null,
+    regradeRequest: row.regradeRequestId
+      ? {
+          id: Number(row.regradeRequestId),
+          submissionId: Number(row.id),
+          studentMembershipId: Number(row.regradeRequestStudentMembershipId),
+          reason: String(row.regradeRequestReason),
+          status: String(row.regradeRequestStatus) as "pending" | "resolved",
+          createdAt: String(row.regradeRequestCreatedAt),
+        }
+      : null,
   }
 }
 

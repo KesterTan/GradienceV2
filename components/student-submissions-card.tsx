@@ -68,7 +68,7 @@ export function StudentSubmissionsCard({ courseId, assignmentId, versions, hasPe
             </Button>
             {hasPendingRegrade && (
               <Button asChild size="sm" variant="outline" className="border-amber-400 text-amber-700 hover:bg-amber-50">
-                <Link href={`/courses/${courseId}/assessments/${assignmentId}/submissions/${current.id}/regrade`}>
+                <Link href={`/courses/${courseId}/assessments/${assignmentId}/submissions/${current.id}`}>
                   Review regrade
                 </Link>
               </Button>
