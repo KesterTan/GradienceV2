@@ -90,7 +90,7 @@ beforeEach(() => {
   container = document.createElement("div")
   document.body.appendChild(container)
   root = createRoot(container)
-  jest.clearAllMocks()
+  jest.resetAllMocks()
   // Mock browser APIs used by printQuestionsPdf
   URL.createObjectURL = jest.fn<() => string>().mockReturnValue("blob:mock-url")
   URL.revokeObjectURL = jest.fn()
@@ -313,9 +313,11 @@ describe("canEdit=true with no saved questions (edit mode)", () => {
     )
     act(() => { deleteButtons[0].click() })
 
-    // Only one question card should remain and it should not show a stale error
-    // from index 1 (which is now index 0 after rebasing)
+    // Only one question card should remain and the error from former index 1
+    // should have been rebased to index 0 (not dropped)
     expect(container.textContent).not.toContain("Question 2")
+    const text = container.textContent ?? ""
+    expect((text.match(/Question text is required/g) ?? []).length).toBe(1)
   })
 })
 

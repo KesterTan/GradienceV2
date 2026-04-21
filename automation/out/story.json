@@ -1,0 +1,44 @@
+{
+  "title": "Student read-only view of assignment questions with PDF download",
+  "user_story": "As a student, I want to view the list of questions for an assignment and download them as a PDF, so that I can review what will be evaluated before submitting my work.",
+  "rationale": "The instructor question editor (PR #53) stores questions in assignments.questions_json and the QuestionEditor component already has a canEdit=false read-only mode with a Download PDF button. This story wires up the student-facing experience: ensuring the Questions link is accessible from the assessment page for students, the read-only question list renders correctly, and the PDF download works.",
+  "machine_acceptance_criteria": [
+    "Given a student on the assessment detail page, when questions have been saved by the instructor, then a 'Questions' link is visible and navigates to /courses/{courseId}/assessments/{assignmentId}/questions",
+    "Given a student navigates to the questions page, when questions exist, then question cards render with question ID, text, max points, and extra-credit badge — no edit form, no Add question button, no Save or Cancel button is present",
+    "Given a student navigates to the questions page, when no questions have been saved, then a 'No questions yet' card is displayed with a back link",
+    "Given a student is on the questions page with questions loaded, when they click 'Download PDF', then a print dialog opens with all questions rendered in the correct format",
+    "Given a user who is not an active member of the course navigates to the questions page, then they receive a 404"
+  ],
+  "human_acceptance_criteria": [
+    "Log in as a student enrolled in a course where the instructor has saved questions — navigate to the assessment, click Questions, and verify question cards appear with no edit controls visible",
+    "On the questions page, click Download PDF and confirm the browser print dialog opens showing the assignment title, course name, and all questions with point values and extra-credit badges",
+    "Log in as a student in a course where the instructor has NOT yet saved questions — navigate to the questions page and confirm 'No questions yet' is shown",
+    "Confirm the Back to assessment button returns to the correct assessment detail page"
+  ],
+  "implementation_plan": [
+    "Confirm the Questions button on app/courses/[courseId]/assessments/[assignmentId]/page.tsx is not gated by isInstructor — it is already accessible to all members, no change needed",
+    "Confirm getAssessmentQuestionsForMember in lib/course-management.ts returns rows for student memberships and sets viewerRole='Student' via the existing SQL CASE expression — already implemented",
+    "Confirm questions/page.tsx passes canEdit={isInstructor} (false for students) to QuestionEditor and renders the 'No questions yet' card for students when questionsJson is null — already implemented",
+    "Confirm QuestionEditor canEdit=false renders question cards and Download PDF button without any edit controls — already implemented",
+    "Manually verify the full student flow end-to-end in the browser using a student account"
+  ],
+  "backend_changes": [
+    "No new backend changes required — getAssessmentQuestionsForMember already handles student membership and returns questionsJson with correct viewerRole"
+  ],
+  "frontend_changes": [
+    "No new component changes required — QuestionEditor canEdit=false read-only mode and Download PDF button are fully implemented",
+    "Confirm the Questions link on the assessment detail page is not wrapped in an isInstructor guard — already the case, no change needed"
+  ],
+  "test_changes": [
+    "No automated test changes in this story — test coverage for the student view is tracked in a separate testing story"
+  ],
+  "known_risks_assumptions": [
+    "Questions are only visible to students once the instructor has explicitly saved them — there is no draft or preview mode for unpublished questions",
+    "The PDF is generated client-side as an HTML blob via window.print() — output quality depends on the browser's print-to-PDF capability and may vary across browsers",
+    "If assignments.questions_json contains corrupted data (non-null but fails schema parse), parseQuestionsJson returns null and the student sees 'No questions yet' silently — a follow-up story should add an explicit error state for this edge case",
+    "Student access control relies on getAssessmentQuestionsForMember correctly checking active course membership"
+  ],
+  "priority": "P1",
+  "size": "S",
+  "sprint": "sprint3"
+}
