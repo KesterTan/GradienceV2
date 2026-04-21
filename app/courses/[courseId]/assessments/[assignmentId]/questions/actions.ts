@@ -130,10 +130,14 @@ export async function saveQuestionsAction(
     return { errors: { _form: ["Unable to save questions JSON to S3. Check S3 configuration and try again."] } }
   }
 
-  await db
-    .update(assignments)
-    .set({ questionsJson, updatedAt: new Date().toISOString() })
-    .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
+  try {
+    await db
+      .update(assignments)
+      .set({ questionsJson, updatedAt: new Date().toISOString() })
+      .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
+  } catch {
+    return { errors: { _form: ["Unable to save questions to the database. Please try again."] } }
+  }
 
   revalidatePath(`/courses/${courseId}/assessments/${assignmentId}`)
   revalidatePath(`/courses/${courseId}/assessments/${assignmentId}/questions`)

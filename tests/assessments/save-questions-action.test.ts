@@ -212,6 +212,19 @@ describe("saveQuestionsAction", () => {
     expect(mocks.updateSet).not.toHaveBeenCalled()
   })
 
+  it("returns _form error when DB update throws", async () => {
+    mocks.selectQueue.push(
+      [{ id: 99 }],
+      [{ id: 12 }],
+      [{ title: "Midterm", description: "desc", courseTitle: "CS101" }],
+    )
+    mocks.updateWhere.mockRejectedValue(new Error("DB connection lost"))
+
+    const result = await saveQuestionsAction({}, makeFormData({ questionsPayload: validPayload() }))
+    expect(result.errors?._form?.[0]).toMatch(/unable to save questions to the database/i)
+    expect(result.success).toBeUndefined()
+  })
+
   // ── happy path ────────────────────────────────────────────────────────────
 
   it("returns success with savedQuestions on valid grader request", async () => {
