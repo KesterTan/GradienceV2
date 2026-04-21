@@ -114,10 +114,15 @@ export async function saveQuestionsAction(
     return { errors: { _form: ["Assessment not found."] } }
   }
 
+  const assignmentTitle = parsed.data.assignment_title.trim()
+  const course = parsed.data.course.trim()
+  const instructionsSummary = parsed.data.instructions_summary.trim()
+
   const questionsJson: QuestionsPayload = {
-    assignment_title: meta.title,
-    course: meta.courseTitle,
-    instructions_summary: meta.description ?? "",
+    assignment_title: assignmentTitle.length > 0 ? assignmentTitle : meta.title,
+    course: course.length > 0 ? course : meta.courseTitle,
+    instructions_summary:
+      instructionsSummary.length > 0 ? instructionsSummary : meta.description ?? "",
     questions: parsed.data.questions,
   }
 

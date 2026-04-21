@@ -12,13 +12,186 @@ import {
   getRubricTotalMaxScore,
   rubricPayloadSchema,
 } from "@/lib/rubrics"
-import { buildRubricS3ObjectKey, uploadRubricJsonToS3 } from "@/lib/s3-submissions"
+import {
+  loadAssignmentQuestionsJsonFromS3,
+  normalizeSuggestedRubricPayload,
+  parseAiEndpoint,
+} from "@/lib/rubric-suggestion"
+import {
+  buildRubricS3ObjectKey,
+  uploadRubricJsonToS3,
+} from "@/lib/s3-submissions"
 
 export type RubricFormState = {
   errors?: {
     rubricPayload?: string[]
     fieldErrors?: Record<string, string[]>
     _form?: string[]
+  }
+}
+
+export type RubricSuggestionState = {
+  rubric?: {
+    questions: Array<{
+      question_id: string
+      question_max_total: number
+      rubric_items: Array<{
+        criterion: string
+        explanation: string
+        max_score: number
+      }>
+    }>
+    overall_feedback: string
+  }
+  errors?: {
+    _form?: string[]
+  }
+}
+
+export async function generateRubricSuggestionAction(
+  _prevState: RubricSuggestionState,
+  formData: FormData,
+): Promise<RubricSuggestionState> {
+  const user = await requireAppUser()
+
+  const rawCourseId = formData.get("courseId")
+  const rawAssignmentId = formData.get("assignmentId")
+  const courseId = typeof rawCourseId === "string" ? Number(rawCourseId) : NaN
+  const assignmentId = typeof rawAssignmentId === "string" ? Number(rawAssignmentId) : NaN
+
+  if (!Number.isFinite(courseId) || !Number.isFinite(assignmentId)) {
+    return { errors: { _form: ["Invalid course or assignment id."] } }
+  }
+
+  const membership = await requireInstructorMembership(courseId, user.id)
+  if (!membership) {
+    return { errors: { _form: ["You do not have permission to generate rubrics for this assessment."] } }
+  }
+
+  const assignmentRows = await db
+    .select({ id: assignments.id })
+    .from(assignments)
+    .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
+    .limit(1)
+
+  if (!assignmentRows[0]) {
+    return { errors: { _form: ["Assessment not found."] } }
+  }
+
+  let questionPayload: unknown = null
+  try {
+    questionPayload = await loadAssignmentQuestionsJsonFromS3(courseId, assignmentId)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      errors: {
+        _form: [
+          `Unable to read assignment questions from storage. ${message}`,
+        ],
+      },
+    }
+  }
+
+  if (!questionPayload) {
+    return {
+      errors: {
+        _form: [
+          "Unable to find assignment questions JSON in S3 for this assessment.",
+        ],
+      },
+    }
+  }
+
+  const rubricSuggestUrlResult = parseAiEndpoint(
+    "AI_RUBRIC_SUGGEST_API_URL",
+    process.env.AI_RUBRIC_SUGGEST_API_URL,
+  )
+  if ("error" in rubricSuggestUrlResult) {
+    return { errors: { _form: [rubricSuggestUrlResult.error] } }
+  }
+
+  const rubricSuggestUrl = rubricSuggestUrlResult.value
+
+  const payload = new FormData()
+  payload.append(
+    "question_file",
+    new Blob([JSON.stringify(questionPayload)], { type: "application/json" }),
+    `assignment-${assignmentId}-questions.json`,
+  )
+
+  const controller = new AbortController()
+  const timeoutMs = 8000
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  let response: Response
+  try {
+    response = await fetch(rubricSuggestUrl, {
+      method: "POST",
+      body: payload,
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return { errors: { _form: ["Rubric suggestion request timed out. Please try again."] } }
+    }
+    return { errors: { _form: ["Unable to reach the rubric suggestion service right now."] } }
+  } finally {
+    clearTimeout(timeoutId)
+  }
+
+  const responseText = await response.text()
+  if (!response.ok) {
+    const suffix = responseText.trim().length > 0 ? ` ${responseText.trim().slice(0, 300)}` : ""
+    return { errors: { _form: [`Rubric suggestion request failed (${response.status}).${suffix}`] } }
+  }
+
+  let responseJson: unknown
+  try {
+    responseJson = JSON.parse(responseText)
+  } catch {
+    return { errors: { _form: ["Rubric suggestion service did not return valid JSON."] } }
+  }
+
+  const normalized = normalizeSuggestedRubricPayload(responseJson)
+  if (!normalized) {
+    return { errors: { _form: ["Rubric suggestion response format was not recognized."] } }
+  }
+
+  const parsed = rubricPayloadSchema.safeParse({
+    questions: normalized.questions,
+    overall_feedback: normalized.overall_feedback,
+  })
+  if (!parsed.success) {
+    const diagnostics = parsed.error.issues
+      .slice(0, 3)
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join("; ")
+
+    return {
+      errors: {
+        _form: [
+          `Suggested rubric payload did not pass validation.${diagnostics ? ` ${diagnostics}` : ""}`,
+        ],
+      },
+    }
+  }
+
+  return {
+    rubric: {
+      questions: parsed.data.questions.map((question) => ({
+        question_id: question.question_id,
+        question_max_total:
+          typeof question.question_max_total === "number"
+            ? question.question_max_total
+            : question.rubric_items.reduce((sum, item) => sum + item.max_score, 0),
+        rubric_items: question.rubric_items.map((item) => ({
+          criterion: item.criterion,
+          explanation: item.explanation ?? "",
+          max_score: item.max_score,
+        })),
+      })),
+      overall_feedback: parsed.data.overall_feedback ?? "",
+    },
   }
 }
 
