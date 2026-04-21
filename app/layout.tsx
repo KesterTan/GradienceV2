@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { DM_Serif_Display, Geist, Geist_Mono, Space_Grotesk } from 'next/font/google'
 import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { Auth0Provider } from '@/components/auth0-provider'
@@ -8,9 +8,19 @@ import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _display = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-display",
+});
+const _body = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-body",
+});
 
 export const metadata: Metadata = {
-  title: 'Gradience - AI-Powered Grading Platform',
+  title: 'Gradient - AI-Powered Grading Platform',
   description: 'An AI-powered grading platform for rubric generation and automated grading of student submissions.',
   generator: 'Carnege Mellon University TAs',
   icons: {
@@ -28,7 +38,7 @@ export default function RootLayout({
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
   return (
-    <html lang="en">
+    <html lang="en" className={`${_display.variable} ${_body.variable}`}>
       <head>
         {gaId && (
           <>
