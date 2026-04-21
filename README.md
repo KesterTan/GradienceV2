@@ -30,6 +30,7 @@ Then update values in `.env` as needed (for local development, use `http://local
 - `APP_BASE_URL` (local: `http://localhost:3000`)
 - `AUTH0_BASE_URL` (local: `http://localhost:3000`)
 - `NEXT_PUBLIC_GA_MEASUREMENT_ID` (optional, for GA)
+- `API_SECRET_TOKEN` (required for AI rubric/grade API requests via `X-API-Token`)
 (The variables below should be obtained from aws psql db)
 - `AWS_ACCOUNT_ID`
 - `AWS_REGION`

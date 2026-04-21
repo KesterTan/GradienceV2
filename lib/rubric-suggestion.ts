@@ -95,6 +95,10 @@ export async function generateRubricSuggestionAction(
     return { errors: { _form: [rubricSuggestUrlResult.error] } };
   }
   const rubricSuggestUrl = rubricSuggestUrlResult.value;
+  const apiSecretToken = process.env.API_SECRET_TOKEN?.trim();
+  if (!apiSecretToken) {
+    return { errors: { _form: ["Missing API_SECRET_TOKEN. Configure API_SECRET_TOKEN in your environment."] } };
+  }
   const payload = new FormData();
   payload.append(
     "question_file",
@@ -108,6 +112,9 @@ export async function generateRubricSuggestionAction(
   try {
     response = await fetch(rubricSuggestUrl, {
       method: "POST",
+      headers: {
+        "X-API-Token": apiSecretToken,
+      },
       body: payload,
       signal: controller.signal,
     });

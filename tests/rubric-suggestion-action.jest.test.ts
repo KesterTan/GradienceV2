@@ -56,6 +56,7 @@ describe("generateRubricSuggestionAction", () => {
       NODE_ENV: "test",
       ALLOW_INSECURE_AI: "true",
       AI_RUBRIC_SUGGEST_API_URL: "http://localhost:8080/rubric-suggest",
+      API_SECRET_TOKEN: "test-secret-token",
     }
 
     mockRequireAppUser.mockResolvedValue({ id: 42 })
@@ -121,7 +122,11 @@ describe("generateRubricSuggestionAction", () => {
     })
     expect(global.fetch).toHaveBeenCalledWith(
       "http://localhost:8080/rubric-suggest",
-      expect.objectContaining({ method: "POST", body: expect.any(FormData) }),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "X-API-Token": "test-secret-token" }),
+        body: expect.any(FormData),
+      }),
     )
   })
 
