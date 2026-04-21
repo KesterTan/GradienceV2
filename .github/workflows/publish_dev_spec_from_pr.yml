@@ -13,9 +13,9 @@ on:
         required: true
         type: string
       issue_repo:
-        description: 'Tracking issue repo (owner/name), default Gradient/GradientV1'
+        description: 'Optional tracking issue repo (owner/name). If omitted, uses source_repo.'
         required: false
-        default: 'Gradient/GradientV1'
+        default: ''
         type: string
 
 jobs:
@@ -43,7 +43,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          automation/scripts/publish_dev_spec_from_pr.sh \
-            "${{ github.event.inputs.source_repo }}" \
-            "${{ github.event.inputs.pr_numbers }}" \
-            "${{ github.event.inputs.issue_repo }}"
+          if [[ -n "${{ github.event.inputs.issue_repo }}" ]]; then
+            automation/scripts/publish_dev_spec_from_pr.sh \
+              "${{ github.event.inputs.source_repo }}" \
+              "${{ github.event.inputs.pr_numbers }}" \
+              "${{ github.event.inputs.issue_repo }}"
+          else
+            automation/scripts/publish_dev_spec_from_pr.sh \
+              "${{ github.event.inputs.source_repo }}" \
+              "${{ github.event.inputs.pr_numbers }}"
+          fi

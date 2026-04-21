@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Usage: ./publish_dev_spec_from_pr.sh <repo> <comma-separated-pr-numbers> [issue-repo]
-# Example: ./publish_dev_spec_from_pr.sh KesterTan/GradienceV2 12,15,18 Gradient/GradientV1
+# Example: ./publish_dev_spec_from_pr.sh KesterTan/GradienceV2 12,15,18
 
 if [[ $# -lt 2 ]]; then
   echo "Usage: $0 <repo> <comma-separated-pr-numbers> [issue-repo]"
@@ -11,8 +11,10 @@ fi
 
 REPO="$1"
 PR_NUMBERS_RAW="$2"
-ISSUE_REPO="${3:-Gradient/GradientV1}"
+ISSUE_REPO="${3:-$REPO}"
 IFS=',' read -ra PRS <<< "$PR_NUMBERS_RAW"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GENERATOR_SCRIPT="$SCRIPT_DIR/dev_spec_from_pr.sh"
 
 command -v gh >/dev/null 2>&1 || { echo "gh is required"; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "jq is required"; exit 1; }
@@ -51,7 +53,7 @@ TRACKING_ISSUE_URL=$(gh issue create -R "$ISSUE_REPO" --title "$ISSUE_TITLE" --b
 echo "Created tracking issue: $TRACKING_ISSUE_URL"
 
 # Generate dev spec markdown (includes tracking issue reference)
-DEV_SPEC_FILE=$(bash automation/scripts/dev_spec_from_pr.sh "$TMP_DIR/prs.json" "$TMP_DIR/prs.diff" "$TRACKING_ISSUE_URL")
+DEV_SPEC_FILE=$(bash "$GENERATOR_SCRIPT" "$TMP_DIR/prs.json" "$TMP_DIR/prs.diff" "$TRACKING_ISSUE_URL")
 
 # Create dev-spec branch, commit, and push
 NORMALIZED_PRS=$(jq -r '.[].number' "$TMP_DIR/prs.json" | paste -sd '-' -)
@@ -62,4 +64,26 @@ git commit -m "dev spec for PR(s) $PR_NUMBERS_RAW"
 git push origin $BRANCH
 
 # Open PR for dev spec
-gh pr create -R "$REPO" --base main --head "$BRANCH" --title "Dev spec for PR(s) $PR_NUMBERS_RAW" --body "This PR adds a development specification for PR(s) $PR_NUMBERS_RAW.\n\nTracking issue: $TRACKING_ISSUE_URL"
+PR_BODY_FILE="$TMP_DIR/dev_spec_pr_body.md"
+cat > "$PR_BODY_FILE" <<EOF
+## What changed
+- Added a generated development specification draft for PR(s): $PR_NUMBERS_RAW.
+- Included tracking issue reference for auditability.
+
+## Backend changes
+- Added/updated automation scripts for PR analysis and dev spec generation.
+
+## Frontend changes
+- None.
+
+## Test changes
+- Shell syntax validated for updated scripts.
+
+## Risks / follow-ups
+- Validate generated draft content before publishing.
+- Complete and verify the Risks / Assumptions and Validation / Acceptance Criteria sections.
+
+Tracking issue: $TRACKING_ISSUE_URL
+EOF
+
+gh pr create -R "$REPO" --base main --head "$BRANCH" --title "Dev spec for PR(s) $PR_NUMBERS_RAW" --body-file "$PR_BODY_FILE"

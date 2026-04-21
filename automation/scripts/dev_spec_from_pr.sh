@@ -44,8 +44,8 @@ if [[ "$PR_COUNT" -eq 0 ]]; then
   exit 1
 fi
 
-PR_NUMS_UNDERSCORE=$(jq -r '.[].number' "$PRS_JSON" | paste -sd '_' -)
-PR_NUMS_COMMA=$(jq -r '.[].number' "$PRS_JSON" | paste -sd ', ' -)
+PR_NUMS_UNDERSCORE=$(jq -r 'map(.number | tostring) | join("_")' "$PRS_JSON")
+PR_NUMS_COMMA=$(jq -r 'map(.number | tostring) | join(", ")' "$PRS_JSON")
 DEV_SPEC_FILE="DEV_SPEC_PR_${PR_NUMS_UNDERSCORE}.md"
 
 {
@@ -69,7 +69,7 @@ DEV_SPEC_FILE="DEV_SPEC_PR_${PR_NUMS_UNDERSCORE}.md"
     PR_AUTHOR=$(jq -r ".[$i].author.login // \"unknown\"" "$PRS_JSON")
     PR_URL=$(jq -r ".[$i].url // \"\"" "$PRS_JSON")
     PR_BODY=$(jq -r ".[$i].body // \"\"" "$PRS_JSON")
-    PR_LINKED_ISSUES=$(jq -r ".[$i].linkedIssues[]?.number" "$PRS_JSON" | sed 's/^/#/' | paste -sd ', ' -)
+    PR_LINKED_ISSUES=$(jq -r ".[$i].linkedIssues // [] | map(.number | tostring | \"#\" + .) | join(\", \")" "$PRS_JSON")
 
     echo "### PR #$PR_NUM"
     echo "- **Title:** $PR_TITLE"
