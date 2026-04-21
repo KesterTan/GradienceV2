@@ -264,6 +264,10 @@ export function QuestionEditor({
 
     // Snapshot questions at the moment of submit — no stale closure risk
     const snapshot = questions.map((q) => ({ ...q }))
+    const normalizedAssignmentTitleInput = assignmentTitleInput.trim()
+    const normalizedCourseInput = courseInput.trim()
+    const assignmentTitleForSave = normalizedAssignmentTitleInput || savedAssignmentTitle || assignmentTitle
+    const courseForSave = normalizedCourseInput || savedCourse || courseTitle
 
     const formData = new FormData()
     formData.set("courseId", String(courseId))
@@ -271,8 +275,8 @@ export function QuestionEditor({
     formData.set(
       "questionsPayload",
       JSON.stringify({
-        assignment_title: assignmentTitleInput,
-        course: courseInput,
+        assignment_title: assignmentTitleForSave,
+        course: courseForSave,
         instructions_summary: instructionsSummaryInput,
         questions: snapshot,
       }),
@@ -287,8 +291,8 @@ export function QuestionEditor({
       }
       // Success — update display state immediately from the snapshot we sent
       setSavedQuestions(result.savedQuestions ?? snapshot)
-      setSavedAssignmentTitle(assignmentTitleInput)
-      setSavedCourse(courseInput)
+      setSavedAssignmentTitle(assignmentTitleForSave)
+      setSavedCourse(courseForSave)
       setSavedInstructionsSummary(instructionsSummaryInput)
       setIsEditing(false)
     } catch {

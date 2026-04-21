@@ -13,8 +13,12 @@ import {
   rubricPayloadSchema,
 } from "@/lib/rubrics"
 import {
+  loadAssignmentQuestionsJsonFromS3,
+  normalizeSuggestedRubricPayload,
+  parseAiEndpoint,
+} from "@/lib/rubric-suggestion"
+import {
   buildRubricS3ObjectKey,
-  loadJsonFromS3ObjectKey,
   uploadRubricJsonToS3,
 } from "@/lib/s3-submissions"
 
@@ -42,184 +46,6 @@ export type RubricSuggestionState = {
   errors?: {
     _form?: string[]
   }
-}
-
-function buildAssignmentQuestionObjectKeyCandidates(courseId: number, assignmentId: number) {
-  return [
-    `questions/assessments/${courseId}/${assignmentId}/questions.json`,
-    `assignments/${courseId}/${assignmentId}/questions.json`,
-    `assessments/${courseId}/${assignmentId}/questions.json`,
-    `questions/assignments/${courseId}/${assignmentId}.json`,
-    `questions/assignments/${assignmentId}.json`,
-  ]
-}
-
-async function loadAssignmentQuestionsJsonFromS3(courseId: number, assignmentId: number) {
-  const candidates = buildAssignmentQuestionObjectKeyCandidates(courseId, assignmentId)
-
-  for (const objectKey of candidates) {
-    const payload = await loadJsonFromS3ObjectKey(objectKey)
-    if (payload) {
-      return payload
-    }
-  }
-
-  return null
-}
-
-function toNumber(value: unknown) {
-  const num = Number(value)
-  return Number.isFinite(num) ? num : null
-}
-
-function normalizeSuggestedRubricPayload(rawPayload: unknown) {
-  if (!rawPayload || typeof rawPayload !== "object") {
-    return null
-  }
-
-  const response = rawPayload as Record<string, unknown>
-  const candidates: unknown[] = []
-
-  if (Array.isArray(response.questions)) {
-    candidates.push({
-      questions: response.questions,
-      overall_feedback: typeof response.overall_feedback === "string" ? response.overall_feedback : "",
-    })
-  }
-
-  if (response.result && typeof response.result === "object") {
-    const nested = response.result as Record<string, unknown>
-    if (Array.isArray(nested.questions)) {
-      candidates.push({
-        questions: nested.questions,
-        overall_feedback:
-          typeof nested.overall_feedback === "string"
-            ? nested.overall_feedback
-            : typeof response.overall_feedback === "string"
-            ? response.overall_feedback
-            : "",
-      })
-    }
-  }
-
-  if (Array.isArray(rawPayload)) {
-    candidates.push({ questions: rawPayload, overall_feedback: "" })
-  }
-
-  for (const candidate of candidates) {
-    const value = candidate as { questions?: unknown; overall_feedback?: unknown }
-    if (!Array.isArray(value.questions) || value.questions.length === 0) {
-      continue
-    }
-
-    const normalizedQuestions = value.questions
-      .map((rawQuestion, index) => {
-        if (!rawQuestion || typeof rawQuestion !== "object") {
-          return null
-        }
-
-        const question = rawQuestion as Record<string, unknown>
-        const rawItems = Array.isArray(question.rubric_items)
-          ? question.rubric_items
-          : Array.isArray(question.items)
-          ? question.items
-          : null
-        if (!rawItems || rawItems.length === 0) {
-          return null
-        }
-
-        const rubricItems = rawItems
-          .map((rawItem) => {
-            if (!rawItem || typeof rawItem !== "object") {
-              return null
-            }
-
-            const item = rawItem as Record<string, unknown>
-            const criterion =
-              typeof item.criterion === "string"
-                ? item.criterion.trim()
-                : typeof item.title === "string"
-                ? item.title.trim()
-                : ""
-            const maxScore =
-              toNumber(item.max_score) ??
-              toNumber(item.max_points) ??
-              toNumber(item.maxScore) ??
-              toNumber(item.points) ??
-              0
-
-            if (!criterion || maxScore < 0) {
-              return null
-            }
-
-            return {
-              criterion,
-              max_score: maxScore,
-              explanation:
-                typeof item.explanation === "string"
-                  ? item.explanation
-                  : typeof item.description === "string"
-                  ? item.description
-                  : "",
-            }
-          })
-          .filter((item): item is NonNullable<typeof item> => Boolean(item))
-
-        if (rubricItems.length === 0) {
-          return null
-        }
-
-        const questionId =
-          typeof question.question_id === "string" && question.question_id.trim().length > 0
-            ? question.question_id.trim()
-            : `Q${index + 1}`
-
-        return {
-          question_id: questionId,
-          question_max_total: rubricItems.reduce((sum, item) => sum + item.max_score, 0),
-          rubric_items: rubricItems,
-        }
-      })
-      .filter((question): question is NonNullable<typeof question> => Boolean(question))
-
-    if (normalizedQuestions.length === 0) {
-      continue
-    }
-
-    return {
-      questions: normalizedQuestions,
-      overall_feedback:
-        typeof value.overall_feedback === "string" ? value.overall_feedback : "",
-    }
-  }
-
-  return null
-}
-
-function parseAiEndpoint(envName: string, rawUrl: string | undefined) {
-  if (!rawUrl || rawUrl.trim().length === 0) {
-    return { error: `Missing ${envName}. Configure both AI_GRADING_API_URL and AI_RUBRIC_SUGGEST_API_URL.` }
-  }
-
-  let parsedUrl: URL
-  try {
-    parsedUrl = new URL(rawUrl)
-  } catch {
-    return { error: `${envName} must be a valid URL. Configure both AI_GRADING_API_URL and AI_RUBRIC_SUGGEST_API_URL.` }
-  }
-
-  const allowInsecure =
-    process.env.NODE_ENV === "development" ||
-    (process.env.ALLOW_INSECURE_AI || "").toLowerCase() === "true"
-
-  if (parsedUrl.protocol !== "https:" && !allowInsecure) {
-    return {
-      error:
-        `${envName} must use https:// in production. Configure AI_GRADING_API_URL and AI_RUBRIC_SUGGEST_API_URL with secure endpoints, or set ALLOW_INSECURE_AI=true only for local development.`,
-    }
-  }
-
-  return { value: parsedUrl.toString() }
 }
 
 export async function generateRubricSuggestionAction(
@@ -276,11 +102,6 @@ export async function generateRubricSuggestionAction(
     }
   }
 
-  const gradingApiUrlResult = parseAiEndpoint("AI_GRADING_API_URL", process.env.AI_GRADING_API_URL)
-  if ("error" in gradingApiUrlResult) {
-    return { errors: { _form: [gradingApiUrlResult.error] } }
-  }
-
   const rubricSuggestUrlResult = parseAiEndpoint(
     "AI_RUBRIC_SUGGEST_API_URL",
     process.env.AI_RUBRIC_SUGGEST_API_URL,
@@ -289,7 +110,6 @@ export async function generateRubricSuggestionAction(
     return { errors: { _form: [rubricSuggestUrlResult.error] } }
   }
 
-  const gradingApiUrl = gradingApiUrlResult.value
   const rubricSuggestUrl = rubricSuggestUrlResult.value
 
   const payload = new FormData()
@@ -342,10 +162,37 @@ export async function generateRubricSuggestionAction(
     overall_feedback: normalized.overall_feedback,
   })
   if (!parsed.success) {
-    const timeoutMs = Number(process.env.AI_RUBRIC_SUGGEST_TIMEOUT_MS) || 30000
+    const diagnostics = parsed.error.issues
+      .slice(0, 3)
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join("; ")
+
+    return {
+      errors: {
+        _form: [
+          `Suggested rubric payload did not pass validation.${diagnostics ? ` ${diagnostics}` : ""}`,
+        ],
+      },
+    }
   }
 
-  return { rubric: normalized }
+  return {
+    rubric: {
+      questions: parsed.data.questions.map((question) => ({
+        question_id: question.question_id,
+        question_max_total:
+          typeof question.question_max_total === "number"
+            ? question.question_max_total
+            : question.rubric_items.reduce((sum, item) => sum + item.max_score, 0),
+        rubric_items: question.rubric_items.map((item) => ({
+          criterion: item.criterion,
+          explanation: item.explanation ?? "",
+          max_score: item.max_score,
+        })),
+      })),
+      overall_feedback: parsed.data.overall_feedback ?? "",
+    },
+  }
 }
 
 async function requireInstructorMembership(courseId: number, userId: number) {

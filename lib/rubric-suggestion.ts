@@ -6,7 +6,7 @@ import { loadJsonFromS3ObjectKey } from "@/lib/s3-submissions";
 // import { rubricPayloadSchema } from "@/lib/rubrics"; // (already imported above)
 import { and, eq } from "drizzle-orm";
 
-function buildAssignmentQuestionObjectKeyCandidates(courseId: number, assignmentId: number) {
+export function buildAssignmentQuestionObjectKeyCandidates(courseId: number, assignmentId: number) {
   return [
     `questions/assessments/${courseId}/${assignmentId}/questions.json`,
     `assignments/${courseId}/${assignmentId}/questions.json`,
@@ -16,7 +16,7 @@ function buildAssignmentQuestionObjectKeyCandidates(courseId: number, assignment
   ];
 }
 
-async function loadAssignmentQuestionsJsonFromS3(courseId: number, assignmentId: number) {
+export async function loadAssignmentQuestionsJsonFromS3(courseId: number, assignmentId: number) {
   const candidates = buildAssignmentQuestionObjectKeyCandidates(courseId, assignmentId);
   for (const objectKey of candidates) {
     const payload = await loadJsonFromS3ObjectKey(objectKey);
@@ -77,6 +77,13 @@ export async function generateRubricSuggestionAction(
         _form: [
           `Unable to read assignment questions from storage. ${message}`,
         ],
+      },
+    };
+  }
+  if (!questionPayload) {
+    return {
+      errors: {
+        _form: ["Assignment questions not found for this assessment."],
       },
     };
   }
