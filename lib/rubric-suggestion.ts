@@ -148,58 +148,155 @@ import { rubricPayloadSchema } from "@/lib/rubrics";
 
 export function parseAiEndpoint(envName: string, rawUrl: string | undefined) {
   if (!rawUrl || rawUrl.trim().length === 0) {
-    return { error: `Missing ${envName}. Configure AI_RUBRIC_SUGGEST_API_URL.` };
+    return { error: `Missing ${envName}. Configure ${envName}.` };
   }
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(rawUrl);
   } catch {
-    return { error: `${envName} must be a valid URL. Configure AI_RUBRIC_SUGGEST_API_URL.` };
+    return { error: `${envName} must be a valid URL.` };
   }
   const allowInsecure =
     process.env.NODE_ENV === "development" ||
     (process.env.ALLOW_INSECURE_AI || "").toLowerCase() === "true";
   if (parsedUrl.protocol !== "https:" && !allowInsecure) {
     return {
-      error: `${envName} must use https:// in production. Configure AI_RUBRIC_SUGGEST_API_URL with a secure endpoint, or set ALLOW_INSECURE_AI=true only for local development.`,
+      error: `${envName} must use https:// in production. Configure ${envName} with a secure endpoint, or set ALLOW_INSECURE_AI=true only for local development.`,
     };
   }
   return { value: parsedUrl.toString() };
+}
+
+function toNumber(value: unknown) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
 }
 
 export function normalizeSuggestedRubricPayload(rawPayload: unknown) {
   if (!rawPayload || typeof rawPayload !== "object") {
     return null;
   }
-  const value = rawPayload as Record<string, any>;
-  if (!Array.isArray(value.questions)) {
-    return null;
+
+  const response = rawPayload as Record<string, unknown>;
+  const candidates: Array<{ questions: unknown; overall_feedback: unknown }> = [];
+
+  if (Array.isArray(response.questions)) {
+    candidates.push({
+      questions: response.questions,
+      overall_feedback: response.overall_feedback,
+    });
   }
-  const normalizedQuestions = value.questions.map((question: any, index: number) => {
-    if (!question || typeof question !== "object") return null;
-    const rubricItems = Array.isArray(question.rubric_items)
-      ? question.rubric_items.map((item: any) => {
-          if (!item || typeof item !== "object") return null;
-          return {
-            criterion: typeof item.criterion === "string" ? item.criterion : "",
-            explanation: typeof item.explanation === "string" ? item.explanation : "",
-            max_score: typeof item.max_score === "number" ? item.max_score : 0,
-          };
-        }).filter(Boolean)
-      : [];
-    if (rubricItems.length === 0) return null;
-    const questionId = typeof question.question_id === "string" && question.question_id.trim().length > 0
-      ? question.question_id.trim()
-      : `Q${index + 1}`;
+
+  if (response.result && typeof response.result === "object") {
+    const nested = response.result as Record<string, unknown>;
+    if (Array.isArray(nested.questions)) {
+      candidates.push({
+        questions: nested.questions,
+        overall_feedback:
+          typeof nested.overall_feedback === "string"
+            ? nested.overall_feedback
+            : response.overall_feedback,
+      });
+    }
+  }
+
+  if (Array.isArray(rawPayload)) {
+    candidates.push({ questions: rawPayload, overall_feedback: "" });
+  }
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate.questions) || candidate.questions.length === 0) {
+      continue;
+    }
+
+    const normalizedQuestions = candidate.questions
+      .map((rawQuestion, index) => {
+        if (!rawQuestion || typeof rawQuestion !== "object") {
+          return null;
+        }
+
+        const question = rawQuestion as Record<string, unknown>;
+        const rawItems = Array.isArray(question.rubric_items)
+          ? question.rubric_items
+          : Array.isArray(question.items)
+            ? question.items
+            : null;
+
+        if (!rawItems || rawItems.length === 0) {
+          return null;
+        }
+
+        const rubricItems = rawItems
+          .map((rawItem) => {
+            if (!rawItem || typeof rawItem !== "object") {
+              return null;
+            }
+
+            const item = rawItem as Record<string, unknown>;
+            const criterion =
+              typeof item.criterion === "string"
+                ? item.criterion.trim()
+                : typeof item.title === "string"
+                  ? item.title.trim()
+                  : "";
+
+            const maxScore =
+              toNumber(item.max_score) ??
+              toNumber(item.max_points) ??
+              toNumber(item.maxScore) ??
+              toNumber(item.points) ??
+              0;
+
+            if (!criterion || maxScore < 0) {
+              return null;
+            }
+
+            return {
+              criterion,
+              explanation:
+                typeof item.explanation === "string"
+                  ? item.explanation
+                  : typeof item.description === "string"
+                    ? item.description
+                    : "",
+              max_score: maxScore,
+            };
+          })
+          .filter((item): item is { criterion: string; explanation: string; max_score: number } => Boolean(item));
+
+        if (rubricItems.length === 0) {
+          return null;
+        }
+
+        const questionId =
+          typeof question.question_id === "string" && question.question_id.trim().length > 0
+            ? question.question_id.trim()
+            : `Q${index + 1}`;
+
+        return {
+          question_id: questionId,
+          question_max_total: rubricItems.reduce((sum, item) => sum + item.max_score, 0),
+          rubric_items: rubricItems,
+        };
+      })
+      .filter(
+        (question): question is {
+          question_id: string;
+          question_max_total: number;
+          rubric_items: { criterion: string; explanation: string; max_score: number }[];
+        } => Boolean(question),
+      );
+
+    if (normalizedQuestions.length === 0) {
+      continue;
+    }
+
     return {
-      question_id: questionId,
-      question_max_total: rubricItems.reduce((sum: number, item: { max_score: number }) => sum + item.max_score, 0),
-      rubric_items: rubricItems,
+      questions: normalizedQuestions,
+      overall_feedback:
+        typeof candidate.overall_feedback === "string" ? candidate.overall_feedback : "",
     };
-  }).filter(Boolean);
-  if (normalizedQuestions.length === 0) return null;
-  return {
-    questions: normalizedQuestions,
-    overall_feedback: typeof value.overall_feedback === "string" ? value.overall_feedback : "",
-  };
+  }
+
+  return null;
 }
