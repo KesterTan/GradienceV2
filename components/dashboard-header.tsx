@@ -29,13 +29,13 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const hasBreadcrumbs = !!breadcrumbs?.length
   const homeIsActive = breadcrumbs?.[0]?.current === true
-  const homeHref = breadcrumbs?.[0]?.href ?? "/"
+  const homeHref = breadcrumbs?.[0]?.href ?? "/courses"
 
   return (
     <header className="border-b bg-white">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
         <div className="flex min-w-0 w-full items-center gap-4 sm:w-auto sm:gap-10">
-          <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
+          <Link href="/courses" className="flex items-center gap-2 transition-opacity hover:opacity-80">
             <div className="rounded-md p-1">
               <GraduationCap className="size-6 text-primary" />
             </div>

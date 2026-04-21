@@ -14,10 +14,10 @@ export function LoginForm() {
       </CardHeader>
       <CardContent className="space-y-3">
         <Button asChild className="w-full">
-          <a href="/api/auth/login?connection=Gradience&returnTo=/">Continue with Email</a>
+          <a href="/api/auth/login?connection=Gradience&returnTo=/courses">Continue with Email</a>
         </Button>
         <Button asChild className="w-full" variant="outline">
-          <a href="/api/auth/login?connection=google-oauth2&returnTo=/">Continue with Google</a>
+          <a href="/api/auth/login?connection=google-oauth2&returnTo=/courses">Continue with Google</a>
         </Button>
       </CardContent>
     </Card>

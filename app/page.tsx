@@ -1,1 +1,5 @@
-export { default } from "./courses/page"
+import { LandingPage } from "@/components/landing-page"
+
+export default function Page() {
+	return <LandingPage />
+}
