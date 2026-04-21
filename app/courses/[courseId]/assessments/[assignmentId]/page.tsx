@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { format } from "date-fns"
 import { AssessmentSubmissionPanel } from "@/components/assessment-submission-panel"
+import { AssignZeroButton } from "@/components/assign-zero-button"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { StudentSubmissionsCard } from "@/components/student-submissions-card"
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   getAssessmentForCourseMember,
   listMemberSubmissionHistory,
+  listRegradeRequestsForAssignment,
   listStudentsWithoutSubmission,
   listSubmissionsForAssessment,
 } from "@/lib/course-management"
@@ -37,12 +39,12 @@ export default async function AssessmentPage({
 
   const isInstructor = assessment.viewerRole === "Instructor"
   const memberHistory = await listMemberSubmissionHistory(user.id, parsedCourseId, parsedAssignmentId)
-  const submissions = isInstructor
-    ? await listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId)
-    : []
-  const nonSubmitters = isInstructor
-    ? await listStudentsWithoutSubmission(user.id, parsedCourseId, parsedAssignmentId)
-    : []
+  const [submissions, nonSubmitters, regradeRequests] = await Promise.all([
+    isInstructor ? listSubmissionsForAssessment(user.id, parsedCourseId, parsedAssignmentId) : Promise.resolve([]),
+    isInstructor ? listStudentsWithoutSubmission(user.id, parsedCourseId, parsedAssignmentId) : Promise.resolve([]),
+    isInstructor ? listRegradeRequestsForAssignment(parsedCourseId, parsedAssignmentId) : Promise.resolve([]),
+  ])
+  const pendingRegradeSubmissionIds = new Set(regradeRequests.map((r) => r.submissionId))
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -114,9 +116,13 @@ export default async function AssessmentPage({
             group.push(s)
             studentMap.set(s.studentMembershipId, group)
           }
-          const students = Array.from(studentMap.values()).sort((a, b) =>
-            a[0].studentName.localeCompare(b[0].studentName)
-          )
+          const students = Array.from(studentMap.values()).sort((a, b) => {
+            const aHas = a.some((s) => pendingRegradeSubmissionIds.has(s.id))
+            const bHas = b.some((s) => pendingRegradeSubmissionIds.has(s.id))
+            if (aHas && !bHas) return -1
+            if (!aHas && bHas) return 1
+            return a[0].studentName.localeCompare(b[0].studentName)
+          })
           const hasAny = students.length > 0 || nonSubmitters.length > 0
 
           return !hasAny ? (
@@ -135,6 +141,7 @@ export default async function AssessmentPage({
                   courseId={assessment.courseId}
                   assignmentId={assessment.id}
                   versions={versions}
+                  hasPendingRegrade={versions.some((s) => pendingRegradeSubmissionIds.has(s.id))}
                 />
               ))}
               {nonSubmitters.map((student) => (
@@ -144,8 +151,13 @@ export default async function AssessmentPage({
                     <CardDescription>{student.studentEmail}</CardDescription>
                   </CardHeader>
                   <CardContent className="px-5 pb-5 sm:px-6">
-                    <div className="flex items-center gap-2 rounded-lg border bg-slate-50 px-3 py-3">
+                    <div className="flex items-center justify-between gap-2 rounded-lg border bg-slate-50 px-3 py-3">
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">No submission</span>
+                      <AssignZeroButton
+                        courseId={assessment.courseId}
+                        assignmentId={assessment.id}
+                        studentMembershipId={student.studentMembershipId}
+                      />
                     </div>
                   </CardContent>
                 </Card>

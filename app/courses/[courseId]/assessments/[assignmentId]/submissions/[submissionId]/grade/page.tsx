@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getSubmissionGradeForStudent } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
+import { RegradeRequestCard } from "./_components/regrade-request-card"
 
 export default async function StudentSubmissionGradePage({
   params,
@@ -203,6 +204,15 @@ export default async function StudentSubmissionGradePage({
                 )}
               </CardContent>
             </Card>
+
+            {submission.grade && (
+              <RegradeRequestCard
+                courseId={submission.courseId}
+                assignmentId={submission.assignmentId}
+                submissionId={submission.id}
+                existingRequest={submission.regradeRequest}
+              />
+            )}
           </div>
         </div>
       </section>

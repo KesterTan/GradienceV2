@@ -10,6 +10,7 @@ import {
   assignments,
   courseMemberships,
   grades,
+  regradeRequests,
   rubricScores,
   submissions,
 } from "@/db/schema"
@@ -632,6 +633,20 @@ export async function saveSubmissionGradeAction(
     }
 
     return { errors: { _form: ["Unable to save grades right now. Please try again."] } }
+  }
+
+  const rawRegradeRequestId = formData.get("regradeRequestId")
+  const regradeRequestId = typeof rawRegradeRequestId === "string" ? Number(rawRegradeRequestId) : NaN
+  if (Number.isFinite(regradeRequestId) && regradeRequestId > 0) {
+    await db
+      .update(regradeRequests)
+      .set({
+        status: "resolved",
+        resolvedByMembershipId: membership.id,
+        resolvedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(regradeRequests.id, regradeRequestId))
   }
 
   revalidatePath(`/courses/${courseId}/assessments/${assignmentId}`)

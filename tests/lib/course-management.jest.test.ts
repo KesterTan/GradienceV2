@@ -577,6 +577,7 @@ describe("course-management", () => {
             gradeTotalScore: 8,
             gradeOverallFeedback: "good",
             gradeGradedAt: "2026-02-10T00:00:00.000Z",
+            gradeIsReleasedToStudent: true,
           }),
         ],
         [{ displayOrder: 1, pointsAwarded: 4 }],

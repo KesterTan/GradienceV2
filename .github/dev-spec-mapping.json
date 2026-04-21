@@ -1,0 +1,14 @@
+{
+  "1": {
+    "title": "Create Assignment",
+    "specPath": "DEV_SPEC_CREATE_ASSIGNMENT.md"
+  },
+  "2": {
+    "title": "Submissions",
+    "specPath": "DEV_SPEC_SUBMISSIONS.md"
+  },
+  "3": {
+    "title": "Regrade Requests",
+    "specPath": "DEV_SPEC_REGRADE_REQUESTS.md"
+  }
+}

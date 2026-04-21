@@ -1,0 +1,132 @@
+name: LLM PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build structured review prompt
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --unified=1 "$BASE_SHA" "$HEAD_SHA" > pr.diff
+          cat <<'EOF' > prompt.txt
+          You are a senior code reviewer for a production Next.js/TypeScript repo.
+          Return a concise markdown review with the exact sections:
+
+          ## Risk Summary
+          - <2-5 bullets>
+
+          ## Findings
+          - Severity: High|Medium|Low
+          - File: <path>
+          - Concern: <one sentence>
+          - Recommendation: <one sentence>
+
+          ## Tests to Add or Verify
+          - <bullets>
+
+          ## Human Review Focus
+          - <bullets>
+
+          Rules:
+          - Prioritize correctness, security, data integrity, and regressions.
+          - If there are no major findings, explicitly say "No critical issues found."
+          - Do not invent files that are not present in the diff.
+          - Keep output under 400 words.
+
+          Pull request metadata:
+          PR #$PR_NUMBER
+          Title: $PR_TITLE
+          Body:
+          $PR_BODY
+
+          Diff:
+          EOF
+          cat pr.diff >> prompt.txt
+
+      - name: Call LLM for review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_REVIEW_MODEL || 'gpt-4.1-mini' }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY is not configured." > llm_review.md
+            exit 0
+          fi
+
+          PROMPT_JSON=$(jq -Rs . < prompt.txt)
+          REQUEST_BODY=$(cat <<EOF
+          {
+            "model": "${OPENAI_MODEL}",
+            "messages": [
+              {"role":"system","content":"You produce precise PR review feedback in markdown."},
+              {"role":"user","content": ${PROMPT_JSON}}
+            ],
+            "temperature": 0.1
+          }
+          EOF
+          )
+
+          curl -sS https://api.openai.com/v1/chat/completions \
+            -H "Authorization: Bearer ${OPENAI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$REQUEST_BODY" \
+            | jq -r '.choices[0].message.content // "LLM response missing."' > llm_review.md
+
+      - name: Post review comment to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const body = fs.readFileSync("llm_review.md", "utf8");
+            const marker = "<!-- llm-pr-review -->";
+            const commentBody = `${marker}
+            ## Automated LLM Review
+
+            ${body}
+
+            _This is automation support for human reviewers; it does not approve merges automatically._`;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: commentBody
+              });
+            }

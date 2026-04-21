@@ -16,6 +16,7 @@ type SubmissionGradeFormProps = {
   totalPoints: number
   rubricQuestions: SubmissionGradeQuestion[]
   initialGrade: SubmissionGrade | null
+  regradeRequestId?: number
 }
 
 const initialState: SubmissionGradeFormState = {}
@@ -27,6 +28,7 @@ export function SubmissionGradeForm({
   totalPoints,
   rubricQuestions,
   initialGrade,
+  regradeRequestId,
 }: SubmissionGradeFormProps) {
   const [state, formAction, pending] = useActionState(saveSubmissionGradeAction, initialState)
   const initialScores = useMemo(() => {
@@ -110,6 +112,9 @@ export function SubmissionGradeForm({
           <input type="hidden" name="assignmentId" value={assignmentId} />
           <input type="hidden" name="submissionId" value={submissionId} />
           <input type="hidden" name="scoresPayload" value={JSON.stringify(scoresPayload)} />
+          {regradeRequestId != null && (
+            <input type="hidden" name="regradeRequestId" value={regradeRequestId} />
+          )}
 
           <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm">
             <span className="text-muted-foreground">Total score:</span>{" "}
@@ -224,7 +229,7 @@ export function SubmissionGradeForm({
                 {pending ? "Saving..." : "AI grade & save"}
               </Button>
               <Button type="submit" name="gradingMode" value="manual" disabled={pending}>
-                {pending ? "Saving..." : initialGrade ? "Update grades" : "Save grades"}
+                {pending ? "Saving..." : regradeRequestId != null ? "Save & resolve" : initialGrade ? "Update grades" : "Save grades"}
               </Button>
             </div>
           </div>

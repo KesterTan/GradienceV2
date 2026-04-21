@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getSubmissionGradeForGrader } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
+import { InstructorReleaseButton } from "@/components/instructor-release-button"
 import { SubmissionGradeForm } from "./_components/submission-grade-form"
 
 export default async function SubmissionPage({
@@ -113,6 +114,22 @@ export default async function SubmissionPage({
               </CardContent>
             </Card>
 
+            {submission.regradeRequest?.status === "pending" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Student&apos;s regrade request</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-muted-foreground">
+                    Submitted {format(new Date(submission.regradeRequest.createdAt), "MMM d, yyyy h:mm a")} by {submission.studentName}
+                  </p>
+                  <p className="whitespace-pre-wrap leading-relaxed text-foreground">
+                    {submission.regradeRequest.reason}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>Submission details</CardTitle>
@@ -126,6 +143,14 @@ export default async function SubmissionPage({
                     <span className="text-muted-foreground">Saved grade:</span> {submission.grade.totalScore}/{submission.totalPoints}
                   </p>
                 )}
+                <div className="pt-1">
+                  <InstructorReleaseButton
+                    courseId={submission.courseId}
+                    assignmentId={submission.assignmentId}
+                    submissionId={submission.id}
+                    isReleased={submission.grade?.isReleasedToStudent ?? false}
+                  />
+                </div>
                 {submission.fileUrl && (
                   <p>
                     <span className="text-muted-foreground">File:</span>{" "}
@@ -147,6 +172,7 @@ export default async function SubmissionPage({
                 totalPoints={submission.totalPoints}
                 rubricQuestions={submission.rubricQuestions}
                 initialGrade={submission.grade}
+                regradeRequestId={submission.regradeRequest?.status === "pending" ? submission.regradeRequest.id : undefined}
               />
             ) : (
               <Card>

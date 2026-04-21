@@ -1,0 +1,131 @@
+name: Dev Spec Automation On Approval
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  generate-spec:
+    if: github.event.review.state == 'approved'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Resolve story metadata
+        id: story
+        run: |
+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          STORY_ID=$(echo "$LABELS" | jq -r '.[] | select(startswith("story:"))' | head -n1 | sed 's/story://')
+
+          if [ -z "$STORY_ID" ]; then
+            echo "No story:<id> label found. Skipping dev spec generation."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          SPEC_PATH=$(jq -r --arg id "$STORY_ID" '.[$id].specPath // empty' .github/dev-spec-mapping.json)
+          STORY_TITLE=$(jq -r --arg id "$STORY_ID" '.[$id].title // empty' .github/dev-spec-mapping.json)
+
+          if [ -z "$SPEC_PATH" ] || [ -z "$STORY_TITLE" ]; then
+            echo "Story mapping missing for story:$STORY_ID"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -f "$SPEC_PATH" ]; then
+            echo "mode=update" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=create" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "story_id=$STORY_ID" >> "$GITHUB_OUTPUT"
+          echo "spec_path=$SPEC_PATH" >> "$GITHUB_OUTPUT"
+          echo "story_title=$STORY_TITLE" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Generate or update development spec
+        if: steps.story.outputs.skip == 'false'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_SPEC_MODEL || 'gpt-4.1-mini' }}
+          SPEC_PATH: ${{ steps.story.outputs.spec_path }}
+          MODE: ${{ steps.story.outputs.mode }}
+          STORY_TITLE: ${{ steps.story.outputs.story_title }}
+          STORY_ID: ${{ steps.story.outputs.story_id }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/llm/generate-dev-spec.mjs
+
+      - name: Create tracking issue for dev spec automation
+        if: steps.story.outputs.skip == 'false'
+        id: issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const storyId = "${{ steps.story.outputs.story_id }}";
+            const storyTitle = "${{ steps.story.outputs.story_title }}";
+            const prNumber = context.payload.pull_request.number;
+            const title = `Dev Spec Tracking: Story ${storyId} - ${storyTitle}`;
+            const body = [
+              "## Purpose",
+              "Track automated creation/update of the development specification after PR approval.",
+              "",
+              "## Linked PR",
+              `- #${prNumber}`,
+              "",
+              "## Automation",
+              "- Trigger: pull_request_review submitted (APPROVED)",
+              "- Workflow: .github/workflows/dev-spec-on-approval.yml"
+            ].join("\n");
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ["documentation"]
+            });
+            core.setOutput("issue_number", String(issue.data.number));
+
+      - name: Open PR with generated spec
+        if: steps.story.outputs.skip == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: auto/dev-spec-story-${{ steps.story.outputs.story_id }}-${{ github.run_id }}
+          base: ${{ github.event.pull_request.base.ref }}
+          title: "docs: update development spec for story ${{ steps.story.outputs.story_id }}"
+          commit-message: |
+            docs: update development spec for story ${{ steps.story.outputs.story_id }}
+
+            Refs #${{ steps.issue.outputs.issue_number }}
+          body: |
+            ## Summary
+            - Automated development specification ${{ steps.story.outputs.mode }} for story `${{ steps.story.outputs.story_id }}`
+            - Triggered after PR #${{ github.event.pull_request.number }} approval
+
+            ## Linked tracking issue
+            - #${{ steps.issue.outputs.issue_number }}
+
+            ## Human review responsibilities
+            - Confirm technical accuracy of generated specification
+            - Request changes if generated content is incomplete or incorrect
+          labels: |
+            documentation
+          add-paths: |
+            ${{ steps.story.outputs.spec_path }}
