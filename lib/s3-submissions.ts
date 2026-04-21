@@ -339,7 +339,8 @@ export async function loadJsonFromS3ObjectKey(objectKey: string) {
 
   try {
     return JSON.parse(text)
-  } catch {
-    return null
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Malformed JSON stored at S3 object ${objectKey}: ${message}`)
   }
 }

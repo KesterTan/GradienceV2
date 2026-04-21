@@ -116,7 +116,7 @@ export async function saveQuestionsAction(
 
   const assignmentTitle = parsed.data.assignment_title.trim()
   const course = parsed.data.course.trim()
-  const instructionsSummary = parsed.data.instructions_summary
+  const instructionsSummary = parsed.data.instructions_summary.trim()
 
   const questionsJson: QuestionsPayload = {
     assignment_title: assignmentTitle.length > 0 ? assignmentTitle : meta.title,

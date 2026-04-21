@@ -160,11 +160,14 @@ export function QuestionEditor({
 
       if (!questionText) return null
 
+      const questionMaxTotalCandidates = [
+        readNumber(question.question_max_total, NaN),
+        readNumber(question.max_points, NaN),
+        readNumber(question.maxScore, NaN),
+        readNumber(question.points, NaN),
+      ]
       const questionMaxTotal =
-        readNumber(question.question_max_total, NaN) ||
-        readNumber(question.max_points, NaN) ||
-        readNumber(question.maxScore, NaN) ||
-        readNumber(question.points, 10)
+        questionMaxTotalCandidates.find((value) => Number.isFinite(value)) ?? 10
 
       const isExtraCredit =
         question.is_extra_credit === true ||

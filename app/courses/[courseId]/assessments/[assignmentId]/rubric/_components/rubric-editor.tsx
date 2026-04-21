@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useMemo, useState, useTransition } from "react"
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import {
   generateRubricSuggestionAction,
   updateRubricAction,
@@ -54,6 +54,8 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
   const [state, formAction, pending] = useActionState(updateRubricAction, initialState)
   const [importError, setImportError] = useState<string | null>(null)
   const [suggestionError, setSuggestionError] = useState<string | null>(null)
+  const [suggestedQuestions, setSuggestedQuestions] = useState<RubricQuestion[] | null>(null)
+  const [suggestedOverallFeedback, setSuggestedOverallFeedback] = useState<string | null>(null)
   const [isGenerating, startGenerateTransition] = useTransition()
   const [overallFeedback, setOverallFeedback] = useState<string>(initialRubric?.overall_feedback ?? "")
   const [questions, setQuestions] = useState<RubricQuestion[]>(() => {
@@ -79,6 +81,11 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
         rubric_items: rubricItems,
       }
     })
+    const currentStateRef = useRef({ questions, overallFeedback })
+
+    useEffect(() => {
+      currentStateRef.current = { questions, overallFeedback }
+    }, [questions, overallFeedback])
   })
   const fieldErrors = state.errors?.fieldErrors ?? {}
 
@@ -208,7 +215,10 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
     setImportError(null)
     setSuggestionError(null)
 
-    startGenerateTransition(async () => {
+    const requestSnapshot = JSON.stringify(currentStateRef.current)
+
+    startGenerateTransition(() => {
+      void (async () => {
       const formData = new FormData()
       formData.set("courseId", String(courseId))
       formData.set("assignmentId", String(assignmentId))
@@ -224,29 +234,51 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
         return
       }
 
-      setQuestions(
-        result.rubric.questions.map((question, questionIndex) => {
-          const normalizedItems = question.rubric_items.map((item) => ({
-            criterion: item.criterion,
-            explanation: item.explanation,
-            max_score: item.max_score,
-          }))
+      const nextQuestions: RubricQuestion[] = result.rubric.questions.map((question, questionIndex) => {
+        const normalizedItems = question.rubric_items.map((item) => ({
+          criterion: item.criterion,
+          explanation: item.explanation,
+          max_score: item.max_score,
+        }))
 
-          return {
-            question_id:
-              typeof question.question_id === "string" && question.question_id.trim().length > 0
-                ? question.question_id
-                : `Q${questionIndex + 1}`,
-            question_max_total: normalizedItems.reduce((sum, item) => sum + item.max_score, 0),
-            rubric_items: normalizedItems,
-          }
-        }),
-      )
+        return {
+          question_id:
+            typeof question.question_id === "string" && question.question_id.trim().length > 0
+              ? question.question_id
+              : `Q${questionIndex + 1}`,
+          question_max_total: normalizedItems.reduce((sum, item) => sum + item.max_score, 0),
+          rubric_items: normalizedItems,
+        }
+      })
 
-      if (typeof result.rubric.overall_feedback === "string") {
-        setOverallFeedback(result.rubric.overall_feedback)
+      const nextOverallFeedback =
+        typeof result.rubric.overall_feedback === "string" ? result.rubric.overall_feedback : ""
+
+      const currentSnapshot = JSON.stringify(currentStateRef.current)
+      const isDirty = currentSnapshot !== requestSnapshot
+
+      if (isDirty) {
+        setSuggestedQuestions(nextQuestions)
+        setSuggestedOverallFeedback(nextOverallFeedback)
+        setSuggestionError("Your rubric has changed since generation started. Review the preview below before applying it.")
+        return
       }
+
+      setSuggestedQuestions(null)
+      setSuggestedOverallFeedback(null)
+      setQuestions(nextQuestions)
+      setOverallFeedback(nextOverallFeedback)
+      })()
     })
+  }
+
+  const applySuggestedRubric = () => {
+    if (!suggestedQuestions) return
+    setQuestions(suggestedQuestions)
+    setOverallFeedback(suggestedOverallFeedback ?? "")
+    setSuggestedQuestions(null)
+    setSuggestedOverallFeedback(null)
+    setSuggestionError(null)
   }
 
   const updateItem = (qIndex: number, itemIndex: number, update: Partial<RubricItem>) => {
@@ -417,6 +449,26 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
       {state.errors?._form?.[0] && <p className="text-sm text-destructive">{state.errors._form[0]}</p>}
       {importError && <p className="text-sm text-destructive">{importError}</p>}
       {suggestionError && <p className="text-sm text-destructive">{suggestionError}</p>}
+      {suggestedQuestions && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base">AI suggestion ready</CardTitle>
+              <CardDescription>
+                Review the suggested rubric before applying it to your current edits.
+              </CardDescription>
+            </div>
+            <Button type="button" onClick={applySuggestedRubric}>
+              Apply suggestion
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {suggestedQuestions.length} question{suggestedQuestions.length !== 1 ? "s" : ""} in preview.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-4">
         {questions.map((question, index) => {

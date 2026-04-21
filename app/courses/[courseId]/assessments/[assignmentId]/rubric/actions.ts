@@ -196,6 +196,32 @@ function normalizeSuggestedRubricPayload(rawPayload: unknown) {
   return null
 }
 
+function parseAiEndpoint(envName: string, rawUrl: string | undefined) {
+  if (!rawUrl || rawUrl.trim().length === 0) {
+    return { error: `Missing ${envName}. Configure both AI_GRADING_API_URL and AI_RUBRIC_SUGGEST_API_URL.` }
+  }
+
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(rawUrl)
+  } catch {
+    return { error: `${envName} must be a valid URL. Configure both AI_GRADING_API_URL and AI_RUBRIC_SUGGEST_API_URL.` }
+  }
+
+  const allowInsecure =
+    process.env.NODE_ENV === "development" ||
+    (process.env.ALLOW_INSECURE_AI || "").toLowerCase() === "true"
+
+  if (parsedUrl.protocol !== "https:" && !allowInsecure) {
+    return {
+      error:
+        `${envName} must use https:// in production. Configure AI_GRADING_API_URL and AI_RUBRIC_SUGGEST_API_URL with secure endpoints, or set ALLOW_INSECURE_AI=true only for local development.`,
+    }
+  }
+
+  return { value: parsedUrl.toString() }
+}
+
 export async function generateRubricSuggestionAction(
   _prevState: RubricSuggestionState,
   formData: FormData,
@@ -226,7 +252,20 @@ export async function generateRubricSuggestionAction(
     return { errors: { _form: ["Assessment not found."] } }
   }
 
-  const questionPayload = await loadAssignmentQuestionsJsonFromS3(courseId, assignmentId)
+  let questionPayload: unknown = null
+  try {
+    questionPayload = await loadAssignmentQuestionsJsonFromS3(courseId, assignmentId)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      errors: {
+        _form: [
+          `Unable to read assignment questions from storage. ${message}`,
+        ],
+      },
+    }
+  }
+
   if (!questionPayload) {
     return {
       errors: {
@@ -237,10 +276,21 @@ export async function generateRubricSuggestionAction(
     }
   }
 
-  const gradingApiUrl = process.env.AI_GRADING_API_URL || "http://3.93.76.195/grade"
-  const rubricSuggestUrl =
-    process.env.AI_RUBRIC_SUGGEST_API_URL ||
-    gradingApiUrl.replace(/\/grade\/?$/, "/rubric/suggest")
+  const gradingApiUrlResult = parseAiEndpoint("AI_GRADING_API_URL", process.env.AI_GRADING_API_URL)
+  if ("error" in gradingApiUrlResult) {
+    return { errors: { _form: [gradingApiUrlResult.error] } }
+  }
+
+  const rubricSuggestUrlResult = parseAiEndpoint(
+    "AI_RUBRIC_SUGGEST_API_URL",
+    process.env.AI_RUBRIC_SUGGEST_API_URL,
+  )
+  if ("error" in rubricSuggestUrlResult) {
+    return { errors: { _form: [rubricSuggestUrlResult.error] } }
+  }
+
+  const gradingApiUrl = gradingApiUrlResult.value
+  const rubricSuggestUrl = rubricSuggestUrlResult.value
 
   const payload = new FormData()
   payload.append(
@@ -249,14 +299,24 @@ export async function generateRubricSuggestionAction(
     `assignment-${assignmentId}-questions.json`,
   )
 
+  const controller = new AbortController()
+  const timeoutMs = 8000
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
   let response: Response
   try {
     response = await fetch(rubricSuggestUrl, {
       method: "POST",
       body: payload,
+      signal: controller.signal,
     })
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return { errors: { _form: ["Rubric suggestion request timed out. Please try again."] } }
+    }
     return { errors: { _form: ["Unable to reach the rubric suggestion service right now."] } }
+  } finally {
+    clearTimeout(timeoutId)
   }
 
   const responseText = await response.text()
