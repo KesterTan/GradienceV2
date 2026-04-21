@@ -200,6 +200,36 @@ describe("canEdit=false", () => {
     expect(window.open).toHaveBeenCalledWith("blob:mock-url", "_blank")
   })
 
+  test("clicking Download PDF triggers print and revokes object URL when popup opens", () => {
+    const payload = makePayload([makeQuestion()])
+    const mockPrint = jest.fn()
+    const mockAddEventListener = jest.fn((event: string, cb: () => void) => {
+      if (event === "load") cb()
+    })
+    ;(window.open as jest.Mock).mockReturnValue({
+      addEventListener: mockAddEventListener,
+      print: mockPrint,
+    })
+
+    act(() => {
+      root.render(
+        <QuestionEditor {...defaultEditorProps({ canEdit: false, initialPayload: payload })} />,
+      )
+    })
+
+    const downloadButton = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent === "Download PDF",
+    )!
+    act(() => {
+      downloadButton.click()
+    })
+
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1)
+    expect(mockAddEventListener).toHaveBeenCalledWith("load", expect.any(Function))
+    expect(mockPrint).toHaveBeenCalledTimes(1)
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url")
+  })
+
   test("renders multiple question cards when payload has multiple questions", () => {
     const payload = makePayload([
       makeQuestion({ question_id: "Q1", question_text: "First question" }),

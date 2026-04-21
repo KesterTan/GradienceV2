@@ -93,21 +93,16 @@ describe("saveQuestionsAction", () => {
 
   // ── permission check ──────────────────────────────────────────────────────
 
-  it("returns permission error when user is not a grader", async () => {
-    mocks.selectQueue.push([]) // membership query → empty → not grader
+  // saveQuestionsAction requires an active grader membership (role='grader'). Students
+  // only have role='student', so the grader lookup returns nothing — same as any
+  // non-grader. One test covers both "not a grader" and "student" callers.
+  it("returns permission error when user is not a grader (includes students)", async () => {
+    mocks.selectQueue.push([]) // membership query → empty → not grader / not instructor
 
-    const result = await saveQuestionsAction({}, makeFormData({ questionsPayload: validPayload() }))
-    expect(result.errors?._form?.[0]).toMatch(/do not have permission/i)
-    expect(mocks.uploadQuestionsJsonToS3).not.toHaveBeenCalled()
-  })
-
-  it("returns permission error for a student caller (role='student' is not grader)", async () => {
-    // The grader check queries specifically for role='grader'; a student membership
-    // returns empty from that query, so mutation is denied.
-    mocks.selectQueue.push([]) // membership check for grader role → empty
     const result = await saveQuestionsAction({}, makeFormData({ questionsPayload: validPayload() }))
     expect(result.errors?._form?.[0]).toMatch(/do not have permission/i)
     expect(result.success).toBeUndefined()
+    expect(mocks.uploadQuestionsJsonToS3).not.toHaveBeenCalled()
   })
 
   it("does not write to DB when caller is a student (not a grader)", async () => {
