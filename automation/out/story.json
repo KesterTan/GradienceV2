@@ -1,54 +1,44 @@
 {
-  "title": "Instructor can add and view assignment questions one by one",
-  "user_story": "As an instructor, I want to add questions to an assignment one at a time and view the full list of questions I have entered, so that I can build a structured question set for students to answer.",
-  "rationale": "Assignments currently support a title and description but have no structured question model. Instructors need a way to compose individual questions and review them in order before publishing — this is the smallest increment that introduces the question data model and the entry/review UI.",
+  "title": "Student read-only view of assignment questions with PDF download",
+  "user_story": "As a student, I want to view the list of questions for an assignment and download them as a PDF, so that I can review what will be evaluated before submitting my work.",
+  "rationale": "The instructor question editor (PR #53) stores questions in assignments.questions_json and the QuestionEditor component already has a canEdit=false read-only mode with a Download PDF button. This story wires up the student-facing experience: ensuring the Questions link is accessible from the assessment page for students, the read-only question list renders correctly, and the PDF download works.",
   "machine_acceptance_criteria": [
-    "Given an instructor on the assignment detail page, when they submit the 'Add question' form with a non-empty prompt, then a new row is inserted into gradience.assignment_questions linked to that assignment.",
-    "Given an instructor on the assignment detail page, when the page renders, then all questions for that assignment are displayed in ascending display_order.",
-    "Given a blank or whitespace-only prompt, when the instructor submits the form, then a validation error is shown and no row is inserted.",
-    "Given a student or unauthenticated user, when they POST to the add-question action, then the server returns a permission error and no row is inserted.",
-    "Given an instructor who has added at least one question, when they navigate away and return to the assignment detail page, then the questions persist and are listed in the order they were added."
+    "Given a student on the assessment detail page, when questions have been saved by the instructor, then a 'Questions' link is visible and navigates to /courses/{courseId}/assessments/{assignmentId}/questions",
+    "Given a student navigates to the questions page, when questions exist, then question cards render with question ID, text, max points, and extra-credit badge — no edit form, no Add question button, no Save or Cancel button is present",
+    "Given a student navigates to the questions page, when no questions have been saved, then a 'No questions yet' card is displayed with a back link",
+    "Given a student is on the questions page with questions loaded, when they click 'Download PDF', then a print dialog opens with all questions rendered in the correct format",
+    "Given a user who is not an active member of the course navigates to the questions page, then they receive a 404"
   ],
   "human_acceptance_criteria": [
-    "Instructor can open an assignment and see an 'Add question' form below the assignment details.",
-    "After submitting the form, the new question appears immediately in the list without a jarring experience (Next.js revalidation redirect is acceptable).",
-    "The question list clearly shows each question prompt and its order number.",
-    "A student viewing the same page does not see the add-question form.",
-    "Submitting a blank question shows a clear inline error and does not add an empty item to the list."
+    "Log in as a student enrolled in a course where the instructor has saved questions — navigate to the assessment, click Questions, and verify question cards appear with no edit controls visible",
+    "On the questions page, click Download PDF and confirm the browser print dialog opens showing the assignment title, course name, and all questions with point values and extra-credit badges",
+    "Log in as a student in a course where the instructor has NOT yet saved questions — navigate to the questions page and confirm 'No questions yet' is shown",
+    "Confirm the Back to assessment button returns to the correct assessment detail page"
   ],
   "implementation_plan": [
-    "1. Add gradience.assignment_questions table to db/schema.ts with fields: id (bigserial PK), assignment_id (bigint FK), prompt (text NOT NULL), display_order (integer NOT NULL), points (integer NOT NULL DEFAULT 0), created_at, updated_at.",
-    "2. Write and apply a migration SQL block to db/schema.sql to CREATE the new table.",
-    "3. Update db/seed.ts to insert 2-3 sample questions for the demo assignment.",
-    "4. Add lib/course-management.ts helpers: listQuestionsForAssignment(userId, courseId, assignmentId) and addQuestionToAssignment(userId, assignmentId, prompt).",
-    "5. Create app/courses/[courseId]/assessments/[assignmentId]/actions.ts with addQuestionAction: authenticates, calls requireActiveGraderMembership, validates prompt via Zod, sets display_order = existing count + 1, inserts row, revalidates page.",
-    "6. Create app/courses/[courseId]/assessments/[assignmentId]/_components/add-question-form.tsx — client component with a 'prompt' Textarea and submit Button using useActionState.",
-    "7. Update app/courses/[courseId]/assessments/[assignmentId]/page.tsx to fetch questions via listQuestionsForAssignment, render an ordered list (Card per question), and render AddQuestionForm only when isInstructor.",
-    "8. Add Vitest unit tests for the Zod validation in the add-question action schema."
+    "Confirm the Questions button on app/courses/[courseId]/assessments/[assignmentId]/page.tsx is not gated by isInstructor — it is already accessible to all members, no change needed",
+    "Confirm getAssessmentQuestionsForMember in lib/course-management.ts returns rows for student memberships and sets viewerRole='Student' via the existing SQL CASE expression — already implemented",
+    "Confirm questions/page.tsx passes canEdit={isInstructor} (false for students) to QuestionEditor and renders the 'No questions yet' card for students when questionsJson is null — already implemented",
+    "Confirm QuestionEditor canEdit=false renders question cards and Download PDF button without any edit controls — already implemented",
+    "Manually verify the full student flow end-to-end in the browser using a student account"
   ],
   "backend_changes": [
-    "db/schema.ts: export new assignmentQuestions table (id, assignment_id, prompt, display_order, points, created_at, updated_at).",
-    "db/schema.sql: CREATE TABLE gradience.assignment_questions with matching columns.",
-    "db/seed.ts: insert sample questions for the demo assignment.",
-    "lib/course-management.ts: add listQuestionsForAssignment (SELECT ordered by display_order) and addQuestionToAssignment (INSERT, auto-sets display_order).",
-    "app/courses/[courseId]/assessments/[assignmentId]/actions.ts: new addQuestionAction — auth via requireAppUser, grader check via requireActiveGraderMembership, Zod prompt validation, DB insert, revalidatePath + redirect."
+    "No new backend changes required — getAssessmentQuestionsForMember already handles student membership and returns questionsJson with correct viewerRole"
   ],
   "frontend_changes": [
-    "app/courses/[courseId]/assessments/[assignmentId]/_components/add-question-form.tsx: new client component with prompt Textarea, submit Button, inline error display, and pending state.",
-    "app/courses/[courseId]/assessments/[assignmentId]/page.tsx: fetch and render ordered question list (Card per question showing order number and prompt); render AddQuestionForm below the list for instructors only."
+    "No new component changes required — QuestionEditor canEdit=false read-only mode and Download PDF button are fully implemented",
+    "Confirm the Questions link on the assessment detail page is not wrapped in an isInstructor guard — already the case, no change needed"
   ],
   "test_changes": [
-    "tests/unit/add-question-action.test.ts: Vitest tests — (1) blank prompt returns validation error, (2) whitespace-only prompt returns validation error, (3) valid prompt passes validation.",
-    "tests/human-acceptance/user-story-questions.md: HAT script — log in as instructor, navigate to assignment, add two questions one at a time, verify both appear in order; log in as student, verify the add-question form is absent."
+    "No automated test changes in this story — test coverage for the student view is tracked in a separate testing story"
   ],
   "known_risks_assumptions": [
-    "display_order is set server-side as count(existing questions)+1; concurrent inserts could produce duplicate order values — acceptable for MVP, can be addressed with a sequence or client-side reorder in a follow-up.",
-    "No reorder or delete UI is included in this story; a follow-up story is needed for editing and removing questions.",
-    "Questions are stored in a new relational table (not in rubric_json JSONB) to keep them queryable, consistent with the assignmentRubricItems pattern already in schema.ts.",
-    "points per question defaults to 0; wiring questions into the assignment totalPoints aggregate is deferred to a follow-up.",
-    "No schema migration tooling is codified beyond db:apply — the new table DDL must be run against the target DB via npm run db:apply."
+    "Questions are only visible to students once the instructor has explicitly saved them — there is no draft or preview mode for unpublished questions",
+    "The PDF is generated client-side as an HTML blob via window.print() — output quality depends on the browser's print-to-PDF capability and may vary across browsers",
+    "If assignments.questions_json contains corrupted data (non-null but fails schema parse), parseQuestionsJson returns null and the student sees 'No questions yet' silently — a follow-up story should add an explicit error state for this edge case",
+    "Student access control relies on getAssessmentQuestionsForMember correctly checking active course membership"
   ],
   "priority": "P1",
-  "size": "M",
+  "size": "S",
   "sprint": "sprint3"
 }
