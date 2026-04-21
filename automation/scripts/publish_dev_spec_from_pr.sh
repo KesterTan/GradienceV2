@@ -29,7 +29,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 for PR_NUM in "${PRS[@]}"; do
   PR_NUM_TRIM=$(echo "$PR_NUM" | xargs)
-  gh pr view "$PR_NUM_TRIM" -R "$REPO" --json title,body,number,url,headRefName,baseRefName,author,files,commits,additions,deletions,changedFiles,labels,assignees,reviewRequests,linkedIssues > "$TMP_DIR/pr_${PR_NUM_TRIM}.json"
+  gh pr view "$PR_NUM_TRIM" -R "$REPO" --json title,body,number,url,headRefName,baseRefName,author,files,commits,additions,deletions,changedFiles,labels,assignees,reviewRequests,closingIssuesReferences,mergedAt,reviews > "$TMP_DIR/pr_${PR_NUM_TRIM}.json"
   jq -r '.url' "$TMP_DIR/pr_${PR_NUM_TRIM}.json" >> "$TMP_DIR/pr_urls.txt"
   echo -e "\n\n# Diff for PR $PR_NUM_TRIM\n" >> "$TMP_DIR/prs.diff"
   gh pr diff "$PR_NUM_TRIM" -R "$REPO" >> "$TMP_DIR/prs.diff"
@@ -57,8 +57,9 @@ DEV_SPEC_FILE=$(bash "$GENERATOR_SCRIPT" "$TMP_DIR/prs.json" "$TMP_DIR/prs.diff"
 
 # Create dev-spec branch, commit, and push
 NORMALIZED_PRS=$(jq -r '.[].number' "$TMP_DIR/prs.json" | paste -sd '-' -)
-BRANCH="dev-spec/pr-${NORMALIZED_PRS}"
-git checkout -b $BRANCH
+BRANCH="dev-spec-pr-${NORMALIZED_PRS}"
+git fetch origin main
+git checkout -b $BRANCH origin/main
 git add "$DEV_SPEC_FILE"
 git commit -m "dev spec for PR(s) $PR_NUMBERS_RAW"
 git push origin $BRANCH

@@ -219,55 +219,59 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
 
     startGenerateTransition(() => {
       void (async () => {
-      const formData = new FormData()
-      formData.set("courseId", String(courseId))
-      formData.set("assignmentId", String(assignmentId))
+        try {
+          const formData = new FormData()
+          formData.set("courseId", String(courseId))
+          formData.set("assignmentId", String(assignmentId))
 
-      const result = await generateRubricSuggestionAction({}, formData)
-      if (result.errors?._form?.[0]) {
-        setSuggestionError(result.errors._form[0])
-        return
-      }
+          const result = await generateRubricSuggestionAction({}, formData)
+          if (result.errors?._form?.[0]) {
+            setSuggestionError(result.errors._form[0])
+            return
+          }
 
-      if (!result.rubric?.questions?.length) {
-        setSuggestionError("Rubric suggestion service returned no questions.")
-        return
-      }
+          if (!result.rubric?.questions?.length) {
+            setSuggestionError("Rubric suggestion service returned no questions.")
+            return
+          }
 
-      const nextQuestions: RubricQuestion[] = result.rubric.questions.map((question, questionIndex) => {
-        const normalizedItems = question.rubric_items.map((item) => ({
-          criterion: item.criterion,
-          explanation: item.explanation,
-          max_score: item.max_score,
-        }))
+          const nextQuestions: RubricQuestion[] = result.rubric.questions.map((question, questionIndex) => {
+            const normalizedItems = question.rubric_items.map((item) => ({
+              criterion: item.criterion,
+              explanation: item.explanation,
+              max_score: item.max_score,
+            }))
 
-        return {
-          question_id:
-            typeof question.question_id === "string" && question.question_id.trim().length > 0
-              ? question.question_id
-              : `Q${questionIndex + 1}`,
-          question_max_total: normalizedItems.reduce((sum, item) => sum + item.max_score, 0),
-          rubric_items: normalizedItems,
+            return {
+              question_id:
+                typeof question.question_id === "string" && question.question_id.trim().length > 0
+                  ? question.question_id
+                  : `Q${questionIndex + 1}`,
+              question_max_total: normalizedItems.reduce((sum, item) => sum + item.max_score, 0),
+              rubric_items: normalizedItems,
+            }
+          })
+
+          const nextOverallFeedback =
+            typeof result.rubric.overall_feedback === "string" ? result.rubric.overall_feedback : ""
+
+          const currentSnapshot = JSON.stringify(currentStateRef.current)
+          const isDirty = currentSnapshot !== requestSnapshot
+
+          if (isDirty) {
+            setSuggestedQuestions(nextQuestions)
+            setSuggestedOverallFeedback(nextOverallFeedback)
+            setSuggestionError("Your rubric has changed since generation started. Review the preview below before applying it.")
+            return
+          }
+
+          setSuggestedQuestions(null)
+          setSuggestedOverallFeedback(null)
+          setQuestions(nextQuestions)
+          setOverallFeedback(nextOverallFeedback)
+        } catch {
+          setSuggestionError("Unable to generate rubric right now. Please try again.")
         }
-      })
-
-      const nextOverallFeedback =
-        typeof result.rubric.overall_feedback === "string" ? result.rubric.overall_feedback : ""
-
-      const currentSnapshot = JSON.stringify(currentStateRef.current)
-      const isDirty = currentSnapshot !== requestSnapshot
-
-      if (isDirty) {
-        setSuggestedQuestions(nextQuestions)
-        setSuggestedOverallFeedback(nextOverallFeedback)
-        setSuggestionError("Your rubric has changed since generation started. Review the preview below before applying it.")
-        return
-      }
-
-      setSuggestedQuestions(null)
-      setSuggestedOverallFeedback(null)
-      setQuestions(nextQuestions)
-      setOverallFeedback(nextOverallFeedback)
       })()
     })
   }
