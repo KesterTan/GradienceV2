@@ -7,6 +7,8 @@
         "build": "next build",
         "start": "next start",
         "lint": "eslint .",
+        "llm:story:implementation": "node scripts/llm/build-story-prompt.mjs implementation",
+        "llm:story:tests": "node scripts/llm/build-story-prompt.mjs tests",
         "test": "vitest run",
         "test:watch": "vitest",
         "test:jest": "jest --config jest.config.ts",

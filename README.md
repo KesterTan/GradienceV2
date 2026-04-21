@@ -78,3 +78,33 @@ Authentication flow:
 - Seed canonical demo data: `npm run db:seed`
 - Verify table counts and seed expectations: `npm run db:check`
 - Validate relational integrity rules: `npm run db:test`
+
+## LLM automation in PR workflow
+
+This repository includes two repeatable automation steps for LLM-assisted engineering workflow:
+
+- `LLM PR Review` workflow (`.github/workflows/llm-pr-review.yml`)
+  - Trigger: PR opened/synchronized/reopened/ready for review
+  - Output: bot comment on the PR with risk summary and findings
+- `Dev Spec Automation On Approval` workflow (`.github/workflows/dev-spec-on-approval.yml`)
+  - Trigger: PR review submitted with `APPROVED` state
+  - Requirement: PR must include a `story:<id>` label mapped in `.github/dev-spec-mapping.json`
+  - Output: auto-generated docs PR that creates/updates the story development spec, plus a tracking issue
+
+Required configuration:
+
+- Repository secret: `OPENAI_API_KEY`
+- Optional repository variable: `OPENAI_REVIEW_MODEL`
+- Optional repository variable: `OPENAI_SPEC_MODEL`
+
+Prompt sources:
+
+- PR review prompt is embedded in `.github/workflows/llm-pr-review.yml`
+- New spec prompt: `prompts/dev-spec-create.prompt.md`
+- Update spec prompt: `prompts/dev-spec-update.prompt.md`
+
+Story implementation/testing prompt helpers:
+
+- Build story implementation prompt: `npm run llm:story:implementation`
+- Build story testing prompt: `npm run llm:story:tests`
+- Story-specific workflow notes for regrade requests: `docs/regrade-story-automation.md`
