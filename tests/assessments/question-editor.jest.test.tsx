@@ -91,6 +91,10 @@ beforeEach(() => {
   document.body.appendChild(container)
   root = createRoot(container)
   jest.resetAllMocks()
+  // Mock browser APIs used by printQuestionsPdf
+  URL.createObjectURL = jest.fn<() => string>().mockReturnValue("blob:mock-url")
+  URL.revokeObjectURL = jest.fn()
+  window.open = jest.fn<() => null>().mockReturnValue(null)
 })
 
 afterEach(() => {
@@ -149,6 +153,70 @@ describe("canEdit=false", () => {
       )
     })
     expect(container.textContent).toContain("Extra credit")
+  })
+
+  test("renders all question fields — id, text, and max points", () => {
+    const payload = makePayload([
+      makeQuestion({ question_id: "Q2", question_text: "Explain recursion", question_max_total: 15 }),
+    ])
+    act(() => {
+      root.render(
+        <QuestionEditor {...defaultEditorProps({ canEdit: false, initialPayload: payload })} />,
+      )
+    })
+    expect(container.textContent).toContain("Q2")
+    expect(container.textContent).toContain("Explain recursion")
+    expect(container.textContent).toContain("15")
+  })
+
+  test("no Save, Cancel, Edit questions, or Delete buttons are present for students", () => {
+    const payload = makePayload([makeQuestion()])
+    act(() => {
+      root.render(
+        <QuestionEditor {...defaultEditorProps({ canEdit: false, initialPayload: payload })} />,
+      )
+    })
+    const buttonTexts = Array.from(container.querySelectorAll("button")).map((b) => b.textContent)
+    expect(buttonTexts).not.toContain("Save questions")
+    expect(buttonTexts).not.toContain("Cancel")
+    expect(buttonTexts).not.toContain("Edit questions")
+    expect(buttonTexts).not.toContain("Delete")
+  })
+
+  test("clicking Download PDF calls window.open with a blob URL", () => {
+    const payload = makePayload([makeQuestion()])
+    act(() => {
+      root.render(
+        <QuestionEditor {...defaultEditorProps({ canEdit: false, initialPayload: payload })} />,
+      )
+    })
+    const downloadButton = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent === "Download PDF",
+    )!
+    act(() => {
+      downloadButton.click()
+    })
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1)
+    expect(window.open).toHaveBeenCalledWith("blob:mock-url", "_blank")
+  })
+
+  test("renders multiple question cards when payload has multiple questions", () => {
+    const payload = makePayload([
+      makeQuestion({ question_id: "Q1", question_text: "First question" }),
+      makeQuestion({ question_id: "Q2", question_text: "Second question" }),
+      makeQuestion({ question_id: "Q3", question_text: "Third question" }),
+    ])
+    act(() => {
+      root.render(
+        <QuestionEditor {...defaultEditorProps({ canEdit: false, initialPayload: payload })} />,
+      )
+    })
+    expect(container.textContent).toContain("Q1")
+    expect(container.textContent).toContain("Q2")
+    expect(container.textContent).toContain("Q3")
+    expect(container.textContent).toContain("First question")
+    expect(container.textContent).toContain("Second question")
+    expect(container.textContent).toContain("Third question")
   })
 })
 

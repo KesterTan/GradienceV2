@@ -1,0 +1,51 @@
+{
+  "title": "Automated test coverage for student read-only questions view",
+  "user_story": "As a developer, I want comprehensive automated tests for the student read-only questions view, so that regressions in student access control, read-only rendering, and PDF download are caught before they reach production.",
+  "rationale": "The student questions view (issue #58, PR #53) is fully implemented but has zero automated test coverage. It is permission-sensitive — a regression could expose edit controls to students or silently break the 404 guard for non-members. The repo already has established Vitest (server-side actions/lib) and Jest+jsdom (React components) patterns that this story extends directly.",
+  "machine_acceptance_criteria": [
+    "Given a Vitest suite for getAssessmentQuestionsForMember, when called with a student membership row, then it returns the assignment with viewerRole='Student' and the correct questionsJson",
+    "Given a Vitest suite for getAssessmentQuestionsForMember, when called with a user who has no active membership, then it returns null (triggering notFound in the page)",
+    "Given a Vitest suite for the AssessmentQuestionsPage server component, when the viewer is a student and questionsJson is null, then the 'No questions yet' card is rendered and QuestionEditor is not rendered",
+    "Given a Vitest suite for the AssessmentQuestionsPage server component, when the viewer is a student and questionsJson has valid questions, then QuestionEditor is called with canEdit=false",
+    "Given a Vitest suite for the AssessmentQuestionsPage server component, when getAssessmentQuestionsForMember returns null, then notFound() is called",
+    "Given a Jest+jsdom suite for QuestionEditor canEdit=false with a null initialPayload, when rendered, then 'No questions yet' text is present and no form element exists",
+    "Given a Jest+jsdom suite for QuestionEditor canEdit=false with a valid payload, when rendered, then each question card shows question_id, question_text, question_max_total and no Add/Edit/Save/Cancel/Delete buttons are present",
+    "Given a Jest+jsdom suite for QuestionEditor canEdit=false, when a question has is_extra_credit=true, then an 'Extra credit' badge is visible",
+    "Given a Jest+jsdom suite for QuestionEditor canEdit=false, when the Download PDF button is clicked, then window.print is called exactly once",
+    "Given a Vitest suite for saveQuestionsAction, when called by a user whose membership role is 'Student' (not grader), then errors._form matches /do not have permission/i and no DB write occurs"
+  ],
+  "human_acceptance_criteria": [
+    "Run `npm test` (or `npx vitest run` and `npx jest`) — all new tests pass with no skipped assertions",
+    "Confirm the Vitest suite covers getAssessmentQuestionsForMember with both student and non-member cases",
+    "Confirm the Jest suite covers QuestionEditor canEdit=false: no edit controls, all question fields visible, Download PDF triggers window.print",
+    "Confirm the saveQuestionsAction student-rejection test is present and passing alongside the existing permission test"
+  ],
+  "implementation_plan": [
+    "Add a Vitest file tests/assessments/assessment-questions-page.test.ts: mock next/navigation (notFound), @/lib/current-user (requireAppUser), @/lib/course-management (getAssessmentQuestionsForMember), and @/lib/questions (parseQuestionsJson); import the page component and assert canEdit/notFound behavior for student and non-member cases using renderToStaticMarkup following the pattern in tests/lib/course-management.test.ts",
+    "Add a Vitest file tests/lib/get-assessment-questions-for-member.test.ts: mock @/db/orm (db.select chain) using the vi.hoisted queue pattern from save-questions-action.test.ts; assert student membership returns correct viewerRole='Student', non-member returns null",
+    "Extend tests/assessments/question-editor.jest.test.tsx (canEdit=false describe block): add window.print mock in beforeEach, add test that Download PDF button click calls window.print exactly once; add test that no Add/Edit/Save/Cancel/Delete buttons are rendered when canEdit=false and questions exist",
+    "Add a Vitest test in tests/assessments/save-questions-action.test.ts: 'returns permission error when caller has Student role' — push a membership row with role='Student' that the grader check rejects, assert errors._form matches /do not have permission/i",
+    "Ensure all new test files follow existing import order: vi.hoisted mocks → vi.mock calls → import of module under test → helpers → describe blocks"
+  ],
+  "backend_changes": [
+    "No backend changes — all new files are test files only"
+  ],
+  "frontend_changes": [
+    "No frontend changes — all new files are test files only"
+  ],
+  "test_changes": [
+    "New file: tests/assessments/assessment-questions-page.test.ts — Vitest suite for the AssessmentQuestionsPage server component (student canEdit=false path, null questionsJson 'No questions yet' path, notFound for non-member)",
+    "New file: tests/lib/get-assessment-questions-for-member.test.ts — Vitest suite for getAssessmentQuestionsForMember with student membership and non-member cases",
+    "Updated file: tests/assessments/question-editor.jest.test.tsx — extend canEdit=false describe block with window.print assertion for Download PDF and explicit absence of all edit-control buttons",
+    "Updated file: tests/assessments/save-questions-action.test.ts — add test for Student-role caller being rejected by the grader membership check"
+  ],
+  "known_risks_assumptions": [
+    "The AssessmentQuestionsPage is a Next.js async server component — renderToStaticMarkup from react-dom/server works for static assertions but cannot test client-side interactions; Download PDF (window.print) is client-side and must be tested in the Jest+jsdom suite instead",
+    "getAssessmentQuestionsForMember uses a Drizzle ORM query chain; the mock must replicate the select→from→innerJoin→where→limit chain already established in save-questions-action.test.ts",
+    "The existing canEdit=false tests in question-editor.jest.test.tsx already cover some cases — new tests must avoid duplication and complement rather than replace existing assertions",
+    "window.print is not defined in jsdom by default and must be assigned as a jest.fn() in beforeEach to avoid 'not a function' errors"
+  ],
+  "priority": "P1",
+  "size": "M",
+  "sprint": "sprint3"
+}
