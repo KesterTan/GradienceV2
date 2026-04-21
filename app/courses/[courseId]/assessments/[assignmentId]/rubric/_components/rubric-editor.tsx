@@ -81,12 +81,13 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
         rubric_items: rubricItems,
       }
     })
-    const currentStateRef = useRef({ questions, overallFeedback })
-
-    useEffect(() => {
-      currentStateRef.current = { questions, overallFeedback }
-    }, [questions, overallFeedback])
   })
+  const currentStateRef = useRef({ questions, overallFeedback })
+
+  useEffect(() => {
+    currentStateRef.current = { questions, overallFeedback }
+  }, [questions, overallFeedback])
+
   const fieldErrors = state.errors?.fieldErrors ?? {}
 
   const hasError = (path: string) => Boolean(fieldErrors[path]?.length)
@@ -416,6 +417,7 @@ export function RubricEditor({ courseId, assignmentId, initialRubric, canEdit }:
           <Button
             type="button"
             variant="secondary"
+            className="cursor-pointer disabled:cursor-not-allowed"
             onClick={generateRubricFromAssignmentQuestions}
             disabled={pending || isGenerating}
           >

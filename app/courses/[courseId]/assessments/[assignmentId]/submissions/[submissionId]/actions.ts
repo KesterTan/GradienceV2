@@ -356,6 +356,10 @@ async function requestAiGrades({
   }
 
   const gradingApiUrl = process.env.AI_GRADING_API_URL || "http://3.93.76.195/grade"
+  const apiSecretToken = process.env.API_SECRET_TOKEN?.trim()
+  if (!apiSecretToken) {
+    return { error: "Missing API_SECRET_TOKEN. Configure API_SECRET_TOKEN in your environment." }
+  }
 
   const payload = new FormData()
   payload.append(
@@ -374,6 +378,9 @@ async function requestAiGrades({
   try {
     response = await fetch(gradingApiUrl, {
       method: "POST",
+      headers: {
+        "X-API-Token": apiSecretToken,
+      },
       body: payload,
     })
   } catch {
