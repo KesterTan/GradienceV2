@@ -1,0 +1,49 @@
+name: Publish Dev Spec from PR(s)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: 'Source repo for PRs (owner/name), e.g. KesterTan/GradienceV2'
+        required: true
+        default: 'KesterTan/GradienceV2'
+        type: string
+      pr_numbers:
+        description: 'Comma-separated PR numbers (e.g. 12,15,18)'
+        required: true
+        type: string
+      issue_repo:
+        description: 'Tracking issue repo (owner/name), default Gradient/GradientV1'
+        required: false
+        default: 'Gradient/GradientV1'
+        type: string
+
+jobs:
+  generate-dev-spec:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Make scripts executable
+        run: chmod +x automation/scripts/dev_spec_from_pr.sh automation/scripts/publish_dev_spec_from_pr.sh
+
+      - name: Generate and publish dev spec
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          automation/scripts/publish_dev_spec_from_pr.sh \
+            "${{ github.event.inputs.source_repo }}" \
+            "${{ github.event.inputs.pr_numbers }}" \
+            "${{ github.event.inputs.issue_repo }}"
