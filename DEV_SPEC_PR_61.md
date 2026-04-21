@@ -5,448 +5,460 @@
 
 ### PR #61
 - **Title:** Add regrade requests with LLM automation evidence
-- **Author:** orangebelly
+- **Author:** orangebelly (Scarlett Huang)
 - **URL:** https://github.com/KesterTan/GradienceV2/pull/61
 - **Merged at:** 2026-04-21T04:28:36Z
-- **Reviewers:** Nita242004, coderabbitai
-- **Linked issues:** #67
+- **Reviewers:** Nita242004 (approved), coderabbitai (automated review)
+- **Linked issues:** https://github.com/GradientV1/Toothless/issues/67
 
 **Summary:**
-## Linked User Story
-- Closes: https://github.com/GradientV1/Toothless/issues/67
-- Story label: `story:3`
-
-## Why this is the next increment
-Adds a structured student-to-instructor regrade workflow so grading disputes are handled in-product with traceable status, replacing ad-hoc messaging.
-
-## Change Summary
-### Backend
-- Added/updated regrade request data model and route handling for submit + resolve.
-- Enforced role-based authorization and released-grade constraints.
-- Integrated resolution path with grade/rubric update flow.
-
-### Frontend
-- Added student regrade request UI/state handling.
-- Surfaced pending regrade requests in instructor assessment view.
-- Added/updated regrade resolution UX in grading flow.
-
-### Tests
-- Added/updated `tests/assessments/regrade-route.test.ts` coverage for success/failure/authorization cases.
-- CI runs via `.github/workflows/test.yml` on `pull_request` and `push`.
-
-## Automated Code Generation (Requirement 3)
-- Repeatable workflow used:
-  - `npm run llm:story:implementation`
-  - Prompt source: `prompts/regrade-implementation.prompt.md`
-  - Story prompt builder: `scripts/llm/build-story-prompt.mjs`
-  - Process doc: `docs/regrade-story-automation.md`
-- Human responsibilities:
-  - Verified correctness, fixed conflicts, and made final product/security decisions.
-  - Human review/approval required before merge.
-
-## Automated Testing in CI (Requirement 4)
-- LLM-assisted testing workflow used:
-  - `npm run llm:story:tests`
-  - Prompt source: `prompts/regrade-tests.prompt.md`
-  - Test workflow helper: `automation/scripts/start_test_workflow.sh`
-- CI workflow: `.github/workflows/test.yml`
-- Tracking issue for test work (linked): #<test-issue-number>
-- Commit(s) referencing test issue: <commit-sha or “included in this PR”>
-
-## Automated Code Review (Requirement 5)
-- Automation: `.github/workflows/llm-pr-review.yml`
-- Expected output location: PR comment titled `Automated LLM Review`.
-- Human judgment:
-  - Human reviewers determine merge readiness.
-  - LLM output used as advisory input only.
-- After workflow runs, add link to bot comment:
-  - <PR comment URL>
-
-## Automated Development Specification (Requirement 6)
-- Trigger on approval: `.github/workflows/dev-spec-on-approval.yml`
-- Story mapping: `.github/dev-spec-mapping.json` (`story:3` -> `DEV_SPEC_REGRADE_REQUESTS.md`)
-- Prompts:
-  - Create: `prompts/dev-spec-create.prompt.md`
-  - Update: `prompts/dev-spec-update.prompt.md`
-- Expected outputs after approval:
-  - Auto-created dev spec tracking issue: <issue URL>
-  - Auto-created docs PR with spec update: <PR URL>
-
-## Human Review Checklist
-- [ ] I validated LLM-generated suggestions before accepting them.
-- [ ] Security-sensitive config/secrets were handled by humans.
-- [ ] Merge decision remains human-owned.
-
-## Evidence Links (fill after workflows run)
-- Story issue: <issue URL>
-- This feature PR: <PR URL>
-- LLM review comment/log: <URL>
-- Successful CI run: <URL>
-- Dev spec tracking issue: <URL>
-- Dev spec PR: <URL>
-- Chat/shareable logs for this story: <URL(s)>
-
-<!-- This is an auto-generated comment: release notes by coderabbit.ai -->
-## Summary by CodeRabbit
-
-* **New Features**
-  * Student regrade requests (submit reason) and instructor resolution flow
-  * Instructor “Release grades” and “Assign zero” actions; UI badges/links for pending regrades
-  * Automated LLM PR review and dev-spec generation workflows; auto-created docs PRs and tracking issues
-  * New regrade_requests persistence table and related data surfaced in grade views
-
-* **Documentation**
-  * Dev-specs, automation guides, evidence templates, and LLM prompt templates added
-
-* **Tests**
-  * End-to-end and route tests for regrade routes and behaviors
-
-* **Chores**
-  * New CLI/script helpers and npm scripts; dependency updates
-<!-- end of auto-generated comment: release notes by coderabbit.ai -->
+Adds a structured student-to-instructor regrade dispute workflow. Students can request a regrade on a released submission by providing a reason. Instructors see pending requests pinned at the top of the assessment view with an amber badge, can open the submission page to read the reason, edit rubric scores, and click "Save & resolve" to close the request. Separately adds an instructor "Release grades" action (sets `isReleasedToStudent=true`) and an "Assign zero & release" action for students who never submitted. All changes are gated by role-based authorization enforced in API routes and server actions.
 
 ---
+
 ## 1) Ownership
 
 | Role | Person |
 |------|--------|
-| Primary owner — PR #61 (author) | orangebelly |
-| Secondary owner(s) — PR #61 (reviewers) | Nita242004, coderabbitai |
+| Primary owner — PR #61 (author) | orangebelly (Scarlett Huang) |
+| Secondary owner — PR #61 (human reviewer) | Nita242004 |
+| Automated reviewer | coderabbitai |
 
 ---
+
 ## 2) Merge Date
 
 - **PR #61 merged at:** 2026-04-21T04:28:36Z
 
 ---
+
 ## 3) Architecture Diagram
 
-> Show all architectural components and **where they execute** (client / server / cloud / edge / device).
-> Use Mermaid. Label each node with its execution context.
-
 ```mermaid
-graph LR
-    %% TODO: fill in components and their execution contexts
-    subgraph CLIENT["Client (external)"]
-        caller[API Caller]
+graph TD
+    subgraph CLIENT["CLIENT (browser)"]
+        RegradeRequestCard["RegradeRequestCard\n(student regrade form)"]
+        InstructorReleaseButton["InstructorReleaseButton\n(release grades)"]
+        AssignZeroButton["AssignZeroButton\n(assign zero & release)"]
+        StudentSubmissionsCard["StudentSubmissionsCard\n(pending badge + links)"]
+        SubmissionGradeForm["SubmissionGradeForm\n(grade + resolve form)"]
     end
-    subgraph SERVER["Server (self-hosted)"]
-        app[Application]
+
+    subgraph SERVER["SERVER (Next.js App Router)"]
+        GradePage["grade/page.tsx\n(student grade view)"]
+        SubmissionPage["submissions/[id]/page.tsx\n(instructor submission view)"]
+        AssessmentPage["assessments/[id]/page.tsx\n(instructor assessment view)"]
+        RegradeAPI["POST /api/.../regrade\n(student submits request)"]
+        RegradeResolveAPI["PATCH /api/.../regrade\n(instructor resolves)"]
+        ReleaseAPI["PATCH /api/.../release\n(instructor releases grade)"]
+        AssignZeroAPI["POST /api/.../assign-zero\n(instructor assigns zero)"]
+        SaveGradeAction["saveSubmissionGradeAction\n(server action, saves + resolves)"]
+        CourseManagement["lib/course-management.ts\n(DB helpers)"]
+        CurrentUser["lib/current-user.ts\n(auth guard)"]
     end
-    subgraph CLOUD["Cloud (external)"]
-        ext[External Service]
+
+    subgraph CLOUD["CLOUD (external)"]
+        Auth0["Auth0\n(identity provider)"]
+        PostgreSQL["PostgreSQL\n(gradience schema)"]
     end
-    caller --> app
-    app --> ext
+
+    RegradeRequestCard -->|POST reason| RegradeAPI
+    InstructorReleaseButton -->|PATCH| ReleaseAPI
+    AssignZeroButton -->|POST studentMembershipId| AssignZeroAPI
+    SubmissionGradeForm -->|form action + regradeRequestId| SaveGradeAction
+    RegradeAPI --> CurrentUser
+    RegradeResolveAPI --> CurrentUser
+    ReleaseAPI --> CurrentUser
+    AssignZeroAPI --> CurrentUser
+    SaveGradeAction --> CurrentUser
+    CurrentUser --> Auth0
+    RegradeAPI --> CourseManagement
+    RegradeResolveAPI --> CourseManagement
+    SaveGradeAction --> CourseManagement
+    CourseManagement --> PostgreSQL
+    ReleaseAPI --> PostgreSQL
+    AssignZeroAPI --> PostgreSQL
+    GradePage --> CourseManagement
+    SubmissionPage --> CourseManagement
+    AssessmentPage --> CourseManagement
+    GradePage --> RegradeRequestCard
+    SubmissionPage --> SubmissionGradeForm
+    SubmissionPage --> InstructorReleaseButton
+    AssessmentPage --> StudentSubmissionsCard
+    AssessmentPage --> AssignZeroButton
 ```
 
 ---
+
 ## 4) Information Flow Diagram
 
-> Show which **user information and application data** moves between architectural components and the direction of flow.
-> Use Mermaid. Label each edge with the data item and its direction.
-
 ```mermaid
-flowchart LR
-    %% TODO: fill in data items and flow directions
-    Client -->|"(data item)"| Server
-    Server -->|"(data item)"| ExternalService
-    ExternalService -->|"(data item)"| Server
-    Server -->|"(data item)"| Client
+flowchart TD
+    Student -->|"submissionId, reason (text)"| RegradeAPI["POST /api/.../regrade"]
+    RegradeAPI -->|"verify student membership + grade released"| PostgreSQL
+    RegradeAPI -->|"INSERT regrade_requests row"| PostgreSQL
+    RegradeAPI -->|"{ success, regradeRequest }"| Student
+
+    Instructor -->|"reads pending badge"| AssessmentPage
+    AssessmentPage -->|"listRegradeRequestsForAssignment()"| PostgreSQL
+    PostgreSQL -->|"pending regrade request IDs"| AssessmentPage
+    AssessmentPage -->|"sorted submission list + hasPendingRegrade"| Instructor
+
+    Instructor -->|"opens submission page"| SubmissionPage
+    SubmissionPage -->|"getSubmissionGradeForGrader() with regrade join"| PostgreSQL
+    PostgreSQL -->|"submission + grade + regradeRequest.reason"| SubmissionPage
+    SubmissionPage -->|"regrade reason card + 'Save & resolve' form"| Instructor
+
+    Instructor -->|"updated scores + regradeRequestId"| SaveGradeAction["saveSubmissionGradeAction"]
+    SaveGradeAction -->|"UPDATE grades, DELETE+INSERT rubric_scores"| PostgreSQL
+    SaveGradeAction -->|"UPDATE regrade_requests SET status='resolved'"| PostgreSQL
+    SaveGradeAction -->|"revalidatePath() triggers re-fetch"| SubmissionPage
+
+    Instructor -->|"clicks Release grades"| ReleaseAPI["PATCH /api/.../release"]
+    ReleaseAPI -->|"UPDATE grades SET is_released_to_student=true"| PostgreSQL
+
+    Instructor -->|"clicks Assign zero & release"| AssignZeroAPI["POST /api/.../assign-zero"]
+    AssignZeroAPI -->|"INSERT submission + grade (score=0, released=true) + rubric_scores"| PostgreSQL
+
+    Student -->|"views grade page"| GradePage
+    GradePage -->|"getSubmissionGradeForStudent() — gated by isReleasedToStudent"| PostgreSQL
+    PostgreSQL -->|"grade (only if released) + existing regrade request"| GradePage
+    GradePage -->|"grade display + regrade request status"| Student
 ```
 
 ---
-## 5) Class Diagram
 
-> Show **all** classes relevant to this user story's implementation in superclass/subclass relationships.
-> Include every class and interface. This diagram will be verified for completeness.
+## 5) Class Diagram
 
 ```mermaid
 classDiagram
-    %% TODO: fill in all classes, interfaces, and inheritance relationships
-    class ExampleBase
-    class ExampleChild
-    ExampleBase <|-- ExampleChild
+    class RegradeRequest {
+        +number id
+        +number submissionId
+        +number studentMembershipId
+        +string reason
+        +string status
+        +string createdAt
+    }
+
+    class RegradeRequestSummary {
+        +number id
+        +number submissionId
+        +number studentMembershipId
+        +string reason
+        +string status
+        +string createdAt
+        +string studentName
+        +string studentEmail
+    }
+
+    class SubmissionGrade {
+        +number id
+        +number totalScore
+        +string|null overallFeedback
+        +string gradedAt
+        +boolean isReleasedToStudent
+        +Array rubricScores
+    }
+
+    class SubmissionGradeDetail {
+        +number id
+        +number attemptNumber
+        +string status
+        +string submittedAt
+        +string|null textContent
+        +string|null fileUrl
+        +string studentName
+        +string studentEmail
+        +number assignmentId
+        +string assignmentTitle
+        +number totalPoints
+        +number courseId
+        +string courseTitle
+        +Array rubricQuestions
+        +SubmissionGrade|null grade
+        +RegradeRequest|null regradeRequest
+    }
+
+    class SubmissionGradeQuestion {
+        +string questionId
+        +string questionName
+        +number maxScore
+        +Array rubricItems
+    }
+
+    class RegradeRequestCard {
+        +number courseId
+        +number assignmentId
+        +number submissionId
+        -string reason
+        -boolean submitting
+        -string|null error
+        -RegradeRequest|null existingRequest
+        +handleSubmit()
+    }
+
+    class InstructorReleaseButton {
+        +number courseId
+        +number assignmentId
+        +number submissionId
+        +boolean isReleased
+        -boolean releasing
+        -boolean released
+        -string|null error
+        +handleRelease()
+    }
+
+    class AssignZeroButton {
+        +number courseId
+        +number assignmentId
+        +number studentMembershipId
+        -boolean loading
+        -string|null error
+        +handleAssignZero()
+    }
+
+    class StudentSubmissionsCard {
+        +number courseId
+        +number assignmentId
+        +SubmissionSummary[] versions
+        +boolean|undefined hasPendingRegrade
+        -boolean historyOpen
+    }
+
+    class SubmissionGradeForm {
+        +number courseId
+        +number assignmentId
+        +number submissionId
+        +number totalPoints
+        +SubmissionGradeQuestion[] rubricQuestions
+        +SubmissionGrade|null initialGrade
+        +number|undefined regradeRequestId
+        -Record scores
+        -Record itemComments
+        -string overallFeedback
+    }
+
+    SubmissionGradeDetail --> SubmissionGrade
+    SubmissionGradeDetail --> RegradeRequest
+    SubmissionGradeDetail --> SubmissionGradeQuestion
+    RegradeRequestSummary --|> RegradeRequest
+    SubmissionGradeForm --> SubmissionGrade
+    SubmissionGradeForm --> SubmissionGradeQuestion
 ```
 
 ---
+
 ## 6) Class Reference
 
-> For every class listed in section 5, provide all **public** fields and methods (grouped by concept),
-> then all **private** fields and methods (grouped by concept). Explain the purpose of each.
+### `RegradeRequest` (`lib/course-management.ts`)
+**Public fields:**
+- `id` — database primary key of the regrade request
+- `submissionId` — FK to the submission this request is for
+- `studentMembershipId` — FK to the course_memberships row for the requesting student
+- `reason` — free-text reason the student provided
+- `status` — `"pending"` or `"resolved"`
+- `createdAt` — ISO timestamp of request creation
 
-(TODO: fill in complete class reference)
+### `RegradeRequestSummary` (`lib/course-management.ts`)
+Extends `RegradeRequest` with denormalized display fields:
+- `studentName` — full name (trimmed first + last from users table)
+- `studentEmail` — email from users table
+
+### `SubmissionGrade` (`lib/course-management.ts`)
+**Public fields:**
+- `id` — grade row primary key
+- `totalScore` — sum of all rubric item scores
+- `overallFeedback` — optional instructor written feedback
+- `gradedAt` — ISO timestamp of last grading action
+- `isReleasedToStudent` — whether the student can see this grade
+- `rubricScores` — array of `{ displayOrder, pointsAwarded, comment }` per rubric item
+
+### `SubmissionGradeDetail` (`lib/course-management.ts`)
+Full return type of `getSubmissionGradeForGrader` and `getSubmissionGradeForStudent`. Contains all submission metadata, nested `grade` (null if ungraded or unreleased for students), nested `regradeRequest` (null if none exists), and `rubricQuestions` for rendering the grade form.
+
+### `RegradeRequestCard` (`grade/_components/regrade-request-card.tsx`)
+**Public props:** `courseId`, `assignmentId`, `submissionId`
+**Private state:**
+- `reason` — controlled textarea value
+- `submitting` — loading state during POST
+- `error` — server error message
+- `existingRequest` — fetched on mount; when present, shows read-only status instead of form
+**Methods:**
+- `handleSubmit()` — POSTs `{ reason }` to `/api/.../regrade`; on success disables form and shows status
+
+### `InstructorReleaseButton` (`components/instructor-release-button.tsx`)
+**Public props:** `courseId`, `assignmentId`, `submissionId`, `isReleased`
+**Private state:** `releasing`, `released`, `error`
+**Methods:**
+- `handleRelease()` — PATCHes `.../release`; on success sets `released=true` and calls `router.refresh()`
+- When `released` is true renders a green "Grades released" badge instead of a button
+
+### `AssignZeroButton` (`components/assign-zero-button.tsx`)
+**Public props:** `courseId`, `assignmentId`, `studentMembershipId`
+**Private state:** `loading`, `error`
+**Methods:**
+- `handleAssignZero()` — POSTs `{ studentMembershipId }` to `.../assign-zero`; on success calls `router.refresh()`
+
+### `StudentSubmissionsCard` (`components/student-submissions-card.tsx`)
+**Public props:** `courseId`, `assignmentId`, `versions` (array of `SubmissionSummary`), `hasPendingRegrade`
+**Private state:** `historyOpen` — toggles display of older attempt history
+Renders amber "Regrade requested" badge and "Review regrade" link button when `hasPendingRegrade` is true, pointing to the submission page.
+
+### `SubmissionGradeForm` (`submissions/[id]/_components/submission-grade-form.tsx`)
+**Public props:** `courseId`, `assignmentId`, `submissionId`, `totalPoints`, `rubricQuestions`, `initialGrade`, `regradeRequestId` (optional)
+**Private state:** `scores` (per-item score map), `itemComments` (per-item comment map), `overallFeedback`
+When `regradeRequestId` is provided: injects hidden `regradeRequestId` input into the form so `saveSubmissionGradeAction` can resolve the regrade; changes manual submit button label to "Save & resolve".
 
 ---
+
 ## 7) Technologies, Libraries, and APIs
 
-> List every technology, library, and API used that you are **not** writing yourself.
-> Include language, common libraries, and required tools. Do not omit anything.
-
-| Technology | Version | Used for | Why chosen over alternatives | Source / Author / Docs |
-|------------|---------|----------|------------------------------|------------------------|
-| (TODO) | | | | |
+| Technology | Version | Used for | Why chosen over alternatives | Source / Docs |
+|------------|---------|----------|------------------------------|---------------|
+| TypeScript | 5.x | Primary language for all source files | Type safety across DB schema, API routes, and UI | https://www.typescriptlang.org |
+| Next.js | 15.x | App Router, server components, API routes, server actions | Full-stack React framework — already in use across the project | https://nextjs.org |
+| React | 19.x | Client component state (`useState`, `useActionState`) | Paired with Next.js; already in use | https://react.dev |
+| Drizzle ORM | 0.x | Type-safe PostgreSQL queries in route handlers and course-management helpers | Already in use; avoids raw SQL while keeping query visibility | https://orm.drizzle.team |
+| PostgreSQL | 16 | Persistent storage for regrade_requests, grades, rubric_scores | Already in use as primary DB; schema under `gradience` schema | https://www.postgresql.org |
+| Auth0 | — | Authentication; `requireAppUser()` validates session and returns user row | Already integrated; SSO handled without custom auth code | https://auth0.com |
+| Tailwind CSS | 3.x | Styling for all new UI components (amber badges, cards) | Already in use across the project | https://tailwindcss.com |
+| shadcn/ui | — | `Button`, `Card`, `Badge`, `Textarea`, `Input`, `Label` components | Consistent design system; already in use | https://ui.shadcn.com |
+| Lucide React | — | `CheckCircle` icon in `InstructorReleaseButton` | Lightweight icon set already used in project | https://lucide.dev |
+| date-fns | 3.x | `format()` for regrade request timestamp display | Already in use across date formatting in the app | https://date-fns.org |
+| Vitest | 2.x | Unit/integration tests for regrade API routes | Already in use; runs with a real Postgres instance in CI | https://vitest.dev |
+| Jest | 29.x | Unit tests for course-management helpers and components | Already in use for pure unit tests without a DB | https://jestjs.io |
+| GitHub Actions | — | CI: runs Vitest + Jest on every push/PR | Already configured in `.github/workflows/test.yml` | https://docs.github.com/en/actions |
 
 ---
+
 ## 8) Data Stored in Long-Term Storage
 
-> For each data type stored in a database, explain the purpose of each field.
-> Estimate storage size in bytes per record.
+### Table: `gradience.regrade_requests` (new in this PR)
 
-(TODO: list each database table/collection, field purposes, and per-record storage estimates)
+| Field | Purpose | Estimated bytes/record |
+|-------|---------|------------------------|
+| `id` (bigserial) | Primary key | 8 |
+| `submission_id` (bigint) | FK to submissions — identifies which submission is being disputed | 8 |
+| `student_membership_id` (bigint) | FK to course_memberships — identifies requesting student | 8 |
+| `reason` (text) | Student's free-text explanation for the regrade request | ~200 (typical) |
+| `status` (text) | `"pending"` or `"resolved"` | ~10 |
+| `resolved_by_membership_id` (bigint, nullable) | FK to course_memberships — records which instructor resolved it | 8 |
+| `resolved_at` (timestamptz, nullable) | When the request was resolved | 8 |
+| `created_at` (timestamptz) | When the student submitted the request | 8 |
+| `updated_at` (timestamptz) | Last row modification time | 8 |
+
+**Estimated total per record: ~270 bytes**
+
+### Modified fields on existing table: `gradience.grades`
+
+| Field | Purpose | Estimated bytes |
+|-------|---------|-----------------|
+| `is_released_to_student` (boolean) | Controls student visibility of grade; set to `true` by Release or Assign Zero actions | 1 |
+| `released_at` (timestamptz, nullable) | Timestamp of when grade was released | 8 |
+
+These fields existed in the schema prior to this PR but were previously unused. This PR wires them up.
 
 ---
-## 9) Failure Modes
 
-> For each scenario below, describe the **user-visible** and **internally-visible** effects.
+## 9) Failure Modes
 
 | Failure scenario | User-visible effect | Internally-visible effect |
 |------------------|--------------------|-----------------------------|
-| Process crash | | |
-| Lost all runtime state | | |
-| Erased all stored data | | |
-| Corrupt data detected in database | | |
-| Remote procedure call (RPC) failed | | |
-| Client overloaded | | |
-| Client out of RAM | | |
-| Database out of space | | |
-| Lost network connectivity | | |
-| Lost access to database | | |
-| Bot signs up and spams users | | |
+| Process crash (Next.js server restart) | Student sees 500 or connection error mid-request; no partial state since DB writes are atomic. Instructor loses unsaved score edits in the form. | Server logs crash; next request starts fresh. In-flight DB transactions are rolled back by Postgres. |
+| Lost all runtime state | No visible effect beyond a brief outage — all state is in Postgres, not in-memory | Server restarts cleanly; no warm cache needed |
+| Erased all stored data | Students and instructors see empty course/submission lists; no grades, no regrade requests visible | All `gradience.*` tables return zero rows; application pages render "no data" states |
+| Corrupt data in database | Regrade request with a non-`"pending"`/`"resolved"` status would silently fall through status checks; a null `reason` would break display | DB constraint violation logged; API returns 500 |
+| RPC failure (Auth0 unreachable) | All authenticated routes return 401 or timeout; student/instructor cannot log in or make any request | `requireAppUser()` throws; logged as server error |
+| Client overloaded (slow browser) | Regrade form may respond slowly; button states may lag | No server-side effect |
+| Client out of RAM | Browser tab crashes; in-flight form state lost | No server-side effect; student must re-open the page |
+| Database out of space | INSERT for new regrade request or grade fails with a 500 response | Drizzle throws a DB error; logged; `regrade_requests` insert rolls back |
+| Lost network connectivity | Student sees network error on form submit; instructor's "Release" or "Assign zero" button shows no response | Requests never reach server; no partial writes |
+| Lost access to database | All page loads and API calls fail with 500 | Drizzle pool exhausted or throws; all routes log DB connection errors |
+| Bot signs up and spams users | Bot could submit many regrade requests on the same submission — blocked after first pending request (409 conflict check). Could attempt to flood new accounts submitting reasons. | One pending regrade per submission is enforced at application layer; no DB-level unique constraint currently exists |
 
 ---
-## 10) Personally Identifying Information (PII)
 
-> List all PII stored in long-term storage. For each item:
-> - Justify why it must be kept
-> - How it is stored (encrypted at rest? field-level? hashed?)
-> - How it entered the system
-> - Which modules/components/classes/methods/fields it passed through before storage
-> - Which modules/components/classes/methods/fields it passes through after leaving storage
-> - Who on the team is responsible for securing each storage unit
-> - Audit procedures for routine and non-routine access
+## 10) Personally Identifying Information (PII)
 
 ### 10a) PII in Long-Term Storage
 
-(TODO: list each PII field, justification, storage mechanism, and data lineage)
+#### Student name and email (in `gradience.users`)
+- **Justification:** Required to identify who submitted a regrade request; instructors need to see the student's name when reviewing the queue.
+- **How stored:** Plaintext in `first_name`, `last_name`, `email` columns. Database is encrypted at rest via hosting provider (AWS RDS or equivalent). No field-level encryption.
+- **How it entered the system:** Auth0 SSO callback → `requireAppUser()` → upsert into `gradience.users` on first login.
+- **Data lineage (before storage):** Auth0 JWT → `lib/current-user.ts:requireAppUser()` → `gradience.users`
+- **Data lineage (after storage):** `lib/course-management.ts:getSubmissionGradeForGrader()` selects `studentUser.firstName`, `studentUser.lastName`, `studentUser.email` via a JOIN → returned in `SubmissionGradeDetail.studentName` / `studentEmail` → rendered in `submissions/[id]/page.tsx` and `StudentSubmissionsCard`
+- **Responsible team member:** Primary owner (orangebelly / Scarlett Huang) for this feature; overall data controller responsibility lies with the team's designated data owner.
+- **Audit procedures:** DB access is gated by IAM roles on the hosting platform. Application-level access requires an active `grader` or `student` course membership. No routine audit log currently exists; follow-up story should add access logging.
+
+#### Regrade reason text (in `gradience.regrade_requests.reason`)
+- **Justification:** The reason is the core of the dispute workflow — it must be persisted so instructors can read it at any time before resolving.
+- **How stored:** Plaintext `text` column. Inherits DB-at-rest encryption from hosting provider.
+- **How it entered the system:** Student types reason in `RegradeRequestCard` → POST `/api/.../regrade` → `createRegradeRequest()` → `INSERT` into `regrade_requests`.
+- **Data lineage (before storage):** Browser input → `RegradeRequestCard.handleSubmit()` → `POST /api/.../regrade` → `lib/course-management.ts:createRegradeRequest()`
+- **Data lineage (after storage):** `getSubmissionGradeForGrader()` / `getSubmissionGradeForStudent()` → `SubmissionGradeDetail.regradeRequest.reason` → rendered in `submissions/[id]/page.tsx` (instructor) and `grade/page.tsx` (student)
+- **Responsible team member:** Same as above.
+- **Audit procedures:** Readable only to authenticated graders and the submitting student via role-checked API/page queries. No additional audit log currently.
 
 ### 10b) Minors' PII
-
-- Is PII of minors (under 18) solicited or stored? (TODO: yes / no / explain)
-- Why? (TODO)
-- Is guardian permission solicited? (TODO: yes / no / explain)
-- Policy for ensuring minors' PII is inaccessible to anyone convicted or suspected of child abuse: (TODO)
+- **Is PII of minors solicited or stored?** Potentially yes — GradienceV2 is a university grading platform. Enrolled students may include students under 18 in dual-enrollment or accelerated programs.
+- **Why:** Course enrollment requires a name and email via Auth0 SSO; this cannot be avoided for the platform to function.
+- **Is guardian permission solicited?** No — the platform relies on institutional enrollment consent processes at the university level, not direct guardian consent.
+- **Policy for preventing access by those convicted or suspected of child abuse:** No explicit platform-level policy is currently defined. This is delegated to the institution's HR and access-control policies. The team should formally document this policy before production deployment to any institution serving minors.
 
 ---
+
 ## 11) Diff Summary
 
-```diff
+Key files changed in PR #61:
 
-
-# Diff for PR 61
-
-diff --git a/.github/PULL_REQUEST_TEMPLATE.md b/.github/PULL_REQUEST_TEMPLATE.md
-new file mode 100644
-index 0000000..2640a7b
---- /dev/null
-+++ b/.github/PULL_REQUEST_TEMPLATE.md
-@@ -0,0 +1,23 @@
-+## Linked User Story
-+- Closes #
-+- Story label on this PR: `story:<id>` (required for spec automation)
-+
-+## Change Summary
-+- Backend:
-+- Frontend:
-+- Tests:
-+
-+## Automated LLM Review Evidence
-+- [ ] I confirmed `LLM PR Review` workflow ran on this PR
-+- [ ] I reviewed the bot comment and captured any follow-up changes
-+- [ ] I documented where the review output appears (PR comment/check logs)
-+
-+## Human Judgment and Approval
-+- [ ] Human reviewer validated correctness beyond LLM feedback
-+- [ ] Human reviewer approved merge decision
-+- Notes on how LLM output informed review:
-+
-+## Development Specification Automation
-+- [ ] On approval, `Dev Spec Automation On Approval` should run
-+- [ ] Result should appear as an auto-generated docs PR and linked tracking issue
-+- [ ] I verified the generated spec for accuracy before merge
-diff --git a/.github/dev-spec-mapping.json b/.github/dev-spec-mapping.json
-new file mode 100644
-index 0000000..97ae6a0
---- /dev/null
-+++ b/.github/dev-spec-mapping.json
-@@ -0,0 +1,14 @@
-+{
-+  "1": {
-+    "title": "Create Assignment",
-+    "specPath": "DEV_SPEC_CREATE_ASSIGNMENT.md"
-+  },
-+  "2": {
-+    "title": "Submissions",
-+    "specPath": "DEV_SPEC_SUBMISSIONS.md"
-+  },
-+  "3": {
-+    "title": "Regrade Requests",
-+    "specPath": "DEV_SPEC_REGRADE_REQUESTS.md"
-+  }
-+}
-diff --git a/.github/workflows/dev-spec-on-approval.yml b/.github/workflows/dev-spec-on-approval.yml
-new file mode 100644
-index 0000000..349dd28
---- /dev/null
-+++ b/.github/workflows/dev-spec-on-approval.yml
-@@ -0,0 +1,131 @@
-+name: Dev Spec Automation On Approval
-+
-+on:
-+  pull_request_review:
-+    types: [submitted]
-+
-+permissions:
-+  contents: write
-+  pull-requests: write
-+  issues: write
-+
-+jobs:
-+  generate-spec:
-+    if: github.event.review.state == 'approved'
-+    runs-on: ubuntu-latest
-+    steps:
-+      - name: Checkout PR head
-+        uses: actions/checkout@v4
-+        with:
-+          ref: ${{ github.event.pull_request.head.sha }}
-+          fetch-depth: 0
-+
-+      - name: Set up Node
-+        uses: actions/setup-node@v4
-+        with:
-+          node-version: "20"
-+
-+      - name: Resolve story metadata
-+        id: story
-+        run: |
-+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
-+          STORY_ID=$(echo "$LABELS" | jq -r '.[] | select(startswith("story:"))' | head -n1 | sed 's/story://')
-+
-+          if [ -z "$STORY_ID" ]; then
-+            echo "No story:<id> label found. Skipping dev spec generation."
-+            echo "skip=true" >> "$GITHUB_OUTPUT"
-+            exit 0
-+          fi
-+
-+          SPEC_PATH=$(jq -r --arg id "$STORY_ID" '.[$id].specPath // empty' .github/dev-spec-mapping.json)
-+          STORY_TITLE=$(jq -r --arg id "$STORY_ID" '.[$id].title // empty' .github/dev-spec-mapping.json)
-+
-+          if [ -z "$SPEC_PATH" ] || [ -z "$STORY_TITLE" ]; then
-+            echo "Story mapping missing for story:$STORY_ID"
-+            echo "skip=true" >> "$GITHUB_OUTPUT"
-+            exit 0
-+          fi
-+
-+          if [ -f "$SPEC_PATH" ]; then
-+            echo "mode=update" >> "$GITHUB_OUTPUT"
-+          else
-+            echo "mode=create" >> "$GITHUB_OUTPUT"
-+          fi
-+
-+          echo "story_id=$STORY_ID" >> "$GITHUB_OUTPUT"
-+          echo "spec_path=$SPEC_PATH" >> "$GITHUB_OUTPUT"
-+          echo "story_title=$STORY_TITLE" >> "$GITHUB_OUTPUT"
-+          echo "skip=false" >> "$GITHUB_OUTPUT"
-+
-+      - name: Generate or update development spec
-+        if: steps.story.outputs.skip == 'false'
-+        env:
-+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-+          OPENAI_MODEL: ${{ vars.OPENAI_SPEC_MODEL || 'gpt-4.1-mini' }}
-+          SPEC_PATH: ${{ steps.story.outputs.spec_path }}
-+          MODE: ${{ steps.story.outputs.mode }}
-+          STORY_TITLE: ${{ steps.story.outputs.story_title }}
-+          STORY_ID: ${{ steps.story.outputs.story_id }}
-+          PR_NUMBER: ${{ github.event.pull_request.number }}
-+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-+        run: node scripts/llm/generate-dev-spec.mjs
-+
-+      - name: Create tracking issue for dev spec automation
-+        if: steps.story.outputs.skip == 'false'
-+        id: issue
-+        uses: actions/github-script@v7
-+        with:
-+          script: |
-+            const storyId = "${{ steps.story.outputs.story_id }}";
-+            const storyTitle = "${{ steps.story.outputs.story_title }}";
-+            const prNumber = context.payload.pull_request.number;
-+            const title = `Dev Spec Tracking: Story ${storyId} - ${storyTitle}`;
-+            const body = [
-+              "## Purpose",
-+              "Track automated creation/update of the development specification after PR approval.",
-+              "",
-+              "## Linked PR",
-+              `- #${prNumber}`,
-+              "",
-+              "## Automation",
-+              "- Trigger: pull_request_review submitted (APPROVED)",
-+              "- Workflow: .github/workflows/dev-spec-on-approval.yml"
-+            ].join("\n");
-+
-+            const issue = await github.rest.issues.create({
-+              owner: context.repo.owner,
-+              repo: context.repo.repo,
-+              title,
-+              body,
-+              labels: ["documentation"]
-+            });
-+            core.setOutput("issue_number", String(issue.data.number));
-+
-+      - name: Open PR with generated spec
-+        if: steps.story.outputs.skip == 'false'
-+        uses: peter-evans/create-pull-request@v6
-+        with:
-+          token: ${{ secrets.GITHUB_TOKEN }}
-+          branch: auto/dev-spec-story-${{ steps.story.outputs.story_id }}-${{ github.run_id }}
-+          base: ${{ github.event.pull_request.base.ref }}
-+          title: "docs: update development spec for story ${{ steps.story.outputs.story_id }}"
-+          commit-message: |
-+            docs: update development spec for story ${{ steps.story.outputs.story_id }}
-+
-+            Refs #${{ steps.issue.outputs.issue_number }}
-+          body: |
-+            ## Summary
-+            - Automated development specification ${{ steps.story.outputs.mode }} for story `${{ steps.story.outputs.story_id }}`
-+            - Triggered after PR #${{ github.event.pull_request.number }} approval
-+
-+            ## Linked tracking issue
-+            - #${{ steps.issue.outputs.issue_number }}
-+
-+            ## Human review responsibilities
-+            - Confirm technical accuracy of generated specification
-+            - Request changes if generated content is incomplete or incorrect
-+          labels: |
-+            documentation
-+          add-paths: |
-+            ${{ steps.story.outputs.spec_path }}
-diff --git a/.github/workflows/llm-pr-review.yml b/.github/workflows/llm-pr-review.yml
-new file mode 100644
-index 0000000..1ad9643
---- /dev/null
-+++ b/.github/workflows/llm-pr-review.yml
-@@ -0,0 +1,132 @@
-+name: LLM PR Review
-+
-+on:
-+  pull_request:
-```
+| File | Change |
+|------|--------|
+| `db/schema.ts` | Added `regradeRequests` table definition |
+| `db/schema.sql` | Added `CREATE TABLE gradience.regrade_requests` |
+| `lib/course-management.ts` | Added `createRegradeRequest`, `getExistingRegradeRequest`, `listRegradeRequestsForAssignment`, `resolveRegradeRequest`; extended `getSubmissionGradeForGrader` and `getSubmissionGradeForStudent` to join regrade requests; added `isReleasedToStudent` gate on student grade view |
+| `app/api/.../regrade/route.ts` | New POST (student submits) and PATCH (instructor resolves) handlers |
+| `app/api/.../release/route.ts` | New PATCH handler — sets `is_released_to_student=true` |
+| `app/api/.../assign-zero/route.ts` | New POST handler — creates submission + zero grade + rubric scores, released immediately |
+| `app/courses/.../page.tsx` (assessment) | Fetches pending regrade requests, sorts students with pending requests to top, passes `hasPendingRegrade` to `StudentSubmissionsCard`, adds `AssignZeroButton` for non-submitters |
+| `app/courses/.../submissions/[id]/page.tsx` | Shows regrade reason card when pending; passes `regradeRequestId` to `SubmissionGradeForm`; shows `InstructorReleaseButton` |
+| `app/courses/.../grade/page.tsx` | Added `RegradeRequestCard` for students when grade is released |
+| `components/instructor-release-button.tsx` | New component |
+| `components/assign-zero-button.tsx` | New component |
+| `components/student-submissions-card.tsx` | Added `hasPendingRegrade` prop, amber badge, "Review regrade" link |
+| `submission-grade-form.tsx` | Added `regradeRequestId` prop; "Save & resolve" label; hidden input |
+| `actions.ts` | After grade save: reads `regradeRequestId` from formData and marks request resolved |
+| `tests/assessments/regrade-route.test.ts` | 10 Vitest tests covering POST/PATCH success, duplicate requests, grade-not-released gate, unauthorized access |
 
 ---
+
 ## 12) Risks / Assumptions
-(Add risks or assumptions here based on PR bodies or code changes)
+
+- **No DB-level uniqueness constraint on pending requests.** Application code enforces one pending request per submission (409 check), but there is no partial unique index on `(submission_id, student_membership_id) WHERE status = 'pending'`. A race condition or direct DB access could create duplicates. Mitigation: add the index in a follow-up migration.
+- **`regradeRequestId` is not bound to the submission inside `saveSubmissionGradeAction`.** The action reads the ID from form data and updates any matching regrade request row. The ID is not validated against the current `submissionId` inside the transaction. A crafted form could theoretically resolve a request on a different submission. Mitigation (noted by CodeRabbit): add `eq(regradeRequests.submissionId, submissionId)` to the WHERE clause inside the transaction.
+- **`getSubmissionGradeForGrader` returns an arbitrary regrade request when multiple exist** (e.g. after a resolved request and a new pending one). The `leftJoin` has no `ORDER BY` or status filter on the regrade join, so results are non-deterministic. Mitigation: add a filter for `status = "pending"` and order by `createdAt DESC` on the join.
+- **Assign-zero does not verify the assignment belongs to the course.** The route validates grader and student membership but does not check that `parsedAssignmentId` references `parsedCourseId`. A grader could submit a zero for an assignment in a different course. Mitigation (noted by CodeRabbit): add an assignment-course membership check before insert.
+- **AI grade + save also resolves a regrade**, but the "AI grade & save" button label does not reflect this. Students/instructors may not realize a regrade is being resolved by an AI grading run. Mitigation: change the AI button label to "AI grade, save & resolve" when `regradeRequestId` is present.
+- **Regrade reason is stored in plaintext** with no content moderation or length cap beyond "non-empty". A student could submit an extremely long reason. Mitigation: add a `maxLength` constraint at the UI layer and a server-side character limit.
+- **`InstructorReleaseButton` renders even when no grade exists.** The button defaults to `isReleased=false` when `submission.grade` is null, allowing an instructor to click "Release grades" on an ungraded submission, which will 404 server-side. Mitigation (noted by CodeRabbit): gate the button render on `submission.grade` presence.
 
 ---
+
 ## 13) Validation / Acceptance Criteria
-(Add validation steps or acceptance criteria here)
+
+- [ ] Log in as a student. Open a released submission. The "Request Regrade" form is visible below the instructor feedback. Enter a reason and submit. Confirm a success message appears and the form collapses to a read-only status.
+- [ ] Attempt to submit a second regrade request on the same submission. Confirm the form is disabled and shows "A regrade request is already pending."
+- [ ] Attempt to request a regrade on a submission where grades have NOT been released. Confirm the regrade form is not shown.
+- [ ] Log in as an instructor. Navigate to the assessment page. Confirm any student with a pending regrade request appears at the top of the list with an amber "Regrade requested" badge.
+- [ ] Click "Review regrade" (amber button). Confirm it opens the submission page (not a separate `/regrade` URL).
+- [ ] On the submission page, confirm the "Student's regrade request" card is visible with the student's reason and submission timestamp.
+- [ ] Confirm the manual save button reads "Save & resolve" (not "Save grades" or "Update grades").
+- [ ] Edit rubric scores and click "Save & resolve". Confirm the grade is updated, the regrade badge disappears from the assessment page, and the student's grade page reflects the new score.
+- [ ] Log in as the student after resolution. Confirm the grade page shows the updated score and the regrade request card shows a resolved status.
+- [ ] Log in as an instructor. On the assessment page, find a student with no submission. Confirm "Assign zero & release" button is present. Click it. Confirm the student disappears from the non-submitters list.
+- [ ] Log in as that student. Confirm they can navigate to their grade page and see a score of 0.
+- [ ] Log in as an instructor. Open a graded submission. Confirm "Release grades" button is present when the grade has not been released. Click it. Confirm the button changes to "Grades released" (green badge).
+- [ ] As a student, attempt to access another student's grade page. Confirm 404 is returned.
+- [ ] Run `npm test` — confirm all 10 tests in `tests/assessments/regrade-route.test.ts` pass.
+- [ ] Run `npm run test:jest` — confirm all tests pass with no regressions.
