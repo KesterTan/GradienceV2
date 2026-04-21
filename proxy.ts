@@ -13,7 +13,7 @@ const PUBLIC_PATHS = new Set([
 ])
 
 function isPublicAsset(pathname: string) {
-  return pathname.startsWith("/_next") || pathname.startsWith("/landing")
+  return pathname.startsWith("/_next") || pathname === "/landing" || pathname.startsWith("/landing/")
 }
 
 export async function proxy(request: NextRequest) {

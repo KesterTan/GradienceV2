@@ -6,8 +6,8 @@ import { Auth0Provider } from '@/components/auth0-provider'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 const _display = DM_Serif_Display({
   subsets: ["latin"],
   weight: "400",
@@ -38,7 +38,7 @@ export default function RootLayout({
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
   return (
-    <html lang="en" className={`${_display.variable} ${_body.variable}`}>
+    <html lang="en" className={`${_display.variable} ${_body.variable} ${_geist.variable} ${_geistMono.variable}`}>
       <head>
         {gaId && (
           <>

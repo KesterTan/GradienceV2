@@ -1,4 +1,5 @@
 import Image from "next/image"
+import Link from "next/link"
 import { ArrowRight, CheckCircle2, GraduationCap, MapPin, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -55,38 +56,38 @@ const impact = [
 const teamMembers = [
   {
     name: "Nita Thaveesittikullarp",
-    role: "Full-Stack Software Engineer",
-    bio: "Product-focused builder who blends UI craft with scalable systems for learning tools.",
+    role: "Software Engineer",
+    bio: "IS and CS at CMU, Ex-Apple SWE",
     image: "/landing/nita-thaveesittikullarp.jpg",
   },
   {
     name: "Kester Tan",
     role: "Software Engineer",
-    bio: "Platform engineer focused on secure data flows and reliable grading pipelines.",
+    bio: "IS and CS at CMU, Ex-Microsoft, Amazon SWE, Ex-Autolab Project Lead",
     image: "/landing/kester-tan.jpg",
   },
   {
     name: "Vicky Chen",
     role: "Software Engineer",
-    bio: "Design-minded engineer shaping intuitive grading experiences and polished UI.",
+    bio: "IS, Software Engineering and HCI at CMU, Ex-Discover SWE",
     image: "/landing/vicky-chen.jpg",
   },
   {
     name: "Scarlett Huang",
     role: "Software Engineer",
-    bio: "Systems thinker connecting AI workflows with educator-friendly dashboards.",
+    bio: "IS and CS at CMU, Ex-Tiktok SWE",
     image: "/landing/scarlett-huang.jpg",
   },
   {
     name: "Preeya Kirani",
     role: "Software Engineer",
-    bio: "Customer-first builder ensuring the product earns trust and saves time.",
+    bio: "IS and AI at CMU, Ex-Ema AI Engineer",
     image: "/landing/preeya-kirani.jpg",
   },
   {
     name: "Rong Yuan",
     role: "Software Engineer",
-    bio: "Engineering lead refining product performance and Pittsburgh community fit.",
+    bio: "IS and HCI at CMU, Ex-Alibaba AI Engineer",
     image: "/landing/rong-yuan.jpg",
   },
 ]
@@ -110,6 +111,8 @@ const faqs = [
 ]
 
 export function LandingPage() {
+  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "hello@gradient.education"
+
   return (
     <main className="bg-[#f7f4ef] text-foreground">
       <div className="relative overflow-hidden">
@@ -159,10 +162,10 @@ export function LandingPage() {
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Button asChild className="rounded-full bg-[#122c54] text-white hover:bg-[#0f2341]">
-                <a href="/login" aria-label="Create an account">
+                <Link href="/login" aria-label="Create an account">
                   Get started free
                   <ArrowRight className="ml-2 size-4" />
-                </a>
+                </Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full border-[#122c54] text-[#122c54]">
                 <a href="#contact">Request a pilot</a>
@@ -190,6 +193,7 @@ export function LandingPage() {
                   src="/landing/hero-pittsburgh.jpg"
                   alt="Pittsburgh skyline at sunrise"
                   fill
+                  sizes="(max-width: 1024px) 100vw, 45vw"
                   className="object-cover"
                   priority
                 />
@@ -219,7 +223,7 @@ export function LandingPage() {
               transparent, and consistent across your team.
             </p>
             <Button asChild className="rounded-full bg-[#122c54] text-white hover:bg-[#0f2341]">
-              <a href="/login">Explore the web app</a>
+              <Link href="/login">Explore the web app</Link>
             </Button>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
@@ -350,6 +354,7 @@ export function LandingPage() {
                   src="/landing/community-classroom.jpg"
                   alt="Pittsburgh classroom community"
                   fill
+                  sizes="(max-width: 1024px) 100vw, 40vw"
                   className="object-cover"
                 />
               </div>
@@ -379,6 +384,7 @@ export function LandingPage() {
                   src={member.image}
                   alt={member.name}
                   fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="object-cover"
                 />
               </div>
@@ -418,10 +424,10 @@ export function LandingPage() {
             </p>
             <div className="flex flex-wrap gap-4">
               <Button asChild className="rounded-full bg-[#122c54] text-white hover:bg-[#0f2341]">
-                <a href="/login">Launch the web app</a>
+                <Link href="/login">Launch the web app</Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full border-[#122c54] text-[#122c54]">
-                <a href="mailto:rongyuan@andrew.cmu.edu">Email the team</a>
+                <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
               </Button>
             </div>
           </div>
@@ -463,9 +469,9 @@ export function LandingPage() {
             <a href="#team" className="transition-colors hover:text-white">
               Team
             </a>
-            <a href="/login" className="transition-colors hover:text-white">
+            <Link href="/login" className="transition-colors hover:text-white">
               Sign in
-            </a>
+            </Link>
           </div>
         </div>
       </footer>
