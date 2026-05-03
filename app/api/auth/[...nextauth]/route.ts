@@ -6,4 +6,4 @@ async function handler(request: NextRequest) {
 	return auth0.middleware(request)
 }
 
-export { handler as GET, handler as POST }
+export { handler as GET, handler as POST, handler as HEAD }
