@@ -32,10 +32,16 @@ export function DashboardHeader({
   const homeHref = breadcrumbs?.[0]?.href ?? "/courses"
   const normalizedName = user.name.trim().toLowerCase()
   const normalizedEmail = user.email.trim().toLowerCase()
+  const usernameFromEmail = user.email
+    .split("@")[0]
+    .trim()
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
   const isEmailLikeName =
     normalizedName === normalizedEmail ||
     normalizedName === `${normalizedEmail} account`
-  const displayName = isEmailLikeName ? "Account" : user.name
+  const displayName = isEmailLikeName ? (usernameFromEmail || "Signed in user") : user.name
 
   return (
     <header className="border-b bg-white">

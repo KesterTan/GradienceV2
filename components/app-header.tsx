@@ -19,11 +19,19 @@ export function AppHeader({ user }: { user: AuthenticatedUser }) {
   const isOnHome = currentPage === "home"
   const normalizedName = user.name?.trim().toLowerCase()
   const normalizedEmail = user.email?.trim().toLowerCase()
+  const usernameFromEmail = user.email
+    ?.split("@")[0]
+    ?.trim()
+    ?.replace(/[._-]+/g, " ")
+    ?.replace(/\s+/g, " ")
+    ?.trim()
   const isEmailLikeName =
     !!normalizedName &&
     !!normalizedEmail &&
     (normalizedName === normalizedEmail || normalizedName === `${normalizedEmail} account`)
-  const displayName = isEmailLikeName ? "Account" : (user.name ?? "Signed in user")
+  const displayName = isEmailLikeName
+    ? (usernameFromEmail ? usernameFromEmail : "Signed in user")
+    : (user.name ?? "Signed in user")
   const initials =
     displayName
       ?.split(" ")
