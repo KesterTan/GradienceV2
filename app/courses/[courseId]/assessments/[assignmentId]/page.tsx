@@ -73,6 +73,11 @@ export default async function AssessmentPage({
             <p className="mt-1 text-sm text-muted-foreground">
               Due {format(new Date(assessment.dueAt), "MMM d, yyyy h:mm a")}
             </p>
+            {assessment.lateUntil && (
+              <p className="mt-1 text-sm text-amber-600">
+                Late submissions accepted until {format(new Date(assessment.lateUntil), "MMM d, yyyy h:mm a")}
+              </p>
+            )}
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             <Button asChild className="w-full sm:w-auto" variant="outline">

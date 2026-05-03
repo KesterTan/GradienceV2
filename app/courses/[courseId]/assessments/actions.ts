@@ -330,21 +330,20 @@ export async function createAssignmentAction(
     if (!values.lateUntilDate) {
       return { errors: { lateUntilDate: ["Late deadline date is required when late deadline is enabled."] }, values }
     }
+    // Any rule violation collapses to the same, always-accurate message.
+    // Rules a valid late deadline must satisfy:
+    //   1. The assignment must have an explicit end date (otherwise there is
+    //      no regular deadline for the late window to extend past).
+    //   2. The late deadline must be strictly after the assignment's end
+    //      date/time (the late window is a grace period past the regular due).
+    //   3. The late deadline must be on or before the course end date.
+    if (!parsed.data.endDate) {
+      return { errors: { lateUntilDate: ["Invalid late deadline date"] }, values }
+    }
     lateUntil = isoFromDateTime(values.lateUntilDate, values.lateUntilTime, true)
     const lateUntilMs = new Date(lateUntil).getTime()
-    if (lateUntilMs <= dueAtMs) {
-      const sameDayTimeConflict = Boolean(values.lateUntilDate === parsed.data.endDate && values.lateUntilTime?.trim() && parsed.data.endTime?.trim())
-      if (sameDayTimeConflict) {
-        return { errors: { lateUntilTime: ["Late deadline time must be after the normal deadline time when on the same date."] }, values }
-      }
-      return { errors: { lateUntilDate: ["Late deadline must be after the normal deadline."] }, values }
-    }
-    if (lateUntilMs < courseStartAt) {
-      return { errors: { lateUntilDate: ["Late deadline must be on or after the course start date."] }, values }
-    }
-    if (lateUntilMs > courseEndAt) {
-      const courseEndFormatted = new Date(courseEndAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-      return { errors: { lateUntilDate: [`Late deadline must be on or before ${courseEndFormatted}.`] }, values }
+    if (lateUntilMs <= dueAtMs || lateUntilMs > courseEndAt) {
+      return { errors: { lateUntilDate: ["Invalid late deadline date"] }, values }
     }
   }
 
@@ -487,21 +486,20 @@ export async function updateAssignmentAction(
     if (!values.lateUntilDate) {
       return { errors: { lateUntilDate: ["Late deadline date is required when late deadline is enabled."] }, values }
     }
+    // Any rule violation collapses to the same, always-accurate message.
+    // Rules a valid late deadline must satisfy:
+    //   1. The assignment must have an explicit end date (otherwise there is
+    //      no regular deadline for the late window to extend past).
+    //   2. The late deadline must be strictly after the assignment's end
+    //      date/time (the late window is a grace period past the regular due).
+    //   3. The late deadline must be on or before the course end date.
+    if (!parsed.data.endDate) {
+      return { errors: { lateUntilDate: ["Invalid late deadline date"] }, values }
+    }
     lateUntil = isoFromDateTime(values.lateUntilDate, values.lateUntilTime, true)
     const lateUntilMs = new Date(lateUntil).getTime()
-    if (lateUntilMs <= dueAtMs) {
-      const sameDayTimeConflict = Boolean(values.lateUntilDate === parsed.data.endDate && values.lateUntilTime?.trim() && parsed.data.endTime?.trim())
-      if (sameDayTimeConflict) {
-        return { errors: { lateUntilTime: ["Late deadline time must be after the normal deadline time when on the same date."] }, values }
-      }
-      return { errors: { lateUntilDate: ["Late deadline must be after the normal deadline."] }, values }
-    }
-    if (lateUntilMs < courseStartAt) {
-      return { errors: { lateUntilDate: ["Late deadline must be on or after the course start date."] }, values }
-    }
-    if (lateUntilMs > courseEndAt) {
-      const courseEndFormatted = new Date(courseEndAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-      return { errors: { lateUntilDate: [`Late deadline must be on or before ${courseEndFormatted}.`] }, values }
+    if (lateUntilMs <= dueAtMs || lateUntilMs > courseEndAt) {
+      return { errors: { lateUntilDate: ["Invalid late deadline date"] }, values }
     }
   }
 

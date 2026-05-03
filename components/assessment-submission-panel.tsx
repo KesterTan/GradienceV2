@@ -180,7 +180,7 @@ export function AssessmentSubmissionPanel({
                   <Calendar className="size-3.5" />
                   Due {format(dueDate, "MMM d, yyyy 'at' h:mm a")}
                 </p>
-                {!isInstructor && lateDate && (
+                {lateDate && (
                   <p className="mt-0.5 flex items-center gap-1 text-sm text-amber-600">
                     <Calendar className="size-3.5" />
                     Late submissions accepted until {format(lateDate, "MMM d, yyyy 'at' h:mm a")}
