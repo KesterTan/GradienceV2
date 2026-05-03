@@ -18,20 +18,39 @@ export function CreateCourseForm() {
     <form action={formAction} className="space-y-5 rounded-xl border bg-white p-6 shadow-sm">
       <div className="space-y-2">
         <Label htmlFor="title">Course title</Label>
-        <Input id="title" name="title" required placeholder="e.g. Intro to Databases" aria-invalid={!!state.errors?.title} />
+        <Input
+          id="title"
+          name="title"
+          required
+          placeholder="e.g. Intro to Databases"
+          defaultValue={state.values?.title ?? ""}
+          aria-invalid={!!state.errors?.title}
+        />
         {state.errors?.title?.[0] && <p className="text-sm text-destructive">{state.errors.title[0]}</p>}
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="startDate">Start date</Label>
-          <Input id="startDate" name="startDate" type="date" aria-invalid={!!state.errors?.startDate} />
+          <Input
+            id="startDate"
+            name="startDate"
+            type="date"
+            defaultValue={state.values?.startDate ?? ""}
+            aria-invalid={!!state.errors?.startDate}
+          />
           {state.errors?.startDate?.[0] && <p className="text-sm text-destructive">{state.errors.startDate[0]}</p>}
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="endDate">End date</Label>
-          <Input id="endDate" name="endDate" type="date" aria-invalid={!!state.errors?.endDate} />
+          <Input
+            id="endDate"
+            name="endDate"
+            type="date"
+            defaultValue={state.values?.endDate ?? ""}
+            aria-invalid={!!state.errors?.endDate}
+          />
           {dateError && <p className="text-sm text-destructive">{dateError}</p>}
         </div>
       </div>
