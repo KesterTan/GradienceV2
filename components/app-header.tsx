@@ -17,8 +17,15 @@ export function AppHeader({ user }: { user: AuthenticatedUser }) {
 
   const canGoToGrading = gradingComplete[selectedStudentId]
   const isOnHome = currentPage === "home"
+  const normalizedName = user.name?.trim().toLowerCase()
+  const normalizedEmail = user.email?.trim().toLowerCase()
+  const isEmailLikeName =
+    !!normalizedName &&
+    !!normalizedEmail &&
+    (normalizedName === normalizedEmail || normalizedName === `${normalizedEmail} account`)
+  const displayName = isEmailLikeName ? "Account" : (user.name ?? "Signed in user")
   const initials =
-    user.name
+    displayName
       ?.split(" ")
       .map((part) => part[0])
       .join("")
@@ -110,12 +117,12 @@ export function AppHeader({ user }: { user: AuthenticatedUser }) {
 
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">
-          <p className="text-sm font-medium leading-none text-foreground">{user.name ?? "Signed in user"}</p>
+          <p className="text-sm font-medium leading-none text-foreground">{displayName}</p>
           {user.email && <p className="mt-1 text-xs text-muted-foreground">{user.email}</p>}
         </div>
 
         <Avatar>
-          {user.picture && <AvatarImage src={user.picture} alt={user.name ?? "User avatar"} />}
+          {user.picture && <AvatarImage src={user.picture} alt={displayName} />}
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
 
