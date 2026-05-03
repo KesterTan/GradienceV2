@@ -15,6 +15,16 @@ export type CourseFormState = {
     courseId?: string[]
     _form?: string[]
   }
+  values?: {
+    title: string
+    startDate: string
+    endDate: string
+  }
+}
+
+function readFormValue(formData: FormData, key: string) {
+  const value = formData.get(key)
+  return typeof value === "string" ? value : ""
 }
 
 const emptyToUndefined = (value: unknown) => {
@@ -67,6 +77,15 @@ export async function createCourseAction(
 ): Promise<CourseFormState> {
   const grader = await requireGraderUser()
 
+  // Capture submitted values up-front so we can echo them back on any error.
+  // This preserves the user's input across a failed submission rather than
+  // forcing them to re-enter everything when only one field was invalid.
+  const values = {
+    title: readFormValue(formData, "title"),
+    startDate: readFormValue(formData, "startDate"),
+    endDate: readFormValue(formData, "endDate"),
+  }
+
   const parsed = createSchema.safeParse({
     title: formData.get("title"),
     startDate: formData.get("startDate"),
@@ -74,7 +93,7 @@ export async function createCourseAction(
   })
 
   if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors }
+    return { errors: parsed.error.flatten().fieldErrors, values }
   }
 
   const { title, startDate, endDate } = parsed.data

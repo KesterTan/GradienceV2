@@ -45,6 +45,38 @@ describe("createCourseAction", () => {
     expect(mocks.transaction).not.toHaveBeenCalled()
   })
 
+  it("echoes submitted values back on validation failure so the form can preserve them", async () => {
+    const formData = new FormData()
+    formData.set("title", "CS101 - Intro")
+    formData.set("startDate", "2026-05-10")
+    formData.set("endDate", "2026-05-01")
+
+    const state = await createCourseAction({}, formData)
+
+    expect(state.errors?.endDate?.[0]).toBe("End date must be on or after start date")
+    expect(state.values).toEqual({
+      title: "CS101 - Intro",
+      startDate: "2026-05-10",
+      endDate: "2026-05-01",
+    })
+  })
+
+  it("echoes submitted values back when title is missing too", async () => {
+    const formData = new FormData()
+    formData.set("title", "")
+    formData.set("startDate", "2026-05-10")
+    formData.set("endDate", "2026-05-20")
+
+    const state = await createCourseAction({}, formData)
+
+    expect(state.errors?.title?.[0]).toBe("Course title is required")
+    expect(state.values).toEqual({
+      title: "",
+      startDate: "2026-05-10",
+      endDate: "2026-05-20",
+    })
+  })
+
   it("inserts a course and creator membership, then revalidates and redirects", async () => {
     const insert = vi.fn()
     const courseValues = vi.fn().mockReturnValue({
