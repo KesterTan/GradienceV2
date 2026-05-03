@@ -47,9 +47,14 @@ export async function POST(
       )
     }
 
-    // Confirm assignment belongs to this course and check deadline
+    // Confirm assignment belongs to this course and check deadline.
+    // Honor `lateUntil` so a configured late window actually accepts submissions.
     const assignmentRows = await db
-      .select({ id: assignments.id, dueAt: assignments.dueAt })
+      .select({
+        id: assignments.id,
+        dueAt: assignments.dueAt,
+        lateUntil: assignments.lateUntil,
+      })
       .from(assignments)
       .where(and(eq(assignments.id, parsedAssignmentId), eq(assignments.courseId, parsedCourseId)))
       .limit(1)
@@ -58,9 +63,20 @@ export async function POST(
       return NextResponse.json({ error: "Assignment not found" }, { status: 404 })
     }
 
-    if (new Date() > new Date(assignmentRows[0].dueAt)) {
-      return NextResponse.json({ error: "The submission deadline has passed" }, { status: 403 })
+    const now = new Date()
+    const dueAt = new Date(assignmentRows[0].dueAt)
+    const lateUntil = assignmentRows[0].lateUntil ? new Date(assignmentRows[0].lateUntil) : null
+    const isPastDue = now > dueAt
+    const inLateWindow = isPastDue && lateUntil !== null && now <= lateUntil
+
+    if (isPastDue && !inLateWindow) {
+      return NextResponse.json(
+        { error: lateUntil ? "The late submission deadline has passed" : "The submission deadline has passed" },
+        { status: 403 },
+      )
     }
+
+    const submissionStatus = isPastDue ? "late" : "submitted"
 
     // Parse file from form data
     const formData = await req.formData()
@@ -107,7 +123,7 @@ export async function POST(
         assignmentId: parsedAssignmentId,
         studentMembershipId: membership.id,
         attemptNumber: nextAttempt,
-        status: "submitted",
+        status: submissionStatus,
         fileUrl,
       })
       .returning({ id: submissions.id })

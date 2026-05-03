@@ -1017,14 +1017,14 @@ describe("Instructor restore past deadline", () => {
 // ── 9. Assignment header — late-window date display ──────────────────────────
 //
 // When lateUntil is set the component renders "Late submissions accepted until
-// [date]" in the assignment header card. This is a student-only message:
-// instructors don't see it even if lateUntil is provided.
+// [date]" in the assignment header card. The date is shown to everyone — both
+// students (so they know their grace window) and instructors (so they can
+// confirm the configured late deadline at a glance).
 
 describe("Assignment header — late-window date display", () => {
   it("shows the late-until date in the header for a student when lateUntil is set", () => {
     // The header should display the grace-period deadline so students know how
-    // long they have to submit a late version. The text is only present when
-    // lateUntil is non-null and the viewer is not an instructor.
+    // long they have to submit a late version.
     render(
       <AssessmentSubmissionPanel
         {...defaultProps}
@@ -1037,9 +1037,9 @@ describe("Assignment header — late-window date display", () => {
     ).toBeInTheDocument()
   })
 
-  it("does not show the late-until date in the header for an instructor", () => {
-    // The late-deadline reminder is student-facing. Instructors set these dates
-    // themselves, so surfacing them in the submission panel would be noise.
+  it("shows the late-until date in the header for an instructor when lateUntil is set", () => {
+    // Instructors should also see the configured late deadline so the promise
+    // they made at assignment-creation time is visible on the assignment page.
     render(
       <AssessmentSubmissionPanel
         {...defaultProps}
@@ -1049,8 +1049,8 @@ describe("Assignment header — late-window date display", () => {
     )
 
     expect(
-      screen.queryByText(/late submissions accepted until/i),
-    ).not.toBeInTheDocument()
+      screen.getByText(/late submissions accepted until/i),
+    ).toBeInTheDocument()
   })
 
   it("does not show the late-until date when lateUntil is null", () => {

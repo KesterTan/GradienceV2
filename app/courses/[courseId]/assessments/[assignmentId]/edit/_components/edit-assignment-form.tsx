@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useActionState, useMemo, useState } from "react"
+import { useActionState, useEffect, useMemo, useRef, useState } from "react"
 import { updateAssignmentAction } from "../../../actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,6 +52,28 @@ export function EditAssignmentForm(props: {
   const [enableLateDeadline, setEnableLateDeadline] = useState(
     state.values?.enableLateDeadline === "on" ? true : Boolean(initialValues.lateUntilDate)
   )
+
+  // Keep checkbox + conditional inputs in sync with the server echo after
+  // every submit. This forces local state to match whatever was just sent,
+  // so the checkbox and the error/inputs never disagree on re-render.
+  useEffect(() => {
+    if (!state.values) return
+    setEnableLateDeadline(state.values.enableLateDeadline === "on")
+    setAllowResubmissions(state.values.allowResubmissions === "on")
+  }, [state])
+
+  // React 19's <form action={...}> auto-resets the DOM form after every
+  // action return. For controlled checkboxes, if the React state didn't
+  // change between renders, React bails out of re-applying the `checked`
+  // prop — leaving the DOM checkbox stuck on its post-reset value
+  // (unchecked) while local state still says true. Imperatively sync the
+  // DOM after every render so the DOM and the React state always agree.
+  const enableLateRef = useRef<HTMLInputElement>(null)
+  const allowResubRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (enableLateRef.current) enableLateRef.current.checked = enableLateDeadline
+    if (allowResubRef.current) allowResubRef.current.checked = allowResubmissions
+  })
 
   const dateError = useMemo(() => state.errors?.endDate?.[0], [state.errors?.endDate])
   const values = state.values ?? {}
@@ -149,6 +171,7 @@ export function EditAssignmentForm(props: {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <input
+            ref={enableLateRef}
             id="enableLateDeadline"
             name="enableLateDeadline"
             type="checkbox"
@@ -194,6 +217,7 @@ export function EditAssignmentForm(props: {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <input
+            ref={allowResubRef}
             id="allowResubmissions"
             name="allowResubmissions"
             type="checkbox"

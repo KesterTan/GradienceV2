@@ -90,10 +90,10 @@ beforeEach(() => {
   mockUpdate.mockReturnValue({ set: mockUpdateSet })
 })
 
-test("createAssignmentAction returns lateUntilDate error when late deadline date/time is not after due date/time", async () => {
+test("createAssignmentAction returns Invalid late deadline date when late deadline is not after due date/time", async () => {
   // function: createAssignmentAction
-  // input: due=2026-03-10 17:00, late=2026-03-09 16:00
-  // expected output: errors.lateUntilDate[0] = "Late deadline must be after the normal deadline."
+  // input: due=2026-03-10 17:00, late=2026-03-09 16:00 (before due)
+  // expected output: errors.lateUntilDate[0] = "Invalid late deadline date"
   selectQueue.push(
     [{ id: 999 }],
     [{ startDate: "2026-03-01", endDate: "2026-03-31" }],
@@ -113,16 +113,16 @@ test("createAssignmentAction returns lateUntilDate error when late deadline date
 
   const state = await createAssignmentAction({}, formData)
 
-  expect(state.errors?.lateUntilDate?.[0]).toBe("Late deadline must be after the normal deadline.")
+  expect(state.errors?.lateUntilDate?.[0]).toBe("Invalid late deadline date")
   expect(mockInsert).not.toHaveBeenCalled()
   expect(mockRevalidatePath).not.toHaveBeenCalled()
   expect(mockRedirect).not.toHaveBeenCalled()
 })
 
-test("createAssignmentAction returns lateUntilTime error for same-day late deadline time conflict", async () => {
+test("createAssignmentAction returns Invalid late deadline date for same-day late time before due", async () => {
   // function: createAssignmentAction
-  // input: due=2026-03-10 17:00, late=2026-03-10 16:00 (same day)
-  // expected output: errors.lateUntilTime[0] = same-day late-time validation message
+  // input: due=2026-03-10 17:00, late=2026-03-10 16:00 (same day, before due time)
+  // expected output: errors.lateUntilDate[0] = "Invalid late deadline date"
   selectQueue.push(
     [{ id: 999 }],
     [{ startDate: "2026-03-01", endDate: "2026-03-31" }],
@@ -142,9 +142,7 @@ test("createAssignmentAction returns lateUntilTime error for same-day late deadl
 
   const state = await createAssignmentAction({}, formData)
 
-  expect(state.errors?.lateUntilTime?.[0]).toBe(
-    "Late deadline time must be after the normal deadline time when on the same date.",
-  )
+  expect(state.errors?.lateUntilDate?.[0]).toBe("Invalid late deadline date")
   expect(mockInsert).not.toHaveBeenCalled()
 })
 
@@ -369,7 +367,7 @@ test("createAssignmentAction prioritizes due-vs-late ordering when late date is 
     lateUntilDate: "2026-03-01",
   })
   const state = await createAssignmentAction({}, formData)
-  expect(state.errors?.lateUntilDate?.[0]).toBe("Late deadline must be after the normal deadline.")
+  expect(state.errors?.lateUntilDate?.[0]).toBe("Invalid late deadline date")
 })
 
 test("createAssignmentAction enforces late deadline not after course end", async () => {
@@ -383,7 +381,7 @@ test("createAssignmentAction enforces late deadline not after course end", async
     lateUntilDate: "2026-03-30",
   })
   const state = await createAssignmentAction({}, formData)
-  expect(state.errors?.lateUntilDate?.[0]).toContain("Late deadline must be on or before")
+  expect(state.errors?.lateUntilDate?.[0]).toBe("Invalid late deadline date")
 })
 
 test("updateAssignmentAction validates title required", async () => {
@@ -511,7 +509,7 @@ test("updateAssignmentAction returns range-ordering error when derived start is 
   expect(state.errors?.endDate?.[0]).toBe("End date/time must be on or after start date/time")
 })
 
-test("updateAssignmentAction returns same-day late deadline time conflict", async () => {
+test("updateAssignmentAction returns Invalid late deadline date for same-day late time before due", async () => {
   selectQueue.push(
     [{ id: 999 }],
     [{ id: 7, releaseAt: "2026-03-01T00:00:00.000Z", dueAt: "2026-03-10T23:59:59.999Z" }],
@@ -529,9 +527,7 @@ test("updateAssignmentAction returns same-day late deadline time conflict", asyn
     lateUntilTime: "16:00",
   })
   const state = await updateAssignmentAction({}, formData)
-  expect(state.errors?.lateUntilTime?.[0]).toBe(
-    "Late deadline time must be after the normal deadline time when on the same date.",
-  )
+  expect(state.errors?.lateUntilDate?.[0]).toBe("Invalid late deadline date")
 })
 
 test("updateAssignmentAction enforces late deadline not after course end", async () => {
@@ -550,10 +546,10 @@ test("updateAssignmentAction enforces late deadline not after course end", async
     lateUntilDate: "2026-03-30",
   })
   const state = await updateAssignmentAction({}, formData)
-  expect(state.errors?.lateUntilDate?.[0]).toContain("Late deadline must be on or before")
+  expect(state.errors?.lateUntilDate?.[0]).toBe("Invalid late deadline date")
 })
 
-test("updateAssignmentAction returns lateUntilDate error when late deadline is before due date on a different day", async () => {
+test("updateAssignmentAction returns Invalid late deadline date when late is before due on a different day", async () => {
   selectQueue.push(
     [{ id: 999 }],
     [{ id: 7, releaseAt: "2026-03-01T00:00:00.000Z", dueAt: "2026-03-10T23:59:59.999Z" }],
@@ -571,5 +567,5 @@ test("updateAssignmentAction returns lateUntilDate error when late deadline is b
     lateUntilTime: "12:00",
   })
   const state = await updateAssignmentAction({}, formData)
-  expect(state.errors?.lateUntilDate?.[0]).toBe("Late deadline must be after the normal deadline.")
+  expect(state.errors?.lateUntilDate?.[0]).toBe("Invalid late deadline date")
 })
