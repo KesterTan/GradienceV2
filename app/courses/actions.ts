@@ -40,6 +40,30 @@ const courseFieldsSchema = z.object({
 })
 
 const createSchema = courseFieldsSchema.superRefine((data, ctx) => {
+  const minimumYear = 2026
+
+  if (data.startDate) {
+    const startYear = new Date(data.startDate).getFullYear()
+    if (Number.isNaN(startYear) || startYear < minimumYear) {
+      ctx.addIssue({
+        path: ["startDate"],
+        code: z.ZodIssueCode.custom,
+        message: `Start date must be in ${minimumYear} or later`,
+      })
+    }
+  }
+
+  if (data.endDate) {
+    const endYear = new Date(data.endDate).getFullYear()
+    if (Number.isNaN(endYear) || endYear < minimumYear) {
+      ctx.addIssue({
+        path: ["endDate"],
+        code: z.ZodIssueCode.custom,
+        message: `End date must be in ${minimumYear} or later`,
+      })
+    }
+  }
+
   if (data.startDate && data.endDate && data.endDate < data.startDate) {
     ctx.addIssue({
       path: ["endDate"],

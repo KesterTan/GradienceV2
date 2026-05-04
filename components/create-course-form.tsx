@@ -36,6 +36,7 @@ export function CreateCourseForm() {
             id="startDate"
             name="startDate"
             type="date"
+            min="2026-01-01"
             defaultValue={state.values?.startDate ?? ""}
             aria-invalid={!!state.errors?.startDate}
           />
@@ -48,6 +49,7 @@ export function CreateCourseForm() {
             id="endDate"
             name="endDate"
             type="date"
+            min="2026-01-01"
             defaultValue={state.values?.endDate ?? ""}
             aria-invalid={!!state.errors?.endDate}
           />

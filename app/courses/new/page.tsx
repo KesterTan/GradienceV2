@@ -21,7 +21,7 @@ export default async function CreateCoursePage() {
         <div className="mb-5">
           <h2 className="text-xl font-semibold text-foreground">New course</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Title is required. If both dates are provided, end date must be on or after start date.
+            Title is required. Dates must be in 2026 or later, and end date must be on or after start date.
           </p>
         </div>
         <CreateCourseForm />
