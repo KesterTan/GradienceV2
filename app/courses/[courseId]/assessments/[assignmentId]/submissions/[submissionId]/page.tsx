@@ -46,7 +46,7 @@ export default async function SubmissionPage({
         title="Submission"
         subtitle={`${submission.studentName} · ${submission.assignmentTitle}`}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: submission.courseTitle, href: `/courses/${submission.courseId}` },
           { label: submission.assignmentTitle, href: `/courses/${submission.courseId}/assessments/${submission.assignmentId}` },
           { label: submission.studentName, current: true },

@@ -37,7 +37,7 @@ export default async function AssessmentRubricPage({
         title="Rubric"
         subtitle={assessment.title}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: assessment.courseTitle, href: `/courses/${assessment.courseId}` },
           { label: assessment.title, href: `/courses/${assessment.courseId}/assessments/${assessment.id}` },
           { label: "Rubric", current: true },

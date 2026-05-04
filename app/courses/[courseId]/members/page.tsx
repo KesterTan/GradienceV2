@@ -20,7 +20,7 @@ export default async function MembersPage({ params }: { params: { courseId: stri
         title="Manage Members"
         subtitle={courseTitle || undefined}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: courseTitle || "Course", href: `/courses/${resolvedParams.courseId}` },
           { label: "Members", current: true },
         ]}

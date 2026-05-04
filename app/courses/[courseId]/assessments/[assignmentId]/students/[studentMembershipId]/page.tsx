@@ -58,7 +58,7 @@ export default async function StudentVersionsPage({
         title="Submission versions"
         subtitle={`${result.studentName} · ${assessment.title}`}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: assessment.courseTitle, href: `/courses/${assessment.courseId}` },
           { label: assessment.title, href: `/courses/${assessment.courseId}/assessments/${assessment.id}` },
           { label: result.studentName, current: true },

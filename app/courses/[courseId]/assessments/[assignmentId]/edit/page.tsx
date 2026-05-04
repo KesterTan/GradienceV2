@@ -41,7 +41,7 @@ export default async function EditAssessmentPage({
         title="Edit assignment"
         subtitle={assessment.title}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: assessment.courseTitle, href: `/courses/${assessment.courseId}` },
           { label: assessment.title, href: `/courses/${assessment.courseId}/assessments/${assessment.id}` },
           { label: "Edit", current: true },

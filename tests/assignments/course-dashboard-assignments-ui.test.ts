@@ -59,5 +59,34 @@ describe("Course dashboard assignments UI", () => {
     expect(html).toContain("Intro problems")
     expect(html).toContain("/courses/34/assessments/7")
   })
+
+  it("links the breadcrumb home icon to the courses dashboard", async () => {
+    mocks.requireAppUser.mockResolvedValue({
+      id: 42,
+      firstName: "Irene",
+      lastName: "Instructor",
+      email: "irene@gradience.edu",
+    })
+
+    mocks.getCourseForGrader.mockResolvedValue({
+      id: 34,
+      title: "Intro to Systems",
+      startDate: "2026-03-01",
+      endDate: "2026-05-01",
+      instructors: ["Irene Instructor"],
+      viewerRole: "Instructor",
+    })
+
+    mocks.listAssignmentsForCourse.mockResolvedValue([])
+
+    const element = await CourseDashboardPage({
+      params: Promise.resolve({ courseId: "34" }),
+    })
+
+    const html = renderToStaticMarkup(element as unknown as React.ReactElement)
+
+    expect(html).toContain("aria-label=\"Go to home\"")
+    expect(html).toContain("href=\"/courses\"")
+  })
 })
 
