@@ -250,8 +250,8 @@ test("updateAssignmentAction updates assignment and redirects on success", async
     expect.objectContaining({
       title: "HW1 Updated",
       description: "Updated",
-      releaseAt: "2026-03-06T10:00:00.000Z",
-      dueAt: "2026-03-12T17:30:00.000Z",
+      releaseAt: "2026-03-06T15:00:00.000Z",
+      dueAt: "2026-03-12T21:30:00.000Z",
     }),
   )
   expect(mockRevalidatePath).toHaveBeenCalledWith("/courses/34/assessments/7")

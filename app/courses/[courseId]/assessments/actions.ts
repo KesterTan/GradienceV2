@@ -143,6 +143,8 @@ async function getCourseDateRange(courseId: number) {
 function validateWithinCourseRange(params: {
   courseStartAt: number
   courseEndAt: number
+  courseStartDateStr: string
+  courseEndDateStr: string
   releaseAtMs: number
   dueAtMs: number
   hasExplicitStart: boolean
@@ -155,6 +157,8 @@ function validateWithinCourseRange(params: {
   const {
     courseStartAt,
     courseEndAt,
+    courseStartDateStr,
+    courseEndDateStr,
     releaseAtMs,
     dueAtMs,
     hasExplicitStart,
@@ -165,9 +169,7 @@ function validateWithinCourseRange(params: {
     endTime,
   } = params
 
-  const courseStartDate = new Date(courseStartAt).toISOString().slice(0, 10)
-  const courseEndDate = new Date(courseEndAt).toISOString().slice(0, 10)
-  const courseRangeSuffix = `Valid course date range is ${courseStartDate} to ${courseEndDate}.`
+  const courseRangeSuffix = `Valid course date range is ${courseStartDateStr} to ${courseEndDateStr}.`
 
   if (Number.isFinite(releaseAtMs) && Number.isFinite(dueAtMs) && releaseAtMs > dueAtMs) {
     const sameDayTimeConflict = Boolean(
@@ -303,6 +305,8 @@ export async function createAssignmentAction(
   const rangeErrors = validateWithinCourseRange({
     courseStartAt,
     courseEndAt,
+    courseStartDateStr: course.startDate,
+    courseEndDateStr: course.endDate,
     releaseAtMs,
     dueAtMs,
     hasExplicitStart: Boolean(parsed.data.startDate),
@@ -459,6 +463,8 @@ export async function updateAssignmentAction(
   const rangeErrors = validateWithinCourseRange({
     courseStartAt,
     courseEndAt,
+    courseStartDateStr: course.startDate,
+    courseEndDateStr: course.endDate,
     releaseAtMs,
     dueAtMs,
     hasExplicitStart: Boolean(parsed.data.startDate),
