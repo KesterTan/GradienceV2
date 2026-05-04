@@ -1,3 +1,12 @@
+declare global {
+  // eslint-disable-next-line no-var
+  var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
+  namespace jest {
+    interface Matchers<R, T = {}> {
+      toBeDisabled(): R;
+    }
+  }
+}
 /** @jest-environment jsdom */
 
 import React, { act } from "react"
@@ -5,6 +14,16 @@ import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globa
 import { createRoot, type Root } from "react-dom/client"
 
 const { RubricCard } = require("@/components/rubric-card") as typeof import("@/components/rubric-card")
+
+declare global {
+  // eslint-disable-next-line no-var
+  var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
+  namespace jest {
+    interface Matchers<R, T = {}> {
+      toBeDisabled(): R;
+    }
+  }
+}
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -16,7 +35,7 @@ function createQuestion() {
   }
 }
 
-function createRubric() {
+function createRubric(): any {
   return {
     id: "rubric-1",
     questionTitle: "Question 1: Explain MVC",
@@ -130,11 +149,13 @@ describe("RubricCard", () => {
     click(getByTestId("write-rubric-button"))
 
     const saveButton = getByTestId("save-rubric-button") as HTMLButtonElement
+    // @ts-expect-error - toBeDisabled is a custom matcher
     expect(saveButton).toBeDisabled()
     expect(container.querySelector('button[aria-label^="Remove criterion"]')).toBeNull()
 
     changeInput(getTitleInput(0), "Accuracy")
 
+    // @ts-expect-error - toBeDisabled is a custom matcher
     expect(saveButton).not.toBeDisabled()
   })
 
@@ -270,7 +291,7 @@ describe("RubricCard", () => {
       ],
     })
 
-    const updatedRubric = onUpdateRubric.mock.calls[0][0]
+    const updatedRubric = (onUpdateRubric.mock.calls[0][0] as unknown) as any
 
     renderCard({
       rubric: updatedRubric,
@@ -290,7 +311,7 @@ describe("RubricCard", () => {
     let latestRubric: ReturnType<typeof createRubric> | null = null
 
     const onUpdateRubric = jest.fn((rubric) => {
-      latestRubric = rubric
+      latestRubric = rubric as any
     })
 
     renderCard({

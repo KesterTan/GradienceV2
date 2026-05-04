@@ -1,3 +1,7 @@
+declare global {
+  // eslint-disable-next-line no-var
+  var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
+}
 /** @jest-environment jsdom */
 
 import React, { act } from "react"

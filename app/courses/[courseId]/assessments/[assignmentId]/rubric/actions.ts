@@ -107,7 +107,7 @@ export async function generateRubricSuggestionAction(
     process.env.AI_RUBRIC_SUGGEST_API_URL,
   )
   if ("error" in rubricSuggestUrlResult) {
-    return { errors: { _form: [rubricSuggestUrlResult.error] } }
+    return { errors: { _form: [rubricSuggestUrlResult.error ?? "Unknown error"] } }
   }
 
   const rubricSuggestUrl = rubricSuggestUrlResult.value
@@ -297,16 +297,16 @@ export async function updateRubricAction(
     await tx.insert(assignmentRubricItems).values(
       flattenedItems.map((item, index) => ({
         assignmentId,
-        title: item.rubric_name,
-        description: item.criterion,
-        maxPoints: item.max_score,
+        title: item.rubric_name ?? "Untitled",
+        description: item.criterion ?? "",
+        maxPoints: item.max_score ?? 0,
         displayOrder: index + 1,
         gradingGuidance: JSON.stringify({
-          question_id: item.question_id,
-          question_name: item.question_name,
-          criterion: item.criterion,
-          rubric_name: item.rubric_name,
-          max_score: item.max_score,
+          question_id: item.question_id ?? "",
+          question_name: item.question_name ?? "",
+          criterion: item.criterion ?? "",
+          rubric_name: item.rubric_name ?? "Untitled",
+          max_score: item.max_score ?? 0,
         }),
       })),
     )

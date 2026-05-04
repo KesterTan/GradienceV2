@@ -80,7 +80,7 @@ export default async function AssessmentRubricPage({
           <RubricEditor
             courseId={assessment.courseId}
             assignmentId={assessment.id}
-            initialRubric={rubric}
+            initialRubric={rubric as any}
             canEdit={isInstructor}
           />
         )}

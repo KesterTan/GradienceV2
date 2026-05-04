@@ -4,10 +4,10 @@ import { eq, and } from "drizzle-orm";
 import { courses, courseMemberships, users } from "@/db/schema";
 import { requireAppUser } from "@/lib/current-user";
 
-export async function POST(req: NextRequest, { params }: { params: { courseId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ courseId: string }> }) {
   try {
     const user = await requireAppUser();
-    const { courseId } = params;
+    const { courseId } = await params;
     const parsedCourseId = Number(courseId);
     console.log('AddMember API: courseId', courseId, 'parsedCourseId', parsedCourseId);
     if (!Number.isFinite(parsedCourseId)) {

@@ -1,3 +1,7 @@
+declare global {
+  // eslint-disable-next-line no-var
+  var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
+}
 /** @jest-environment jsdom */
 
 import React, { act } from "react"
@@ -9,11 +13,11 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 // ── server action mock ────────────────────────────────────────────────────────
 
-const mockSaveQuestionsAction = jest.fn()
+const mockSaveQuestionsAction = jest.fn() as jest.Mock
 
 jest.mock(
   "@/app/courses/[courseId]/assessments/[assignmentId]/questions/actions",
-  () => ({ saveQuestionsAction: (...args: unknown[]) => mockSaveQuestionsAction(...args) }),
+  () => ({ saveQuestionsAction: (...args: any[]) => mockSaveQuestionsAction(...args) }),
 )
 
 // ── UI component mocks (avoid CSS-in-JS / server-component errors) ────────────
@@ -278,6 +282,7 @@ describe("canEdit=true with no saved questions (edit mode)", () => {
 
   test("deleting a question after a validation failure rebases field error keys", async () => {
     // Return field errors for both Q1 and Q2 on first submit
+    // @ts-expect-error - mockResolvedValueOnce expects any return type
     mockSaveQuestionsAction.mockResolvedValueOnce({
       errors: {
         fieldErrors: {
@@ -404,6 +409,7 @@ describe("extra-credit checkbox", () => {
   })
 
   test("save action receives is_extra_credit=true when checkbox is checked", async () => {
+    // @ts-expect-error - mockResolvedValue expects any return type
     mockSaveQuestionsAction.mockResolvedValue({
       success: true,
       savedQuestions: [makeQuestion({ is_extra_credit: true })],
@@ -430,6 +436,7 @@ describe("extra-credit checkbox", () => {
   })
 
   test("after successful save, view mode is shown (not edit form)", async () => {
+    // @ts-expect-error - mockResolvedValue expects any return type
     mockSaveQuestionsAction.mockResolvedValue({
       success: true,
       savedQuestions: [makeQuestion()],

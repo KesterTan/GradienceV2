@@ -3,23 +3,29 @@ import { attachDatabasePool } from "@vercel/functions";
 import { Signer } from "@aws-sdk/rds-signer";
 import { ClientBase, Pool } from "pg";
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
 const signer = new Signer({
-  hostname: process.env.PGHOST,
-  port: Number(process.env.PGPORT),
-  username: process.env.PGUSER,
-  region: process.env.AWS_REGION,
+  hostname: requireEnv('PGHOST'),
+  port: Number(requireEnv('PGPORT')),
+  username: requireEnv('PGUSER'),
+  region: requireEnv('AWS_REGION'),
   credentials: awsCredentialsProvider({
-    roleArn: process.env.AWS_ROLE_ARN,
-    clientConfig: { region: process.env.AWS_REGION },
+    roleArn: requireEnv('AWS_ROLE_ARN'),
+    clientConfig: { region: requireEnv('AWS_REGION') },
   }),
 });
 
 const poolConfig: any = {
-  host: process.env.PGHOST,
-  user: process.env.PGUSER,
+  host: requireEnv('PGHOST'),
+  user: requireEnv('PGUSER'),
   database: process.env.PGDATABASE || "postgres",
   password: process.env.PGPASSWORD || (() => signer.getAuthToken()),
-  port: Number(process.env.PGPORT),
+  port: Number(requireEnv('PGPORT')),
   max: 20,
 };
 if (process.env.PGSSLMODE === 'require') {

@@ -20,9 +20,12 @@ type AssignmentFormState = {
     lateUntilTime?: string[]
     maxAttemptResubmission?: string[]
     courseId?: string[]
+    assignmentId?: string[]
     _form?: string[]
   }
   values?: {
+    courseId: string
+    assignmentId?: string
     title: string
     description: string
     startDate: string
@@ -40,7 +43,7 @@ type AssignmentFormState = {
 const initialState: AssignmentFormState = {}
 
 export function CreateAssignmentForm({ courseId }: { courseId: number }) {
-  const [state, formAction, pending] = useActionState(createAssignmentAction, initialState)
+  const [state, formAction, pending] = useActionState(createAssignmentAction as any, initialState)
   const [allowResubmissions, setAllowResubmissions] = useState(
     state.values?.allowResubmissions === "on"
   )
