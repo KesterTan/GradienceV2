@@ -21,7 +21,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isAuthRoute = pathname.startsWith("/api/auth")
   const isPublicRoute =
-    PUBLIC_PATHS.has(pathname) || pathname.startsWith("/login") || pathname.startsWith("/auth/account-link")
+    PUBLIC_PATHS.has(pathname) || pathname === "/login" || pathname.startsWith("/login/") || pathname.startsWith("/auth/account-link")
 
   if (isAuthRoute) {
     return auth0.middleware(request)
