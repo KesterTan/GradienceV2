@@ -133,8 +133,8 @@ describe("updateAssignmentAction", () => {
       expect.objectContaining({
         title: "HW1 Updated",
         description: "New desc",
-        releaseAt: "2026-03-03T10:30:00.000Z",
-        dueAt: "2026-03-10T18:00:00.000Z",
+        releaseAt: "2026-03-03T15:30:00.000Z",
+        dueAt: "2026-03-10T22:00:00.000Z",
       }),
     )
 

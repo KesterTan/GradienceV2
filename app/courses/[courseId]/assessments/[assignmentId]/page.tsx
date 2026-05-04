@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { format } from "date-fns"
+import { formatPittsburghTime } from "@/lib/format-date"
 import { AssessmentSubmissionPanel } from "@/components/assessment-submission-panel"
 import { AssignZeroButton } from "@/components/assign-zero-button"
 import { DashboardHeader } from "@/components/dashboard-header"
@@ -71,11 +71,11 @@ export default async function AssessmentPage({
               </p>
             )}
             <p className="mt-1 text-sm text-muted-foreground">
-              Due {format(new Date(assessment.dueAt), "MMM d, yyyy h:mm a")}
+              Due {formatPittsburghTime(assessment.dueAt, "MMM d, yyyy h:mm a")}
             </p>
             {assessment.lateUntil && (
               <p className="mt-1 text-sm text-amber-600">
-                Late submissions accepted until {format(new Date(assessment.lateUntil), "MMM d, yyyy h:mm a")}
+                Late submissions accepted until {formatPittsburghTime(assessment.lateUntil, "MMM d, yyyy h:mm a")}
               </p>
             )}
           </div>

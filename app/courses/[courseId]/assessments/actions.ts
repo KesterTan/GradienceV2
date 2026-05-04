@@ -7,6 +7,7 @@ import { and, eq } from "drizzle-orm"
 import { db } from "@/db/orm"
 import { assignments, courseMemberships, courses } from "@/db/schema"
 import { requireAppUser } from "@/lib/current-user"
+import { pittsburghToUtcIso, pittsburghBoundaryMs } from "@/lib/format-date"
 
 type AssignmentFormState = {
   errors?: {
@@ -111,16 +112,6 @@ const createAssignmentSchema = assignmentFieldsSchema.superRefine((data, ctx) =>
   }
 })
 
-function isoFromDateTime(date: string, time: string, endOfDayFallback = false) {
-  const normalizedTime = time?.trim()
-  if (normalizedTime) {
-    // Accept "HH:mm" or "HH:mm:ss"
-    const full = normalizedTime.length === 5 ? `${normalizedTime}:00.000Z` : `${normalizedTime}.000Z`
-    return new Date(`${date}T${full}`).toISOString()
-  }
-
-  return new Date(`${date}T${endOfDayFallback ? "23:59:59.999Z" : "00:00:00.000Z"}`).toISOString()
-}
 
 async function requireActiveGraderMembership(courseId: number, userId: number) {
   const membership = await db
@@ -152,6 +143,8 @@ async function getCourseDateRange(courseId: number) {
 function validateWithinCourseRange(params: {
   courseStartAt: number
   courseEndAt: number
+  courseStartDateStr: string
+  courseEndDateStr: string
   releaseAtMs: number
   dueAtMs: number
   hasExplicitStart: boolean
@@ -164,6 +157,8 @@ function validateWithinCourseRange(params: {
   const {
     courseStartAt,
     courseEndAt,
+    courseStartDateStr,
+    courseEndDateStr,
     releaseAtMs,
     dueAtMs,
     hasExplicitStart,
@@ -174,9 +169,7 @@ function validateWithinCourseRange(params: {
     endTime,
   } = params
 
-  const courseStartDate = new Date(courseStartAt).toISOString().slice(0, 10)
-  const courseEndDate = new Date(courseEndAt).toISOString().slice(0, 10)
-  const courseRangeSuffix = `Valid course date range is ${courseStartDate} to ${courseEndDate}.`
+  const courseRangeSuffix = `Valid course date range is ${courseStartDateStr} to ${courseEndDateStr}.`
 
   if (Number.isFinite(releaseAtMs) && Number.isFinite(dueAtMs) && releaseAtMs > dueAtMs) {
     const sameDayTimeConflict = Boolean(
@@ -281,16 +274,16 @@ export async function createAssignmentAction(
     return { errors: { _form: ["Course not found."] }, values }
   }
 
-  const courseStartAt = new Date(`${course.startDate}T00:00:00.000Z`).getTime()
-  const courseEndAt = new Date(`${course.endDate}T23:59:59.999Z`).getTime()
+  const courseStartAt = pittsburghBoundaryMs(course.startDate, false)
+  const courseEndAt = pittsburghBoundaryMs(course.endDate, true)
 
   const releaseAt = parsed.data.startDate
-    ? isoFromDateTime(parsed.data.startDate, parsed.data.startTime ?? "", false)
+    ? pittsburghToUtcIso(parsed.data.startDate, parsed.data.startTime ?? "", false)
     : new Date().toISOString()
 
   // If the user does not provide an end date/time, default to the course end.
   const dueAt = parsed.data.endDate
-    ? isoFromDateTime(parsed.data.endDate, parsed.data.endTime ?? "", true)
+    ? pittsburghToUtcIso(parsed.data.endDate, parsed.data.endTime ?? "", true)
     : new Date(courseEndAt).toISOString()
 
   const releaseAtMs = new Date(releaseAt).getTime()
@@ -312,6 +305,8 @@ export async function createAssignmentAction(
   const rangeErrors = validateWithinCourseRange({
     courseStartAt,
     courseEndAt,
+    courseStartDateStr: course.startDate,
+    courseEndDateStr: course.endDate,
     releaseAtMs,
     dueAtMs,
     hasExplicitStart: Boolean(parsed.data.startDate),
@@ -340,7 +335,7 @@ export async function createAssignmentAction(
     if (!parsed.data.endDate) {
       return { errors: { lateUntilDate: ["Invalid late deadline date"] }, values }
     }
-    lateUntil = isoFromDateTime(values.lateUntilDate, values.lateUntilTime, true)
+    lateUntil = pittsburghToUtcIso(values.lateUntilDate, values.lateUntilTime, true)
     const lateUntilMs = new Date(lateUntil).getTime()
     if (lateUntilMs <= dueAtMs || lateUntilMs > courseEndAt) {
       return { errors: { lateUntilDate: ["Invalid late deadline date"] }, values }
@@ -440,15 +435,15 @@ export async function updateAssignmentAction(
     return { errors: { _form: ["Course not found."] }, values }
   }
 
-  const courseStartAt = new Date(`${course.startDate}T00:00:00.000Z`).getTime()
-  const courseEndAt = new Date(`${course.endDate}T23:59:59.999Z`).getTime()
+  const courseStartAt = pittsburghBoundaryMs(course.startDate, false)
+  const courseEndAt = pittsburghBoundaryMs(course.endDate, true)
 
   const releaseAt = parsed.data.startDate
-    ? isoFromDateTime(parsed.data.startDate, parsed.data.startTime ?? "", false)
+    ? pittsburghToUtcIso(parsed.data.startDate, parsed.data.startTime ?? "", false)
     : new Date().toISOString()
 
   const dueAt = parsed.data.endDate
-    ? isoFromDateTime(parsed.data.endDate, parsed.data.endTime ?? "", true)
+    ? pittsburghToUtcIso(parsed.data.endDate, parsed.data.endTime ?? "", true)
     : new Date(courseEndAt).toISOString()
 
   const releaseAtMs = new Date(releaseAt).getTime()
@@ -468,6 +463,8 @@ export async function updateAssignmentAction(
   const rangeErrors = validateWithinCourseRange({
     courseStartAt,
     courseEndAt,
+    courseStartDateStr: course.startDate,
+    courseEndDateStr: course.endDate,
     releaseAtMs,
     dueAtMs,
     hasExplicitStart: Boolean(parsed.data.startDate),
@@ -496,7 +493,7 @@ export async function updateAssignmentAction(
     if (!parsed.data.endDate) {
       return { errors: { lateUntilDate: ["Invalid late deadline date"] }, values }
     }
-    lateUntil = isoFromDateTime(values.lateUntilDate, values.lateUntilTime, true)
+    lateUntil = pittsburghToUtcIso(values.lateUntilDate, values.lateUntilTime, true)
     const lateUntilMs = new Date(lateUntil).getTime()
     if (lateUntilMs <= dueAtMs || lateUntilMs > courseEndAt) {
       return { errors: { lateUntilDate: ["Invalid late deadline date"] }, values }

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { format } from "date-fns"
+import { formatPittsburghTime } from "@/lib/format-date"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -70,7 +70,7 @@ export default async function StudentSubmissionGradePage({
           <div>
             <h2 className="text-xl font-semibold text-foreground">{submission.assignmentTitle}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Submitted {format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}
+              Submitted {formatPittsburghTime(submission.submittedAt, "MMM d, yyyy h:mm a")}
             </p>
           </div>
           <Button asChild variant="outline" className="w-full sm:w-auto">
@@ -112,7 +112,7 @@ export default async function StudentSubmissionGradePage({
                 <CardTitle>Total score</CardTitle>
                 {submission.grade?.gradedAt && (
                   <CardDescription>
-                    Last graded {format(new Date(submission.grade.gradedAt), "MMM d, yyyy h:mm a")}
+                    Last graded {formatPittsburghTime(submission.grade.gradedAt, "MMM d, yyyy h:mm a")}
                   </CardDescription>
                 )}
               </CardHeader>

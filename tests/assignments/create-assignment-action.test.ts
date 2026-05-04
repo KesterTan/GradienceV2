@@ -72,7 +72,7 @@ describe("createAssignmentAction", () => {
       expect.objectContaining({
         totalPoints: 0,
         releaseAt: "2026-03-05T12:00:00.000Z",
-        dueAt: "2026-03-10T23:59:59.999Z",
+        dueAt: "2026-03-11T03:59:59.999Z",
       }),
     )
 
@@ -96,8 +96,8 @@ describe("createAssignmentAction", () => {
 
     expect(mocks.insertValues).toHaveBeenCalledWith(
       expect.objectContaining({
-        releaseAt: "2026-03-02T08:15:00.000Z",
-        dueAt: "2026-03-10T23:59:59.999Z",
+        releaseAt: "2026-03-02T13:15:00.000Z",
+        dueAt: "2026-03-11T03:59:59.999Z",
       }),
     )
   })
@@ -123,7 +123,7 @@ describe("createAssignmentAction", () => {
     expect(mocks.insertValues).toHaveBeenCalledWith(
       expect.objectContaining({
         releaseAt: "2026-03-05T12:00:00.000Z",
-        dueAt: "2026-03-06T09:00:00.000Z",
+        dueAt: "2026-03-06T14:00:00.000Z",
       }),
     )
 

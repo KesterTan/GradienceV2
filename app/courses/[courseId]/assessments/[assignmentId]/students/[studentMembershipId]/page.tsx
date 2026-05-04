@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { format } from "date-fns"
+import { formatPittsburghTime } from "@/lib/format-date"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -94,7 +94,7 @@ export default async function StudentVersionsPage({
                     <p className="text-sm text-muted-foreground">
                       Submitted:{" "}
                       <span className="font-medium text-foreground">
-                        {format(new Date(version.submittedAt), "MMM d, yyyy h:mm a")}
+                        {formatPittsburghTime(version.submittedAt, "MMM d, yyyy h:mm a")}
                       </span>
                     </p>
                     <p className="text-sm text-muted-foreground">
