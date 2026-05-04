@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createAuth0Client } from "@/lib/auth0"
+import { getSafeReturnTo } from "@/lib/auth-return-to"
 
 const PUBLIC_PATHS = new Set([
   "/",
@@ -37,6 +38,11 @@ export async function proxy(request: NextRequest) {
 
   if (!session) {
     const loginUrl = new URL("/login", request.url)
+    const requestedPath = `${pathname}${request.nextUrl.search}`
+    loginUrl.searchParams.set(
+      "returnTo",
+      getSafeReturnTo(requestedPath, { origin: request.nextUrl.origin }),
+    )
     return NextResponse.redirect(loginUrl)
   }
 
