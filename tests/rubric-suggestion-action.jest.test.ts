@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, expect, jest, test } from "@jest/globals"
 
-const mockRequireAppUser = jest.fn()
-const mockLoadJsonFromS3ObjectKey = jest.fn()
+const mockRequireAppUser = jest.fn() as jest.Mock
+const mockLoadJsonFromS3ObjectKey = jest.fn() as jest.Mock
 const mockSelect = jest.fn()
 const selectQueue: unknown[][] = []
 
@@ -59,6 +59,7 @@ describe("generateRubricSuggestionAction", () => {
       API_SECRET_TOKEN: "test-secret-token",
     }
 
+    // @ts-expect-error - mockResolvedValue expects any return type
     mockRequireAppUser.mockResolvedValue({ id: 42 })
     mockSelect.mockImplementation(() => ({
       from: () => ({
@@ -68,6 +69,7 @@ describe("generateRubricSuggestionAction", () => {
       }),
     }))
 
+    // @ts-expect-error - mockResolvedValue expects any return type
     mockLoadJsonFromS3ObjectKey.mockResolvedValue(null)
 
     ;(global.fetch as unknown as jest.Mock) = jest.fn()
@@ -79,10 +81,12 @@ describe("generateRubricSuggestionAction", () => {
 
   test("returns rubric payload when AI service responds with valid rubric JSON", async () => {
     selectQueue.push([{ id: 1 }], [{ id: 10 }])
+    // @ts-expect-error - mockResolvedValueOnce expects any return type
     mockLoadJsonFromS3ObjectKey.mockResolvedValueOnce({
       questions: [{ id: "Q1", text: "Explain MVC" }],
     })
 
+    // @ts-expect-error - mockResolvedValue expects any return type
     ;(global.fetch as unknown as jest.Mock).mockResolvedValue({
       ok: true,
       status: 200,
@@ -147,10 +151,12 @@ describe("generateRubricSuggestionAction", () => {
   test("returns timeout error when AI service request aborts", async () => {
     process.env.AI_RUBRIC_SUGGEST_TIMEOUT_MS = "1"
     selectQueue.push([{ id: 1 }], [{ id: 10 }])
+    // @ts-expect-error - mockResolvedValueOnce expects any return type
     mockLoadJsonFromS3ObjectKey.mockResolvedValueOnce({ questions: [{ id: "Q1" }] })
 
     const abortError = new Error("Aborted")
     abortError.name = "AbortError"
+    // @ts-expect-error - mockRejectedValueOnce expects any return type
     ;(global.fetch as unknown as jest.Mock).mockRejectedValueOnce(abortError)
 
     const result = await generateRubricSuggestionAction(
@@ -163,7 +169,9 @@ describe("generateRubricSuggestionAction", () => {
 
   test("returns AI service error when response is non-200", async () => {
     selectQueue.push([{ id: 1 }], [{ id: 10 }])
+    // @ts-expect-error - mockResolvedValueOnce expects any return type
     mockLoadJsonFromS3ObjectKey.mockResolvedValueOnce({ questions: [{ id: "Q1" }] })
+    // @ts-expect-error - mockResolvedValueOnce expects any return type
     ;(global.fetch as unknown as jest.Mock).mockResolvedValueOnce({
       ok: false,
       status: 500,

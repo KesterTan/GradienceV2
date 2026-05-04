@@ -57,7 +57,7 @@ class ErrorCatcher extends React.Component<
   }
 
   componentDidCatch(error: Error) {
-    this.props.onError(error)
+    this.props.onError(error as any)
   }
 
   render() {
@@ -108,15 +108,11 @@ test("useGrading throws outside provider", () => {
 
   act(() => {
     root.render(
-      React.createElement(
-        ErrorCatcher,
-        { onError: (error) => { capturedError = error } },
-        React.createElement(CaptureContext)
-      )
+      React.createElement(ErrorCatcher, { onError: (error) => { capturedError = error }, children: React.createElement(CaptureContext) })
     )
   })
 
-  expect(capturedError?.message).toBe("useGrading must be used within GradingProvider")
+  expect((capturedError as any)?.message).toBe("useGrading must be used within GradingProvider")
   act(() => {
     root.unmount()
   })
@@ -236,7 +232,7 @@ test("updateRubricOrder and updateQuestionRubric update state", () => {
 
   const newRubrics = [{ id: "r99", questionTitle: "Updated" }]
   act(() => {
-    getContext().updateRubricOrder("student-a", newRubrics)
+    getContext().updateRubricOrder("student-a", newRubrics as any)
   })
 
   const ctxAfterOrder = getContext()

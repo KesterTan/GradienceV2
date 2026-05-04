@@ -1,16 +1,16 @@
 import { beforeEach, expect, jest, test } from "@jest/globals"
 
-const mockRevalidatePath = jest.fn()
+const mockRevalidatePath = jest.fn() as jest.Mock<any>
 const mockRedirect = jest.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`)
-})
-const mockRequireAppUser = jest.fn()
-const mockSelect = jest.fn()
-const mockInsert = jest.fn()
-const mockInsertValues = jest.fn()
-const mockUpdate = jest.fn()
-const mockUpdateSet = jest.fn()
-const mockUpdateWhere = jest.fn()
+}) as jest.Mock<any>
+const mockRequireAppUser = jest.fn() as jest.Mock<any>
+const mockSelect = jest.fn() as jest.Mock<any>
+const mockInsert = jest.fn() as jest.Mock<any>
+const mockInsertValues = jest.fn() as jest.Mock<any>
+const mockUpdate = jest.fn() as jest.Mock<any>
+const mockUpdateSet = jest.fn() as jest.Mock<any>
+const mockUpdateWhere = jest.fn() as jest.Mock<any>
 const selectQueue: unknown[][] = []
 
 jest.mock("next/cache", () => ({
@@ -18,7 +18,7 @@ jest.mock("next/cache", () => ({
 }))
 
 jest.mock("next/navigation", () => ({
-  redirect: (...args: unknown[]) => mockRedirect(...args),
+  redirect: (path: string) => mockRedirect(path),
 }))
 
 jest.mock("@/lib/current-user", () => ({
@@ -73,7 +73,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   selectQueue.length = 0
 
-  mockRequireAppUser.mockResolvedValue({ id: 42 })
+  mockRequireAppUser.mockResolvedValue({ id: 42 } as any)
 
   mockSelect.mockImplementation(() => ({
     from: () => ({
@@ -83,9 +83,9 @@ beforeEach(() => {
     }),
   }))
 
-  mockInsertValues.mockResolvedValue(undefined)
+  mockInsertValues.mockResolvedValue(undefined as any)
   mockInsert.mockReturnValue({ values: mockInsertValues })
-  mockUpdateWhere.mockResolvedValue(undefined)
+  mockUpdateWhere.mockResolvedValue(undefined as any)
   mockUpdateSet.mockReturnValue({ where: mockUpdateWhere })
   mockUpdate.mockReturnValue({ set: mockUpdateSet })
 })

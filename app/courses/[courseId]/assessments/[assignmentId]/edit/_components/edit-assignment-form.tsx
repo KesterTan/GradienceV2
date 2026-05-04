@@ -23,7 +23,21 @@ type AssignmentFormState = {
     assignmentId?: string[]
     _form?: string[]
   }
-  values?: Record<string, string>
+  values?: {
+    courseId: string
+    assignmentId?: string
+    title: string
+    description: string
+    startDate: string
+    startTime: string
+    endDate: string
+    endTime: string
+    enableLateDeadline: string
+    lateUntilDate: string
+    lateUntilTime: string
+    allowResubmissions: string
+    maxAttemptResubmission: string
+  }
 }
 
 const initialState: AssignmentFormState = {}
@@ -45,22 +59,23 @@ export function EditAssignmentForm(props: {
   }
 }) {
   const { courseId, assignmentId, initialValues } = props
-  const [state, formAction, pending] = useActionState(updateAssignmentAction, initialState)
+  const [state, formAction, pending] = useActionState(updateAssignmentAction as any, initialState)
+  const values = state.values;
   const [allowResubmissions, setAllowResubmissions] = useState(
-    state.values?.allowResubmissions === "on" ? true : initialValues.allowResubmissions
+    values?.allowResubmissions === "on" ? true : initialValues.allowResubmissions
   )
   const [enableLateDeadline, setEnableLateDeadline] = useState(
-    state.values?.enableLateDeadline === "on" ? true : Boolean(initialValues.lateUntilDate)
+    values?.enableLateDeadline === "on" ? true : Boolean(initialValues.lateUntilDate)
   )
 
   // Keep checkbox + conditional inputs in sync with the server echo after
   // every submit. This forces local state to match whatever was just sent,
   // so the checkbox and the error/inputs never disagree on re-render.
   useEffect(() => {
-    if (!state.values) return
-    setEnableLateDeadline(state.values.enableLateDeadline === "on")
-    setAllowResubmissions(state.values.allowResubmissions === "on")
-  }, [state])
+    if (!values) return
+    setEnableLateDeadline(values.enableLateDeadline === "on")
+    setAllowResubmissions(values.allowResubmissions === "on")
+  }, [values])
 
   // React 19's <form action={...}> auto-resets the DOM form after every
   // action return. For controlled checkboxes, if the React state didn't
@@ -76,7 +91,7 @@ export function EditAssignmentForm(props: {
   })
 
   const dateError = useMemo(() => state.errors?.endDate?.[0], [state.errors?.endDate])
-  const values = state.values ?? {}
+  // ...existing code...
 
   return (
     <form action={formAction} className="space-y-5">
@@ -90,7 +105,7 @@ export function EditAssignmentForm(props: {
           name="title"
           required
           placeholder="e.g. Midterm 1"
-          defaultValue={values.title ?? initialValues.title}
+          defaultValue={values?.title ?? initialValues.title}
           aria-invalid={!!state.errors?.title}
         />
         {state.errors?.title?.[0] && <p className="text-sm text-destructive">{state.errors.title[0]}</p>}
@@ -102,7 +117,7 @@ export function EditAssignmentForm(props: {
           id="description"
           name="description"
           placeholder="Optional instructions, topics covered, grading policy..."
-          defaultValue={values.description ?? initialValues.description}
+          defaultValue={values?.description ?? initialValues.description}
           aria-invalid={!!state.errors?.description}
         />
         {state.errors?.description?.[0] && (
@@ -117,7 +132,7 @@ export function EditAssignmentForm(props: {
             id="startDate"
             name="startDate"
             type="date"
-            defaultValue={values.startDate ?? initialValues.startDate}
+            defaultValue={values?.startDate ?? initialValues.startDate}
             aria-invalid={!!state.errors?.startDate}
           />
           {state.errors?.startDate?.[0] && (
@@ -131,7 +146,7 @@ export function EditAssignmentForm(props: {
             id="endDate"
             name="endDate"
             type="date"
-            defaultValue={values.endDate ?? initialValues.endDate}
+            defaultValue={values?.endDate ?? initialValues.endDate}
             aria-invalid={!!state.errors?.endDate}
           />
           {dateError && <p className="text-sm text-destructive">{dateError}</p>}
@@ -145,7 +160,7 @@ export function EditAssignmentForm(props: {
             id="startTime"
             name="startTime"
             type="time"
-            defaultValue={values.startTime ?? initialValues.startTime}
+            defaultValue={values?.startTime ?? initialValues.startTime}
             aria-invalid={!!state.errors?.startTime}
           />
           {state.errors?.startTime?.[0] && (
@@ -159,7 +174,7 @@ export function EditAssignmentForm(props: {
             id="endTime"
             name="endTime"
             type="time"
-            defaultValue={values.endTime ?? initialValues.endTime}
+            defaultValue={values?.endTime ?? initialValues.endTime}
             aria-invalid={!!state.errors?.endTime}
           />
           {state.errors?.endTime?.[0] && (
@@ -190,7 +205,7 @@ export function EditAssignmentForm(props: {
                 id="lateUntilDate"
                 name="lateUntilDate"
                 type="date"
-                defaultValue={values.lateUntilDate ?? initialValues.lateUntilDate}
+                defaultValue={values?.lateUntilDate ?? initialValues.lateUntilDate}
                 aria-invalid={!!state.errors?.lateUntilDate}
               />
               {state.errors?.lateUntilDate?.[0] && (
@@ -203,7 +218,7 @@ export function EditAssignmentForm(props: {
                 id="lateUntilTime"
                 name="lateUntilTime"
                 type="time"
-                defaultValue={values.lateUntilTime ?? initialValues.lateUntilTime}
+                defaultValue={values?.lateUntilTime ?? initialValues.lateUntilTime}
                 aria-invalid={!!state.errors?.lateUntilTime}
               />
               {state.errors?.lateUntilTime?.[0] && (
@@ -237,7 +252,7 @@ export function EditAssignmentForm(props: {
               type="number"
               min={1}
               placeholder="e.g. 2"
-              defaultValue={values.maxAttemptResubmission ?? String(initialValues.maxAttemptResubmission || 1)}
+              defaultValue={values?.maxAttemptResubmission ?? String(initialValues.maxAttemptResubmission || 1)}
               aria-invalid={!!state.errors?.maxAttemptResubmission}
             />
             <p className="text-xs text-muted-foreground">
