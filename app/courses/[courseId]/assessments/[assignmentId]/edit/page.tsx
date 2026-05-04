@@ -1,18 +1,11 @@
 import { notFound } from "next/navigation"
-import { format } from "date-fns"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { toDateValuePittsburgh, toTimeValuePittsburgh } from "@/lib/format-date"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { EditAssignmentForm } from "./_components/edit-assignment-form"
 import { getAssessmentForGrader } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
 
-function toDateValue(iso: string) {
-  return format(new Date(iso), "yyyy-MM-dd")
-}
-
-function toTimeValue(iso: string) {
-  return format(new Date(iso), "HH:mm")
-}
 
 
 export default async function EditAssessmentPage({
@@ -62,12 +55,12 @@ export default async function EditAssessmentPage({
               initialValues={{
                 title: assessment.title,
                 description: assessment.description ?? "",
-                startDate: toDateValue(assessment.releaseAt),
-                startTime: toTimeValue(assessment.releaseAt),
-                endDate: toDateValue(assessment.dueAt),
-                endTime: toTimeValue(assessment.dueAt),
-                lateUntilDate: assessment.lateUntil ? toDateValue(assessment.lateUntil) : "",
-                lateUntilTime: assessment.lateUntil ? toTimeValue(assessment.lateUntil) : "",
+                startDate: toDateValuePittsburgh(assessment.releaseAt),
+                startTime: toTimeValuePittsburgh(assessment.releaseAt),
+                endDate: toDateValuePittsburgh(assessment.dueAt),
+                endTime: toTimeValuePittsburgh(assessment.dueAt),
+                lateUntilDate: assessment.lateUntil ? toDateValuePittsburgh(assessment.lateUntil) : "",
+                lateUntilTime: assessment.lateUntil ? toTimeValuePittsburgh(assessment.lateUntil) : "",
                 allowResubmissions: assessment.allowResubmissions,
                 maxAttemptResubmission: assessment.maxAttemptResubmission,
               }}

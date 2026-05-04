@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { format } from "date-fns"
+import { formatPittsburghTime } from "@/lib/format-date"
 import { Calendar, ExternalLink, FileText, RotateCcw, UploadCloud } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -178,12 +178,12 @@ export function AssessmentSubmissionPanel({
                 <p className="text-lg font-semibold text-foreground">{assignmentTitle}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
                   <Calendar className="size-3.5" />
-                  Due {format(dueDate, "MMM d, yyyy 'at' h:mm a")}
+                  Due {formatPittsburghTime(dueDate, "MMM d, yyyy 'at' h:mm a")}
                 </p>
                 {lateDate && (
                   <p className="mt-0.5 flex items-center gap-1 text-sm text-amber-600">
                     <Calendar className="size-3.5" />
-                    Late submissions accepted until {format(lateDate, "MMM d, yyyy 'at' h:mm a")}
+                    Late submissions accepted until {formatPittsburghTime(lateDate, "MMM d, yyyy 'at' h:mm a")}
                   </p>
                 )}
               </div>
@@ -218,7 +218,7 @@ export function AssessmentSubmissionPanel({
 
           {!isInstructor && !uploadDisabled && !inLateWindow && (
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              Submit before {format(dueDate, "MMM d, yyyy 'at' h:mm a")}.
+              Submit before {formatPittsburghTime(dueDate, "MMM d, yyyy 'at' h:mm a")}.
             </div>
           )}
 
@@ -284,7 +284,7 @@ export function AssessmentSubmissionPanel({
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(item.submittedAt), "MMM d, yyyy 'at' h:mm a")}
+                      {formatPittsburghTime(item.submittedAt, "MMM d, yyyy 'at' h:mm a")}
                     </p>
                   </div>
                 </div>

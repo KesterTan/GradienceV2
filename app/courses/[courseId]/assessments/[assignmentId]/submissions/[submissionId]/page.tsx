@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { format } from "date-fns"
+import { formatPittsburghTime } from "@/lib/format-date"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -60,7 +60,7 @@ export default async function SubmissionPage({
             <h2 className="text-xl font-semibold text-foreground">{submission.studentName}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{submission.studentEmail}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Submitted {format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")} · Attempt {submission.attemptNumber}
+              Submitted {formatPittsburghTime(submission.submittedAt, "MMM d, yyyy h:mm a")} · Attempt {submission.attemptNumber}
             </p>
           </div>
           <Button asChild variant="outline" className="w-full sm:w-auto">
@@ -121,7 +121,7 @@ export default async function SubmissionPage({
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <p className="text-muted-foreground">
-                    Submitted {format(new Date(submission.regradeRequest.createdAt), "MMM d, yyyy h:mm a")} by {submission.studentName}
+                    Submitted {formatPittsburghTime(submission.regradeRequest.createdAt, "MMM d, yyyy h:mm a")} by {submission.studentName}
                   </p>
                   <p className="whitespace-pre-wrap leading-relaxed text-foreground">
                     {submission.regradeRequest.reason}

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { format, parseISO } from "date-fns"
+import { formatPittsburghTime } from "@/lib/format-date"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -106,7 +107,7 @@ export default async function CourseDashboardPage({
                       {assignment.description}
                     </CardDescription>
                   )}
-                  <CardDescription>Due {format(new Date(assignment.dueAt), "MMM d, yyyy h:mm a")}</CardDescription>
+                  <CardDescription>Due {formatPittsburghTime(assignment.dueAt, "MMM d, yyyy h:mm a")}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                   {isInstructor && <p className="text-sm text-muted-foreground">

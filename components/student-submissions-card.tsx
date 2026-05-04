@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { format } from "date-fns"
+import { formatPittsburghTime } from "@/lib/format-date"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,7 +46,7 @@ export function StudentSubmissionsCard({ courseId, assignmentId, versions, hasPe
               <span className={`text-xs font-medium capitalize ${current.status === "late" ? "text-amber-700" : "text-muted-foreground"}`}>{current.status}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              {format(new Date(current.submittedAt), "MMM d, yyyy 'at' h:mm a")}
+              {formatPittsburghTime(current.submittedAt, "MMM d, yyyy 'at' h:mm a")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -101,7 +101,7 @@ export function StudentSubmissionsCard({ courseId, assignmentId, versions, hasPe
                         <span className={`text-xs font-medium capitalize ${v.status === "late" ? "text-amber-700" : "text-muted-foreground"}`}>{v.status}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(v.submittedAt), "MMM d, yyyy 'at' h:mm a")}
+                        {formatPittsburghTime(v.submittedAt, "MMM d, yyyy 'at' h:mm a")}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
