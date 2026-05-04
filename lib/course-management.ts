@@ -70,6 +70,7 @@ export type AssessmentRubricDetail = AssessmentDetail & {
 export type AssessmentQuestionsDetail = AssessmentDetail & {
   viewerRole: CourseViewerRole
   questionsJson: unknown | null
+  rubricJson: unknown | null
 }
 
 export type SubmissionSummary = {
@@ -403,6 +404,7 @@ export async function getAssessmentQuestionsForMember(
       courseId: courses.id,
       courseTitle: courses.title,
       questionsJson: assignments.questionsJson,
+      rubricJson: assignments.rubricJson,
       allowResubmissions: assignments.allowResubmissions,
       maxAttemptResubmission: assignments.maxAttemptResubmission,
       viewerRole: sql<CourseViewerRole>`case when ${myMembership.role} = 'student' then 'Student' else 'Instructor' end`,
@@ -434,6 +436,7 @@ export async function getAssessmentQuestionsForMember(
     courseId: Number(row.courseId),
     courseTitle: String(row.courseTitle),
     questionsJson: row.questionsJson ?? null,
+    rubricJson: row.rubricJson ?? null,
     allowResubmissions: Boolean(row.allowResubmissions),
     maxAttemptResubmission: Number(row.maxAttemptResubmission ?? 0),
     viewerRole: row.viewerRole === "Student" ? "Student" : "Instructor",

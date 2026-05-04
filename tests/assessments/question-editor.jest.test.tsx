@@ -80,6 +80,7 @@ function defaultEditorProps(overrides?: Record<string, unknown>) {
     courseId: 5,
     assignmentId: 12,
     initialPayload: null,
+    rubric: null,
     canEdit: true,
     assignmentTitle: "Midterm",
     courseTitle: "CS101",
@@ -173,6 +174,34 @@ describe("canEdit=false", () => {
     expect(container.textContent).toContain("15")
   })
 
+  test("shows rubric-derived points when a saved rubric overrides the question max", () => {
+    const payload = makePayload([
+      makeQuestion({ question_id: "Q1", question_text: "Explain recursion", question_max_total: 10 }),
+    ])
+    const rubric = {
+      questions: [
+        {
+          question_id: "Q1",
+          question_max_total: 5,
+          rubric_items: [{ criterion: "Correctness", explanation: "", max_score: 5 }],
+        },
+      ],
+      total_max_score: 5,
+      overall_feedback: "",
+    }
+
+    act(() => {
+      root.render(
+        <QuestionEditor
+          {...defaultEditorProps({ canEdit: false, initialPayload: payload, rubric })}
+        />,
+      )
+    })
+
+    expect(container.textContent).toContain("5 pts")
+    expect(container.textContent).not.toContain("10 pts")
+  })
+
   test("no Save, Cancel, Edit questions, or Delete buttons are present for students", () => {
     const payload = makePayload([makeQuestion()])
     act(() => {
@@ -254,6 +283,37 @@ describe("canEdit=true with no saved questions (edit mode)", () => {
     })
     expect(container.textContent).toContain("Question 1")
     expect(container.textContent).not.toContain("Question 2")
+  })
+
+  test("locks max points to the rubric for matching question ids", () => {
+    const payload = makePayload([makeQuestion({ question_id: "Q1", question_max_total: 10 })])
+    const rubric = {
+      questions: [
+        {
+          question_id: "Q1",
+          question_max_total: 5,
+          rubric_items: [{ criterion: "Correctness", explanation: "", max_score: 5 }],
+        },
+      ],
+      total_max_score: 5,
+      overall_feedback: "",
+    }
+
+    act(() => {
+      root.render(<QuestionEditor {...defaultEditorProps({ initialPayload: payload, rubric })} />)
+    })
+
+    const editButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Edit questions",
+    ) as HTMLButtonElement
+    act(() => {
+      editButton.click()
+    })
+
+    const maxPointsInput = container.querySelector("#qmax-0") as HTMLInputElement
+    expect(maxPointsInput.value).toBe("5")
+    expect(maxPointsInput.disabled).toBe(true)
+    expect(container.textContent).toContain("Question max points are controlled by the saved rubric")
   })
 
   test("clicking Add question appends a second card", () => {

@@ -7,6 +7,7 @@ import { QuestionEditor } from "./_components/question-editor"
 import { getAssessmentQuestionsForMember } from "@/lib/course-management"
 import { requireAppUser } from "@/lib/current-user"
 import { parseQuestionsJson } from "@/lib/questions"
+import { parseRubricJson } from "@/lib/rubrics"
 
 export default async function AssessmentQuestionsPage({
   params,
@@ -30,6 +31,7 @@ export default async function AssessmentQuestionsPage({
 
   const isInstructor = assessment.viewerRole === "Instructor"
   const questions = parseQuestionsJson(assessment.questionsJson)
+  const rubric = parseRubricJson(assessment.rubricJson)
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -81,6 +83,7 @@ export default async function AssessmentQuestionsPage({
             courseId={assessment.courseId}
             assignmentId={assessment.id}
             initialPayload={questions}
+            rubric={rubric}
             canEdit={isInstructor}
             assignmentTitle={assessment.title}
             courseTitle={assessment.courseTitle}

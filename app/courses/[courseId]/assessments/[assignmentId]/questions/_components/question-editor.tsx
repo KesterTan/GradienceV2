@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { getRubricQuestionPointMap, syncQuestionMaxPointsWithRubric } from "@/lib/assessment-points"
 import { saveQuestionsAction } from "../actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,11 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { QuestionsPayload, AssignmentQuestion } from "@/lib/questions"
+import type { RubricPayload } from "@/lib/rubrics"
 
 type QuestionEditorProps = {
   courseId: number
   assignmentId: number
   initialPayload: QuestionsPayload | null
+  rubric?: RubricPayload | null
   canEdit: boolean
   assignmentTitle: string
   courseTitle: string
@@ -86,6 +89,7 @@ export function QuestionEditor({
   courseId,
   assignmentId,
   initialPayload,
+  rubric = null,
   canEdit,
   assignmentTitle,
   courseTitle,
@@ -114,19 +118,26 @@ export function QuestionEditor({
 
   const effectiveAssignmentTitle = savedAssignmentTitle || assignmentTitle
   const effectiveCourseTitle = savedCourse || courseTitle
+  const rubricPointMap = getRubricQuestionPointMap(rubric)
+  const hasRubricPoints = rubricPointMap.size > 0
 
   const [savedQuestions, setSavedQuestions] = useState<AssignmentQuestion[]>(
-    () => initialPayload?.questions ?? [],
+    () => syncQuestionMaxPointsWithRubric(initialPayload?.questions ?? [], rubric),
   )
   const [questions, setQuestions] = useState<AssignmentQuestion[]>(() => {
     if (!initialPayload?.questions?.length) return [emptyQuestion(0)]
-    return initialPayload.questions.map((q) => ({
+    return syncQuestionMaxPointsWithRubric(initialPayload.questions, rubric).map((q) => ({
       question_id: q.question_id,
       question_text: q.question_text,
       question_max_total: q.question_max_total,
       is_extra_credit: q.is_extra_credit ?? false,
     }))
   })
+  const effectiveSavedQuestions = syncQuestionMaxPointsWithRubric(savedQuestions, rubric)
+  const effectiveQuestions = syncQuestionMaxPointsWithRubric(questions, rubric)
+  const unmatchedQuestionIds = effectiveQuestions
+    .filter((question) => !rubricPointMap.has(question.question_id.trim()))
+    .map((question, index) => question.question_id.trim() || `Question ${index + 1}`)
 
   const importQuestionsJson = async (file: File) => {
     setImportError(null)
@@ -244,7 +255,7 @@ export function QuestionEditor({
         return
       }
 
-      setQuestions(normalizedQuestions)
+      setQuestions(syncQuestionMaxPointsWithRubric(normalizedQuestions, rubric))
       if (importedAssignmentTitle) setAssignmentTitleInput(importedAssignmentTitle)
       if (importedCourse) setCourseInput(importedCourse)
       if (importedInstructionsSummary) setInstructionsSummaryInput(importedInstructionsSummary)
@@ -263,7 +274,7 @@ export function QuestionEditor({
     setFieldErrors({})
 
     // Snapshot questions at the moment of submit — no stale closure risk
-    const snapshot = questions.map((q) => ({ ...q }))
+    const snapshot = effectiveQuestions.map((q) => ({ ...q }))
     const normalizedAssignmentTitleInput = assignmentTitleInput.trim()
     const normalizedCourseInput = courseInput.trim()
     const assignmentTitleForSave = normalizedAssignmentTitleInput || savedAssignmentTitle || assignmentTitle
@@ -344,7 +355,7 @@ export function QuestionEditor({
 
   const enterEditMode = () => {
     setQuestions(
-      savedQuestions.length ? savedQuestions.map((q) => ({ ...q })) : [emptyQuestion(0)],
+      effectiveSavedQuestions.length ? effectiveSavedQuestions.map((q) => ({ ...q })) : [emptyQuestion(0)],
     )
     setAssignmentTitleInput(savedAssignmentTitle)
     setCourseInput(savedCourse)
@@ -373,13 +384,13 @@ export function QuestionEditor({
             type="button"
             variant="outline"
             onClick={() =>
-              printQuestionsPdf(effectiveAssignmentTitle, effectiveCourseTitle, savedQuestions)
+              printQuestionsPdf(effectiveAssignmentTitle, effectiveCourseTitle, effectiveSavedQuestions)
             }
           >
             Download PDF
           </Button>
         </div>
-        {savedQuestions.map((q, index) => (
+        {effectiveSavedQuestions.map((q, index) => (
           <QuestionCard key={`${q.question_id}-${index}`} question={q} />
         ))}
       </div>
@@ -392,14 +403,14 @@ export function QuestionEditor({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            {savedQuestions.length} question{savedQuestions.length !== 1 ? "s" : ""} saved
+            {effectiveSavedQuestions.length} question{effectiveSavedQuestions.length !== 1 ? "s" : ""} saved
           </p>
           <div className="flex gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() =>
-                printQuestionsPdf(effectiveAssignmentTitle, effectiveCourseTitle, savedQuestions)
+                printQuestionsPdf(effectiveAssignmentTitle, effectiveCourseTitle, effectiveSavedQuestions)
               }
             >
               Download PDF
@@ -409,7 +420,16 @@ export function QuestionEditor({
             </Button>
           </div>
         </div>
-        {savedQuestions.map((q, index) => (
+        {hasRubricPoints && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">
+                Max points on this page are derived from the saved rubric. Edit the rubric to change grading totals.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        {effectiveSavedQuestions.map((q, index) => (
           <QuestionCard key={`${q.question_id}-${index}`} question={q} />
         ))}
       </div>
@@ -455,6 +475,21 @@ export function QuestionEditor({
 
       {formError && <p className="text-sm text-destructive">{formError}</p>}
       {importError && <p className="text-sm text-destructive">{importError}</p>}
+      {hasRubricPoints && (
+        <Card>
+          <CardContent className="space-y-2 pt-6">
+            <p className="text-sm text-muted-foreground">
+              Question max points are controlled by the saved rubric for matching question IDs.
+            </p>
+            {unmatchedQuestionIds.length > 0 && (
+              <p className="text-sm text-amber-700">
+                No rubric entry matches: {unmatchedQuestionIds.join(", ")}. Update the rubric if these questions
+                should count toward the assignment total.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -495,88 +530,100 @@ export function QuestionEditor({
       </Card>
 
       <div className="space-y-4">
-        {questions.map((question, index) => (
-          <Card key={`question-${index}`}>
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="text-base">Question {index + 1}</CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => removeQuestion(index)}
-                  disabled={questions.length === 1}
-                >
-                  Delete
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+        {questions.map((question, index) => {
+          const effectiveQuestion = effectiveQuestions[index] ?? question
+          const hasMatchingRubricPoints = rubricPointMap.has(question.question_id.trim())
+
+          return (
+            <Card key={`question-${index}`}>
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-base">Question {index + 1}</CardTitle>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => removeQuestion(index)}
+                    disabled={questions.length === 1}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                  <div className="space-y-1">
+                    <Label htmlFor={`qid-${index}`}>Question ID</Label>
+                    <Input
+                      id={`qid-${index}`}
+                      value={question.question_id}
+                      className={errorClass(`questions.${index}.question_id`)}
+                      onChange={(e) => updateQuestion(index, { question_id: e.target.value })}
+                      placeholder={`Q${index + 1}`}
+                    />
+                    {fieldErrors[`questions.${index}.question_id`]?.[0] && (
+                      <p className="text-sm text-destructive">
+                        {fieldErrors[`questions.${index}.question_id`][0]}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`qmax-${index}`}>Max points</Label>
+                    <Input
+                      id={`qmax-${index}`}
+                      type="number"
+                      min={0}
+                      value={effectiveQuestion.question_max_total}
+                      className={errorClass(`questions.${index}.question_max_total`)}
+                      onChange={(e) =>
+                        updateQuestion(index, { question_max_total: Number(e.target.value) })
+                      }
+                      disabled={hasMatchingRubricPoints}
+                    />
+                    {hasMatchingRubricPoints && (
+                      <p className="text-xs text-muted-foreground">
+                        This value is synced from the saved rubric for{" "}
+                        {question.question_id || `Question ${index + 1}`}.
+                      </p>
+                    )}
+                    {fieldErrors[`questions.${index}.question_max_total`]?.[0] && (
+                      <p className="text-sm text-destructive">
+                        {fieldErrors[`questions.${index}.question_max_total`][0]}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-1">
-                  <Label htmlFor={`qid-${index}`}>Question ID</Label>
-                  <Input
-                    id={`qid-${index}`}
-                    value={question.question_id}
-                    className={errorClass(`questions.${index}.question_id`)}
-                    onChange={(e) => updateQuestion(index, { question_id: e.target.value })}
-                    placeholder={`Q${index + 1}`}
+                  <Label htmlFor={`qtext-${index}`}>Question text</Label>
+                  <Textarea
+                    id={`qtext-${index}`}
+                    value={question.question_text}
+                    className={errorClass(`questions.${index}.question_text`)}
+                    rows={3}
+                    onChange={(e) => updateQuestion(index, { question_text: e.target.value })}
+                    placeholder="Enter the question prompt..."
                   />
-                  {fieldErrors[`questions.${index}.question_id`]?.[0] && (
+                  {fieldErrors[`questions.${index}.question_text`]?.[0] && (
                     <p className="text-sm text-destructive">
-                      {fieldErrors[`questions.${index}.question_id`][0]}
+                      {fieldErrors[`questions.${index}.question_text`][0]}
                     </p>
                   )}
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor={`qmax-${index}`}>Max points</Label>
-                  <Input
-                    id={`qmax-${index}`}
-                    type="number"
-                    min={0}
-                    value={question.question_max_total}
-                    className={errorClass(`questions.${index}.question_max_total`)}
-                    onChange={(e) =>
-                      updateQuestion(index, { question_max_total: Number(e.target.value) })
-                    }
+
+                <div className="flex items-center gap-2">
+                  <input
+                    id={`qec-${index}`}
+                    type="checkbox"
+                    className="size-4 rounded border-input"
+                    checked={question.is_extra_credit ?? false}
+                    onChange={(e) => updateQuestion(index, { is_extra_credit: e.target.checked })}
                   />
-                  {fieldErrors[`questions.${index}.question_max_total`]?.[0] && (
-                    <p className="text-sm text-destructive">
-                      {fieldErrors[`questions.${index}.question_max_total`][0]}
-                    </p>
-                  )}
+                  <Label htmlFor={`qec-${index}`}>Extra credit</Label>
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor={`qtext-${index}`}>Question text</Label>
-                <Textarea
-                  id={`qtext-${index}`}
-                  value={question.question_text}
-                  className={errorClass(`questions.${index}.question_text`)}
-                  rows={3}
-                  onChange={(e) => updateQuestion(index, { question_text: e.target.value })}
-                  placeholder="Enter the question prompt..."
-                />
-                {fieldErrors[`questions.${index}.question_text`]?.[0] && (
-                  <p className="text-sm text-destructive">
-                    {fieldErrors[`questions.${index}.question_text`][0]}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  id={`qec-${index}`}
-                  type="checkbox"
-                  className="size-4 rounded border-input"
-                  checked={question.is_extra_credit ?? false}
-                  onChange={(e) => updateQuestion(index, { is_extra_credit: e.target.checked })}
-                />
-                <Label htmlFor={`qec-${index}`}>Extra credit</Label>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          )
+        })}
 
         <Button type="button" variant="outline" className="w-full" onClick={addQuestion}>
           Add question
