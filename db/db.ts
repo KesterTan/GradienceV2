@@ -3,29 +3,31 @@ import { attachDatabasePool } from "@vercel/functions";
 import { Signer } from "@aws-sdk/rds-signer";
 import { ClientBase, Pool } from "pg";
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
+function getDbPassword() {
+  if (process.env.PGPASSWORD) {
+    return process.env.PGPASSWORD;
+  }
+
+  const signer = new Signer({
+    hostname: process.env.PGHOST,
+    port: Number(process.env.PGPORT),
+    username: process.env.PGUSER,
+    region: process.env.AWS_REGION,
+    credentials: awsCredentialsProvider({
+      roleArn: process.env.AWS_ROLE_ARN,
+      clientConfig: { region: process.env.AWS_REGION },
+    }),
+  });
+
+  return signer.getAuthToken();
 }
 
-const signer = new Signer({
-  hostname: requireEnv('PGHOST'),
-  port: Number(requireEnv('PGPORT')),
-  username: requireEnv('PGUSER'),
-  region: requireEnv('AWS_REGION'),
-  credentials: awsCredentialsProvider({
-    roleArn: requireEnv('AWS_ROLE_ARN'),
-    clientConfig: { region: requireEnv('AWS_REGION') },
-  }),
-});
-
 const poolConfig: any = {
-  host: requireEnv('PGHOST'),
-  user: requireEnv('PGUSER'),
+  host: process.env.PGHOST,
+  user: process.env.PGUSER,
   database: process.env.PGDATABASE || "postgres",
-  password: process.env.PGPASSWORD || (() => signer.getAuthToken()),
-  port: Number(requireEnv('PGPORT')),
+  password: getDbPassword,
+  port: Number(process.env.PGPORT),
   max: 20,
 };
 if (process.env.PGSSLMODE === 'require') {
