@@ -30,6 +30,18 @@ export function DashboardHeader({
   const hasBreadcrumbs = !!breadcrumbs?.length
   const homeIsActive = breadcrumbs?.[0]?.current === true
   const homeHref = breadcrumbs?.[0]?.href ?? "/courses"
+  const normalizedName = user.name.trim().toLowerCase()
+  const normalizedEmail = user.email.trim().toLowerCase()
+  const usernameFromEmail = user.email
+    .split("@")[0]
+    .trim()
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+  const isEmailLikeName =
+    normalizedName === normalizedEmail ||
+    normalizedName === `${normalizedEmail} account`
+  const displayName = isEmailLikeName ? (usernameFromEmail || "Signed in user") : user.name
 
   return (
     <header className="border-b bg-white">
@@ -77,7 +89,7 @@ export function DashboardHeader({
             </Button>
           )}
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-foreground">{user.name}</p>
+            <p className="text-sm font-medium text-foreground">{displayName}</p>
             <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
           <Button asChild size="sm" variant="outline">
