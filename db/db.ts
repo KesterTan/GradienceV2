@@ -3,19 +3,35 @@ import { attachDatabasePool } from "@vercel/functions";
 import { Signer } from "@aws-sdk/rds-signer";
 import { ClientBase, Pool } from "pg";
 
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+function getRequiredNumberEnv(name: string): number {
+  const value = Number(getRequiredEnv(name));
+  if (Number.isNaN(value)) {
+    throw new Error(`Invalid numeric environment variable: ${name}`);
+  }
+  return value;
+}
+
 function getDbPassword() {
   if (process.env.PGPASSWORD) {
     return process.env.PGPASSWORD;
   }
 
   const signer = new Signer({
-    hostname: process.env.PGHOST,
-    port: Number(process.env.PGPORT),
-    username: process.env.PGUSER,
-    region: process.env.AWS_REGION,
+    hostname: getRequiredEnv("PGHOST"),
+    port: getRequiredNumberEnv("PGPORT"),
+    username: getRequiredEnv("PGUSER"),
+    region: getRequiredEnv("AWS_REGION"),
     credentials: awsCredentialsProvider({
-      roleArn: process.env.AWS_ROLE_ARN,
-      clientConfig: { region: process.env.AWS_REGION },
+      roleArn: getRequiredEnv("AWS_ROLE_ARN"),
+      clientConfig: { region: getRequiredEnv("AWS_REGION") },
     }),
   });
 
