@@ -330,4 +330,35 @@ describe("saveQuestionsAction", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/courses/5/assessments/12/questions")
     expect(mocks.revalidatePath).toHaveBeenCalledTimes(2)
   })
+
+  it("syncs question max totals from the saved rubric before persisting", async () => {
+    mocks.selectQueue.push(
+      [{ id: 99 }],
+      [
+        {
+          id: 12,
+          rubricJson: {
+            questions: [
+              {
+                question_id: "Q1",
+                rubric_items: [{ criterion: "Correctness", max_score: 5 }],
+              },
+            ],
+          },
+        },
+      ],
+      [{ title: "T", description: "", courseTitle: "C" }],
+    )
+
+    const result = await saveQuestionsAction({}, makeFormData({ questionsPayload: validPayload() }))
+
+    expect(result.savedQuestions?.[0].question_max_total).toBe(5)
+    expect(mocks.updateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionsJson: expect.objectContaining({
+          questions: [expect.objectContaining({ question_id: "Q1", question_max_total: 5 })],
+        }),
+      }),
+    )
+  })
 })

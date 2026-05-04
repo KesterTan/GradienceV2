@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/db/orm"
+import { syncQuestionMaxPointsWithRubric } from "@/lib/assessment-points"
 import { assignmentRubricItems, assignments, courseMemberships } from "@/db/schema"
 import { requireAppUser } from "@/lib/current-user"
+import { parseQuestionsJson } from "@/lib/questions"
 import {
   buildRubricFieldErrors,
   flattenRubricItems,
@@ -263,7 +265,7 @@ export async function updateRubricAction(
   }
 
   const existing = await db
-    .select({ id: assignments.id, totalPoints: assignments.totalPoints })
+    .select({ id: assignments.id, totalPoints: assignments.totalPoints, questionsJson: assignments.questionsJson })
     .from(assignments)
     .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
     .limit(1)
@@ -274,6 +276,13 @@ export async function updateRubricAction(
   }
 
   const totalMaxScore = getRubricTotalMaxScore(rubricJson)
+  const existingQuestionsPayload = parseQuestionsJson(assignment.questionsJson)
+  const syncedQuestionsJson = existingQuestionsPayload
+    ? {
+        ...existingQuestionsPayload,
+        questions: syncQuestionMaxPointsWithRubric(existingQuestionsPayload.questions, rubricJson),
+      }
+    : null
 
   const flattenedItems = flattenRubricItems(rubricJson)
 
@@ -289,7 +298,12 @@ export async function updateRubricAction(
   await db.transaction(async (tx) => {
     await tx
       .update(assignments)
-      .set({ rubricJson, totalPoints: totalMaxScore, updatedAt: new Date().toISOString() })
+      .set({
+        rubricJson,
+        questionsJson: syncedQuestionsJson ?? assignment.questionsJson,
+        totalPoints: totalMaxScore,
+        updatedAt: new Date().toISOString(),
+      })
       .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
 
     await tx.delete(assignmentRubricItems).where(eq(assignmentRubricItems.assignmentId, assignmentId))

@@ -34,6 +34,7 @@ function makeAssessmentRow(overrides?: Record<string, unknown>) {
     courseId: 5,
     courseTitle: "CS101",
     questionsJson: null,
+    rubricJson: null,
     allowResubmissions: false,
     maxAttemptResubmission: null,
     viewerRole: "Student",
@@ -93,6 +94,15 @@ describe("getAssessmentQuestionsForMember", () => {
     mocks.selectQueue.push([makeAssessmentRow({ questionsJson, viewerRole: "Student" })])
     const result = await getAssessmentQuestionsForMember(42, 5, 12)
     expect(result?.questionsJson).toEqual(questionsJson)
+  })
+
+  it("returns rubricJson when the assignment has a saved rubric", async () => {
+    const rubricJson = {
+      questions: [{ question_id: "Q1", rubric_items: [{ criterion: "Correctness", max_score: 5 }] }],
+    }
+    mocks.selectQueue.push([makeAssessmentRow({ rubricJson, viewerRole: "Student" })])
+    const result = await getAssessmentQuestionsForMember(42, 5, 12)
+    expect(result?.rubricJson).toEqual(rubricJson)
   })
 
   it("maps all scalar fields correctly from the DB row", async () => {

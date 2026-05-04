@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   requireAppUser: vi.fn(),
   getAssessmentQuestionsForMember: vi.fn(),
   parseQuestionsJson: vi.fn(),
+  parseRubricJson: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error("NOT_FOUND")
   }),
@@ -18,6 +19,7 @@ vi.mock("@/lib/course-management", () => ({
   getAssessmentQuestionsForMember: mocks.getAssessmentQuestionsForMember,
 }))
 vi.mock("@/lib/questions", () => ({ parseQuestionsJson: mocks.parseQuestionsJson }))
+vi.mock("@/lib/rubrics", () => ({ parseRubricJson: mocks.parseRubricJson }))
 vi.mock(
   "@/app/courses/[courseId]/assessments/[assignmentId]/questions/_components/question-editor",
   () => ({ QuestionEditor: mocks.QuestionEditor }),
@@ -37,6 +39,7 @@ function makeAssessment(overrides?: Record<string, unknown>) {
     courseId: 5,
     courseTitle: "CS101",
     questionsJson: null,
+    rubricJson: null,
     allowResubmissions: false,
     maxAttemptResubmission: 0,
     viewerRole: "Student" as "Student" | "Instructor",
@@ -66,6 +69,7 @@ describe("AssessmentQuestionsPage", () => {
     })
     mocks.QuestionEditor.mockReturnValue(null)
     mocks.parseQuestionsJson.mockReturnValue(null)
+    mocks.parseRubricJson.mockReturnValue(null)
   })
 
   // ── auth / ID validation ──────────────────────────────────────────────────
@@ -107,6 +111,13 @@ describe("AssessmentQuestionsPage", () => {
     expect(mocks.parseQuestionsJson).toHaveBeenCalledWith(questionsJson)
   })
 
+  it("passes rubricJson from the assessment to parseRubricJson", async () => {
+    const rubricJson = { questions: [{ question_id: "Q1", rubric_items: [{ criterion: "Correctness", max_score: 5 }] }] }
+    mocks.getAssessmentQuestionsForMember.mockResolvedValue(makeAssessment({ rubricJson }))
+    await AssessmentQuestionsPage({ params: Promise.resolve({ courseId: "5", assignmentId: "12" }) })
+    expect(mocks.parseRubricJson).toHaveBeenCalledWith(rubricJson)
+  })
+
   // ── student view — null questions ─────────────────────────────────────────
 
   it("renders 'No questions yet' and omits QuestionEditor when student has no saved questions", async () => {
@@ -138,15 +149,17 @@ describe("AssessmentQuestionsPage", () => {
 
   it("passes initialPayload from parseQuestionsJson to QuestionEditor", async () => {
     const payload = makeQuestionsPayload()
+    const rubric = { questions: [{ question_id: "Q1", rubric_items: [{ criterion: "Correctness", max_score: 5 }] }] }
     mocks.getAssessmentQuestionsForMember.mockResolvedValue(makeAssessment({ viewerRole: "Student" }))
     mocks.parseQuestionsJson.mockReturnValue(payload)
+    mocks.parseRubricJson.mockReturnValue(rubric as never)
 
     const element = await AssessmentQuestionsPage({
       params: Promise.resolve({ courseId: "5", assignmentId: "12" }),
     })
     renderToStaticMarkup(element as unknown as React.ReactElement)
 
-    expect(mocks.QuestionEditor.mock.calls[0][0]).toMatchObject({ initialPayload: payload })
+    expect(mocks.QuestionEditor.mock.calls[0][0]).toMatchObject({ initialPayload: payload, rubric })
   })
 
   // ── instructor view ───────────────────────────────────────────────────────

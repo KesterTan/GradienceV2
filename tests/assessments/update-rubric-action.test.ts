@@ -71,7 +71,7 @@ describe("updateRubricAction", () => {
   it("derives and saves assignment total points from the rubric sum", async () => {
     mocks.selectQueue.push(
       [{ id: 91 }],
-      [{ id: 12, totalPoints: 10 }],
+      [{ id: 12, totalPoints: 10, questionsJson: null }],
     )
 
     const formData = new FormData()
@@ -105,6 +105,50 @@ describe("updateRubricAction", () => {
     expect(mocks.txUpdateSet).toHaveBeenCalledWith(
       expect.objectContaining({
         totalPoints: 8,
+      }),
+    )
+  })
+
+  it("syncs saved question max totals from the rubric when questions already exist", async () => {
+    mocks.selectQueue.push(
+      [{ id: 91 }],
+      [
+        {
+          id: 12,
+          totalPoints: 10,
+          questionsJson: {
+            assignment_title: "Midterm",
+            course: "CS101",
+            instructions_summary: "",
+            questions: [{ question_id: "Q1", question_text: "Explain X", question_max_total: 10 }],
+          },
+        },
+      ],
+    )
+
+    const formData = new FormData()
+    formData.set("courseId", "5")
+    formData.set("assignmentId", "12")
+    formData.set(
+      "rubricPayload",
+      JSON.stringify({
+        questions: [
+          {
+            question_id: "Q1",
+            rubric_items: [{ criterion: "Correctness", rubric_name: "Correctness", max_score: 5 }],
+          },
+        ],
+      }),
+    )
+
+    await updateRubricAction({}, formData)
+
+    expect(mocks.txUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionsJson: expect.objectContaining({
+          questions: [expect.objectContaining({ question_id: "Q1", question_max_total: 5 })],
+        }),
+        totalPoints: 5,
       }),
     )
   })

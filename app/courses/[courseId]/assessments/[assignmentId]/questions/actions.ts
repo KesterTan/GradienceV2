@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/db/orm"
 import { assignments, courses, courseMemberships } from "@/db/schema"
+import { syncQuestionMaxPointsWithRubric } from "@/lib/assessment-points"
 import { requireAppUser } from "@/lib/current-user"
 import { questionsPayloadSchema, type QuestionsPayload } from "@/lib/questions"
+import { parseRubricJson } from "@/lib/rubrics"
 import { buildQuestionsS3ObjectKey, uploadQuestionsJsonToS3 } from "@/lib/s3-submissions"
 
 export type QuestionsFormState = {
@@ -88,12 +90,13 @@ export async function saveQuestionsAction(
   }
 
   const existing = await db
-    .select({ id: assignments.id })
+    .select({ id: assignments.id, rubricJson: assignments.rubricJson })
     .from(assignments)
     .where(and(eq(assignments.id, assignmentId), eq(assignments.courseId, courseId)))
     .limit(1)
 
-  if (!existing[0]) {
+  const assignment = existing[0]
+  if (!assignment) {
     return { errors: { _form: ["Assessment not found."] } }
   }
 
@@ -117,13 +120,15 @@ export async function saveQuestionsAction(
   const assignmentTitle = parsed.data.assignment_title.trim()
   const course = parsed.data.course.trim()
   const instructionsSummary = parsed.data.instructions_summary.trim()
+  const rubric = parseRubricJson(assignment.rubricJson)
+  const syncedQuestions = syncQuestionMaxPointsWithRubric(parsed.data.questions, rubric)
 
   const questionsJson: QuestionsPayload = {
     assignment_title: assignmentTitle.length > 0 ? assignmentTitle : meta.title,
     course: course.length > 0 ? course : meta.courseTitle,
     instructions_summary:
       instructionsSummary.length > 0 ? instructionsSummary : meta.description ?? "",
-    questions: parsed.data.questions,
+    questions: syncedQuestions,
   }
 
   try {
