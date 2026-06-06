@@ -54,7 +54,7 @@ export default async function StudentSubmissionGradePage({
         title="My grade"
         subtitle={`${submission.assignmentTitle} · Attempt ${submission.attemptNumber}`}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: submission.courseTitle, href: `/courses/${submission.courseId}` },
           {
             label: submission.assignmentTitle,

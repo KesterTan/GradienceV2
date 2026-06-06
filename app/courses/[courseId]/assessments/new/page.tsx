@@ -22,7 +22,7 @@ export default async function CreateAssessmentPage({
           title="Create assignment"
           subtitle="Invalid course"
           breadcrumbs={[
-            { label: "Home", href: "/" },
+            { label: "Home", href: "/courses" },
             { label: "Courses", href: "/courses" },
             { label: "Create assignment", current: true },
           ]}
@@ -53,7 +53,7 @@ export default async function CreateAssessmentPage({
           title="Create assignment"
           subtitle="Course not found"
           breadcrumbs={[
-            { label: "Home", href: "/" },
+            { label: "Home", href: "/courses" },
             { label: "Courses", href: "/courses" },
             { label: "Create assignment", current: true },
           ]}
@@ -87,7 +87,7 @@ export default async function CreateAssessmentPage({
         title="Create assignment"
         subtitle={course.title}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: course.title, href: `/courses/${course.id}` },
           { label: "Create assignment", current: true },
         ]}

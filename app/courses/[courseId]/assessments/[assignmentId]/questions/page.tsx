@@ -37,7 +37,7 @@ export default async function AssessmentQuestionsPage({
         title="Questions"
         subtitle={assessment.title}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: assessment.courseTitle, href: `/courses/${assessment.courseId}` },
           { label: assessment.title, href: `/courses/${assessment.courseId}/assessments/${assessment.id}` },
           { label: "Questions", current: true },

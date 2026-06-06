@@ -23,7 +23,7 @@ export default async function ManageCoursePage({
           title="Manage course"
           subtitle="Invalid course"
           breadcrumbs={[
-            { label: "Home", href: "/" },
+            { label: "Home", href: "/courses" },
             { label: "Courses", href: "/courses" },
             { label: "Manage course", current: true },
           ]}
@@ -54,7 +54,7 @@ export default async function ManageCoursePage({
           title="Manage course"
           subtitle="Course not found"
           breadcrumbs={[
-            { label: "Home", href: "/" },
+            { label: "Home", href: "/courses" },
             { label: "Courses", href: "/courses" },
             { label: "Manage course", current: true },
           ]}
@@ -89,7 +89,7 @@ export default async function ManageCoursePage({
           title="Manage course"
           subtitle={course.title}
           breadcrumbs={[
-            { label: "Home", href: "/" },
+            { label: "Home", href: "/courses" },
             { label: course.title, href: `/courses/${course.id}` },
             { label: "Manage course", current: true },
           ]}
@@ -118,7 +118,7 @@ export default async function ManageCoursePage({
         title="Manage course"
         subtitle={course.title}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: course.title, href: `/courses/${course.id}` },
           { label: "Manage course", current: true },
         ]}

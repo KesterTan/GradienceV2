@@ -43,7 +43,7 @@ export default async function CourseDashboardPage({
         title="Course dashboard"
         subtitle={course.title}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: course.title, current: true },
         ]}
         user={{ name: `${user.firstName} ${user.lastName}`, email: user.email }}

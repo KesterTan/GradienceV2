@@ -52,7 +52,7 @@ export default async function AssessmentPage({
         title="Assessment page"
         subtitle={assessment.title}
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: "Home", href: "/courses" },
           { label: assessment.courseTitle, href: `/courses/${assessment.courseId}` },
           { label: assessment.title, current: true },
         ]}
